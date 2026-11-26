@@ -31,7 +31,7 @@ npm test         # verifica geometría y cubicación de ~570 configuraciones
 Unidades: parámetros en **cm**, despiece en **mm**. Sistema de coordenadas: x = ancho, y = alto, z = fondo.
 
 ## Versión publicada
-https://malvarez2890-lang.github.io/ElBunkerLAb/ (se despliega sola con GitHub Actions al subir cambios a `main`).
+https://mobilabs.elbunkerservers.com/ (Cloudflare). También se despliega en GitHub Pages con GitHub Actions al subir cambios a `main`.
 
 ## Controles del visor 3D
 | Acción | Mouse | Celular |

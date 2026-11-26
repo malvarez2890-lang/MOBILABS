@@ -3,6 +3,7 @@ import { cm } from '../lib/util.js';
 
 /* ------------------------------------------------------------------ PLANIMETRÍA */
 const INK = '#1b1f24';
+export const SITE_URL = 'https://mobilabs.elbunkerservers.com/';
 
 function HDim({ x1, x2, y, label, off = 0 }) {
   const yy = y + off;
@@ -62,7 +63,7 @@ export function printHtml(title, html, landscape = false) {
     table.spec td { padding: 4px 0; border-bottom: 1px solid #ccc; }
     tr, li { break-inside: avoid; } ol { padding-left: 22px; margin: 0 0 6px; } li { margin: 0 0 6px; }
     .page-break { break-before: page; }
-  </style></head><body><h1>${title}</h1>${html}</body></html>`);
+  </style></head><body><h1>${title}</h1>${html}<p class="muted" style="margin-top:14px">Hecho con MOBILABs · ${SITE_URL}</p></body></html>`);
   d.close();
   const go = () => { try { f.contentWindow.focus(); f.contentWindow.print(); } finally { setTimeout(() => f.remove(), 2000); } };
   setTimeout(go, 250);
@@ -129,7 +130,7 @@ export function Planos({ drawing, spec, title, subtitle }) {
               <text x="14" y="36" className="vt" style={{ fontSize: 30 }}>{title}</text>
               <text x="14" y="86" style={{ font: '22px system-ui,sans-serif', fill: INK }}>{subtitle}</text>
               <text x="14" y="116" style={{ font: '22px system-ui,sans-serif', fill: INK }}>Planimetría base · cotas en cm · sin escala fija</text>
-              <text x="14" y="140" style={{ font: '20px system-ui,sans-serif', fill: '#555' }}>MOBILABs · referencia de diseño, verifica en obra</text>
+              <text x="14" y="140" style={{ font: '20px system-ui,sans-serif', fill: '#555' }}>MOBILABs · mobilabs.elbunkerservers.com · verifica en obra</text>
             </g>
           </svg>
         </div>
