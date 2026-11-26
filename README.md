@@ -37,7 +37,8 @@ https://malvarez2890-lang.github.io/ElBunkerLAb/ (se despliega sola con GitHub A
 | Seleccionar | Clic izquierdo (Ctrl o Mayús + clic suma o quita) | Toque (botón "Multi" para sumar) |
 | Selección por rectángulo | Arrastrar con el izquierdo: → piezas completas, ← las que toque | — |
 | Desplazar | Rueda (clic del medio) + arrastrar | Dos dedos |
-| Girar | Mayús + rueda + arrastrar | Un dedo |
+| Girar | Mayús + rueda + arrastrar (Mayús antes o después, incluso a mitad del arrastre) | Un dedo |
 | Acercar / alejar | Girar la rueda | Pellizcar |
 | Menú (propiedades, color, textura, ocultar…) | Clic derecho | Mantener presionado |
 | Quitar la selección | Esc | ✕ en la tarjeta |
+| Deshacer / rehacer | Ctrl+Z / Ctrl+Y (o Ctrl+Mayús+Z) | Botones ↶ ↷ del visor |

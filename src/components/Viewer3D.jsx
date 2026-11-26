@@ -5,7 +5,22 @@ import { materialOf } from '../lib/materials.js';
 import { partGeometry, fixtureGeometry, applyWorldUV } from './geometry.js';
 import { getTexture } from './textures.js';
 import CURSOR_MOVE from '../assets/cursor-move.png';
+import CURSOR_MOVE_2X from '../assets/cursor-move@2x.png';
 import CURSOR_ROTATE from '../assets/cursor-rotate.png';
+import CURSOR_ROTATE_2X from '../assets/cursor-rotate@2x.png';
+
+// Cursor con imagen de 1x y 2x (nítido en pantallas de alta densidad); si el navegador no admite image-set, usa la de 1x.
+const imageCursor = (x1, x2, fallback) => {
+  const set = `image-set(url("${x1}") 1x, url("${x2}") 2x) 16 16, ${fallback}`;
+  if (typeof CSS !== 'undefined' && CSS.supports) {
+    if (CSS.supports('cursor', set)) return set;
+    if (CSS.supports('cursor', `-webkit-${set}`)) return `-webkit-${set}`;
+  }
+  return `url("${x1}") 16 16, ${fallback}`;
+};
+// Estados internos de OrbitControls
+const ORBIT_ROTATE = 0;
+const ORBIT_PAN = 2;
 
 const VIEWS = {
   iso: [0.62, 0.42, 0.85],
@@ -120,8 +135,8 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
 
     // Cursor: siempre la flecha normal. Solo mientras se arrastra con la rueda aparece el ícono de desplazar o de girar.
     const setCursor = (mode) => {
-      canvas.style.cursor = mode === 'rotate' ? `url("${CURSOR_ROTATE}") 16 16, grabbing`
-        : mode === 'pan' ? `url("${CURSOR_MOVE}") 16 16, move` : 'default';
+      canvas.style.cursor = mode === 'rotate' ? imageCursor(CURSOR_ROTATE, CURSOR_ROTATE_2X, 'grabbing')
+        : mode === 'pan' ? imageCursor(CURSOR_MOVE, CURSOR_MOVE_2X, 'move') : 'default';
     };
     setCursor(null);
 
@@ -137,7 +152,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
         return;
       }
       const touch = e.pointerType === 'touch';
-      st = { x: e.clientX, y: e.clientY, button: e.button, mod: e.shiftKey || e.ctrlKey || e.metaKey, touch, moved: false, marquee: false, long: false, cursorSet: false, timer: 0 };
+      st = { x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, button: e.button, mod: e.shiftKey || e.ctrlKey || e.metaKey, touch, moved: false, marquee: false, long: false, cursorSet: false, timer: 0 };
       if (touch) { // mantener el dedo quieto abre el menú (equivale al clic derecho)
         st.timer = setTimeout(() => {
           if (st && !st.moved) {
@@ -152,6 +167,8 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
       const dx = e.clientX - st.x;
       const dy = e.clientY - st.y;
       const d = Math.hypot(dx, dy);
+      st.lastX = e.clientX; // para poder cambiar de modo a mitad del arrastre
+      st.lastY = e.clientY;
       if (d > (st.touch ? 8 : 4)) { st.moved = true; clearTimeout(st.timer); }
       if (st.touch) return;
       if (st.button === 1 && st.moved && !st.cursorSet) { // rueda: desplaza; con Mayús/Ctrl gira
@@ -188,6 +205,22 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
         L.onContext?.({ x: e.clientX, y: e.clientY, id: pick(e) });
       }
     };
+    // Con la rueda apretada, Mayús/Ctrl puede pulsarse antes o después: desplaza sin tecla y gira con tecla,
+    // y se puede cambiar a mitad del arrastre (soltar o pulsar la tecla cambia de modo sin perder el hilo).
+    const syncMiddleMode = (e) => {
+      if (!st || st.touch || st.button !== 1) return;
+      const rotate = e.shiftKey || e.ctrlKey || e.metaKey;
+      const want = rotate ? ORBIT_ROTATE : ORBIT_PAN;
+      if (controls.state !== ORBIT_ROTATE && controls.state !== ORBIT_PAN) return; // la cámara no está en un arrastre
+      if (controls.state === want) return;
+      const at = { clientX: st.lastX, clientY: st.lastY };
+      if (rotate) controls._handleMouseDownRotate(at); else controls._handleMouseDownPan(at);
+      controls.state = want;
+      st.mod = rotate;
+      if (st.cursorSet) setCursor(rotate ? 'rotate' : 'pan');
+    };
+    window.addEventListener('keydown', syncMiddleMode);
+    window.addEventListener('keyup', syncMiddleMode);
     const onCancel = () => { if (st) clearTimeout(st.timer); st = null; setCursor(null); marquee.hidden = true; };
     const noMiddleScroll = (e) => { if (e.button === 1) e.preventDefault(); }; // evita el "autoscroll" de la rueda
     const noMenu = (e) => e.preventDefault();
@@ -248,6 +281,8 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
       canvas.removeEventListener('mousedown', noMiddleScroll);
       canvas.removeEventListener('auxclick', noMiddleScroll);
       canvas.removeEventListener('contextmenu', noMenu);
+      window.removeEventListener('keydown', syncMiddleMode);
+      window.removeEventListener('keyup', syncMiddleMode);
       clearTimeout(st?.timer);
       marquee.remove();
       ro.disconnect();

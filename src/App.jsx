@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { FURNITURE, getType, defaultsFor, buildFurniture } from './lib/types.js';
 import { packAll } from './lib/packing.js';
 import { buildShopping, shoppingText } from './lib/shopping.js';
@@ -206,6 +206,72 @@ export default function App() {
   const propsParts = useMemo(() => (selIds.size ? model.parts.filter((p) => selIds.has(p.id)) : model.parts), [model, selIds]);
   const propsGroups = useMemo(() => (selIds.size ? selGroups : plans.groups), [selIds, selGroups, plans]);
 
+  // ---- historial (Ctrl+Z / Ctrl+Y): medidas, aspecto, piezas ocultas y cambio de mueble ----
+  const snapNow = () => ({ typeId, store, looks: looksStore, hidden: hiddenKeys });
+  const hist = useRef(null);
+  if (!hist.current) hist.current = { past: [], future: [], base: snapNow(), at: 0, restoring: false };
+  const [hv, setHv] = useState({ u: 0, r: 0 });
+  useEffect(() => {
+    const h = hist.current;
+    const now = snapNow();
+    if (h.restoring) { h.restoring = false; h.base = now; return; } // el cambio vino de deshacer/rehacer
+    const b = h.base;
+    if (b.typeId === now.typeId && b.store === now.store && b.looks === now.looks && b.hidden === now.hidden) return;
+    const t = Date.now();
+    if (t - h.at > 600) { // cambio nuevo; los ajustes seguidos (arrastrar un deslizador) cuentan como uno solo
+      h.past.push(b);
+      if (h.past.length > 100) h.past.shift();
+      h.future = [];
+    }
+    h.base = now;
+    h.at = t;
+    setHv({ u: h.past.length, r: h.future.length });
+  }, [typeId, store, looksStore, hiddenKeys]);
+
+  const restoreSnap = (S) => {
+    const h = hist.current;
+    if (S.typeId !== typeId || S.store !== store || S.looks !== looksStore || S.hidden !== hiddenKeys) h.restoring = true;
+    h.base = S;
+    h.at = 0; // lo siguiente que se haga empieza un paso nuevo
+    setTypeId(S.typeId);
+    setStore(S.store);
+    setLooksStore(S.looks);
+    setHiddenKeys(S.hidden);
+    setHv({ u: h.past.length, r: h.future.length });
+  };
+  const undo = () => {
+    const h = hist.current;
+    if (!h.past.length) return;
+    const S = h.past.pop();
+    h.future.push(h.base);
+    restoreSnap(S);
+  };
+  const redo = () => {
+    const h = hist.current;
+    if (!h.future.length) return;
+    const S = h.future.pop();
+    h.past.push(h.base);
+    restoreSnap(S);
+  };
+  const undoRef = useRef(undo);
+  const redoRef = useRef(redo);
+  undoRef.current = undo;
+  redoRef.current = redo;
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = e.key.toLowerCase();
+      const t = e.target;
+      const typing = t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT'
+        || (t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button'].includes(t.type))); // ahí vale el deshacer del propio campo
+      if (typing) return;
+      if (k === 'z' && !e.shiftKey) { e.preventDefault(); undoRef.current(); }
+      else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redoRef.current(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const copy = useCallback(async () => {
     const text = shoppingText(type.name, model.bbox.dims, shop);
     try { await navigator.clipboard.writeText(text); } catch {
@@ -347,6 +413,12 @@ export default function App() {
             )}
           </div>
           <div className="vtools">
+            <button className="vbtn" disabled={!hv.u} onClick={undo} aria-label="Deshacer" title="Deshacer (Ctrl+Z)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="square" aria-hidden="true"><path d="M8 5 3 10l5 5" /><path d="M3 10h11a6 6 0 0 1 0 12h-3" /></svg>
+            </button>
+            <button className="vbtn" disabled={!hv.r} onClick={redo} aria-label="Rehacer" title="Rehacer (Ctrl+Y)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="square" aria-hidden="true" style={{ transform: 'scaleX(-1)' }}><path d="M8 5 3 10l5 5" /><path d="M3 10h11a6 6 0 0 1 0 12h-3" /></svg>
+            </button>
             <button className={`vbtn multi-btn ${multi ? 'on' : ''}`} aria-pressed={multi} onClick={() => setMulti((m) => !m)} title="Selección múltiple: cada toque suma o quita piezas">Multi</button>
             <button className={`vbtn ${helpOpen ? 'on' : ''}`} aria-expanded={helpOpen} aria-label="Controles del visor" onClick={() => setHelpOpen((h) => !h)} title="Controles del visor">?</button>
             {helpOpen && (
@@ -356,10 +428,11 @@ export default function App() {
                   <dt>Clic izquierdo</dt><dd>Seleccionar. Ctrl o Mayús + clic: sumar o quitar</dd>
                   <dt>Arrastrar (izq.)</dt><dd>Rectángulo de selección: → piezas completas · ← las que toque</dd>
                   <dt>Rueda + arrastrar</dt><dd>Desplazar</dd>
-                  <dt>Mayús + rueda + arrastrar</dt><dd>Girar el 3D</dd>
+                  <dt>Mayús + rueda + arrastrar</dt><dd>Girar el 3D (Mayús puede ir antes o después de la rueda, incluso a mitad del arrastre)</dd>
                   <dt>Girar la rueda</dt><dd>Acercar / alejar</dd>
                   <dt>Clic derecho</dt><dd>Menú: propiedades, color, textura, ocultar…</dd>
                   <dt>Esc</dt><dd>Quitar la selección</dd>
+                  <dt>Ctrl + Z / Ctrl + Y</dt><dd>Deshacer / rehacer (medidas, color, textura, piezas ocultas)</dd>
                   <dt>Celular</dt><dd>1 dedo gira · 2 dedos desplazan y acercan · mantener presionado abre el menú · “Multi” suma piezas</dd>
                 </dl>
               </div>

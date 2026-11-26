@@ -45,9 +45,6 @@ export default function ContextMenu({ x, y, count, current, hiddenCount, onClose
     <div className="ctx" role="menu" ref={ref} style={{ left: x, top: y }} onContextMenu={(e) => e.preventDefault()}>
       <div className="ctx-head"><b>{target}</b><small>{count ? 'Los cambios de aspecto aplican a la selección' : 'Sin selección: los cambios aplican a todo'}</small></div>
 
-      <button role="menuitem" onClick={run(actions.properties)}>Propiedades…</button>
-      <hr />
-
       <button role="menuitem" aria-expanded={open === 'color'} onClick={toggle('color')}>
         <span className="ctx-lab">Color <i className="ctx-dot" style={{ background: current.color || 'transparent' }} /></span><span className="ctx-arrow">{open === 'color' ? '▾' : '▸'}</span>
       </button>
@@ -109,6 +106,8 @@ export default function ContextMenu({ x, y, count, current, hiddenCount, onClose
         </div>
       )}
       <button role="menuitem" onClick={run(actions.copyDims)}>Copiar medidas</button>
+      <hr />
+      <button role="menuitem" onClick={run(actions.properties)}>Propiedades…</button>
     </div>
   );
 }
