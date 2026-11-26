@@ -273,35 +273,13 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     // Imagen tipo "render" de la vista isométrica (con las mismas texturas y sombras que el visor), para los planos
     const snapshot = (w, h, opts = {}) => {
       const bb = latest.current.bbox;
-      const [bw, bh, bd] = bb.dims.map((n) => n / 10);
       const fov = 22;
       const cam = new THREE.PerspectiveCamera(fov, w / h, 1, 6000);
-      const target = new THREE.Vector3(0, bh / 2, 0);
-      const R = 0.5 * Math.sqrt(bw * bw + bh * bh + bd * bd);
-      const vf = THREE.MathUtils.degToRad(fov);
-      const hf = 2 * Math.atan(Math.tan(vf / 2) * cam.aspect);
-      const dist = Math.max(R / Math.sin(vf / 2), R / Math.sin(hf / 2)) * 1.04;
-      const dirV = new THREE.Vector3(...VIEWS.iso).normalize();
-      cam.position.copy(target).addScaledVector(dirV, dist);
-      cam.lookAt(target);
-      // acerca la cámara hasta que el mueble ocupe ~94 % de la imagen
-      cam.updateMatrixWorld();
-      let m = 0;
-      const pv = new THREE.Vector3();
-      for (const x of [-bw / 2, bw / 2]) for (const y of [0, bh]) for (const z of [-bd / 2, bd / 2]) {
-        pv.set(x, y, z).project(cam);
-        m = Math.max(m, Math.abs(pv.x), Math.abs(pv.y));
-      }
-      if (m > 0) { cam.position.copy(target).addScaledVector(dirV, dist * (m / 0.94)); cam.lookAt(target); }
       const size = renderer.getSize(new THREE.Vector2());
       const pr = renderer.getPixelRatio();
       const prevColor = renderer.getClearColor(new THREE.Color());
       const prevAlpha = renderer.getClearAlpha();
       const gridWas = grid.visible;
-      grid.visible = false;
-      renderer.setPixelRatio(1);
-      renderer.setSize(w, h, false);
-      renderer.setClearColor(0xffffff, 1);
       // etapa de armado: solo se ven las piezas indicadas (y los elementos comprados según `fx`); las nuevas se resaltan
       const saved = [];
       if (opts.show) {
@@ -316,37 +294,113 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
           m.material.emissiveIntensity = lit ? 0.6 : 0;
           m.position.copy(u.base); // sin vista explosionada
         });
+        if (opts.explode) { // vista explosionada: cada pieza se aleja del centro del conjunto mostrado
+          const c = new THREE.Vector3();
+          let n = 0;
+          root.children.forEach((m) => { if (m.visible) { c.add(m.userData.base); n++; } });
+          if (n) {
+            c.multiplyScalar(1 / n);
+            root.children.forEach((m) => { if (m.visible) m.position.copy(c).add(m.userData.base.clone().sub(c).multiplyScalar(opts.explode)); });
+          }
+        }
       }
-      // letras del despiece sobre las piezas nuevas de la etapa
-      const sprites = [];
-      if (opts.labels && opts.labels.length) {
-        const byId = new Map(root.children.map((m) => [m.userData.id, m]));
-        opts.labels.forEach(([id, letter]) => {
-          const m = byId.get(id);
-          if (!m) return;
-          const c = document.createElement('canvas');
-          c.width = c.height = 96;
-          const g = c.getContext('2d');
-          g.fillStyle = '#ffffff'; g.strokeStyle = '#1b1f24'; g.lineWidth = 6;
-          g.beginPath(); g.arc(48, 48, 40, 0, Math.PI * 2); g.fill(); g.stroke();
-          g.fillStyle = '#1b1f24'; g.font = 'bold 54px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-          g.fillText(letter, 48, 52);
-          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
-          sp.position.copy(m.position);
-          sp.scale.setScalar(cam.position.distanceTo(target) * 0.07);
-          sp.renderOrder = 10;
-          scene.add(sp);
-          sprites.push(sp);
-        });
+      // encuadre: todo el mueble (fijo entre pasos) o solo lo visible (detalles ampliados)
+      const box = new THREE.Box3();
+      if (opts.frame === 'subset' || opts.explode) root.children.forEach((m) => { if (m.visible) box.expandByObject(m); });
+      else box.set(new THREE.Vector3(-bb.dims[0] / 20, 0, -bb.dims[2] / 20), new THREE.Vector3(bb.dims[0] / 20, bb.dims[1] / 10, bb.dims[2] / 20));
+      const target = box.getCenter(new THREE.Vector3());
+      const bsz = box.getSize(new THREE.Vector3());
+      const R = 0.5 * bsz.length();
+      const vf = THREE.MathUtils.degToRad(fov);
+      const hf = 2 * Math.atan(Math.tan(vf / 2) * cam.aspect);
+      const dist = Math.max(R / Math.sin(vf / 2), R / Math.sin(hf / 2)) * 1.04;
+      const dirV = new THREE.Vector3(...VIEWS.iso).normalize();
+      cam.position.copy(target).addScaledVector(dirV, dist);
+      cam.lookAt(target);
+      cam.updateMatrixWorld();
+      let m = 0; // acerca la cámara hasta que el conjunto ocupe ~92 % de la imagen
+      const pv = new THREE.Vector3();
+      for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+        pv.set(x, y, z).project(cam);
+        m = Math.max(m, Math.abs(pv.x), Math.abs(pv.y));
       }
+      if (m > 0) { cam.position.copy(target).addScaledVector(dirV, dist * (m / 0.92)); cam.lookAt(target); cam.updateMatrixWorld(); }
+      grid.visible = false;
+      renderer.setPixelRatio(1);
+      renderer.setSize(w, h, false);
+      renderer.setClearColor(0xffffff, 1);
       renderer.render(scene, cam);
-      sprites.forEach((sp) => { scene.remove(sp); sp.material.map.dispose(); sp.material.dispose(); });
-      const url = renderer.domElement.toDataURL('image/jpeg', 0.9);
-      saved.forEach(([m, vis, em, ei, pos]) => { m.visible = vis; m.material.emissive.setHex(em); m.material.emissiveIntensity = ei; m.position.copy(pos); });
+      let url;
+      const labels = opts.labels || [];
+      if (labels.length) {
+        // letras del despiece: una por letra (con ×n si hay varias), sin encimarse
+        const out = document.createElement('canvas');
+        out.width = w; out.height = h;
+        const g = out.getContext('2d');
+        g.drawImage(renderer.domElement, 0, 0, w, h);
+        const byId = new Map(root.children.map((mm) => [mm.userData.id, mm]));
+        const byLetter = new Map();
+        labels.forEach(([id, letter]) => {
+          const mm = byId.get(id);
+          if (!mm || !mm.visible) return;
+          pv.copy(mm.position).project(cam);
+          const e = byLetter.get(letter) || { letter, n: 0, best: null };
+          e.n++;
+          const d = cam.position.distanceTo(mm.position);
+          if (!e.best || d < e.best.d) e.best = { x: (pv.x * 0.5 + 0.5) * w, y: (-pv.y * 0.5 + 0.5) * h, d };
+          byLetter.set(letter, e);
+        });
+        const R = Math.max(15, w * 0.03);
+        const items = [...byLetter.values()].map((e) => ({ letter: e.letter, n: e.n, ax: e.best.x, ay: e.best.y, x: e.best.x, y: e.best.y }));
+        for (let it = 0; it < 200; it++) { // separa los círculos que se tocan
+          let moved = false;
+          for (let a = 0; a < items.length; a++) for (let b = a + 1; b < items.length; b++) {
+            let dx = items[b].x - items[a].x;
+            let dy = items[b].y - items[a].y;
+            let d = Math.hypot(dx, dy);
+            const min = 2 * R + 6;
+            if (d < min) {
+              if (d < 0.01) { dx = 1; dy = 0.3; d = 1.04; }
+              const push = (min - d) / 2;
+              items[a].x -= (dx / d) * push; items[a].y -= (dy / d) * push;
+              items[b].x += (dx / d) * push; items[b].y += (dy / d) * push;
+              moved = true;
+            }
+          }
+          items.forEach((q) => { q.x = Math.min(w - R - 2, Math.max(R + 2, q.x)); q.y = Math.min(h - R - 2, Math.max(R + 2, q.y)); });
+          if (!moved) break;
+        }
+        items.forEach((q) => {
+          if (Math.hypot(q.x - q.ax, q.y - q.ay) > R * 0.8) { // línea desde la pieza hasta su letra
+            g.strokeStyle = '#1b1f24'; g.lineWidth = 2;
+            g.beginPath(); g.moveTo(q.ax, q.ay); g.lineTo(q.x, q.y); g.stroke();
+            g.fillStyle = '#1b1f24'; g.beginPath(); g.arc(q.ax, q.ay, 3.5, 0, Math.PI * 2); g.fill();
+          }
+        });
+        items.forEach((q) => {
+          g.fillStyle = '#ffffff'; g.strokeStyle = '#1b1f24'; g.lineWidth = 2.5;
+          g.beginPath(); g.arc(q.x, q.y, R, 0, Math.PI * 2); g.fill(); g.stroke();
+          g.fillStyle = '#1b1f24'; g.font = `bold ${Math.round(R * 1.15)}px Arial, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillText(q.letter, q.x, q.y + R * 0.06);
+          if (q.n > 1) {
+            const t = `×${q.n}`;
+            g.font = `bold ${Math.round(R * 0.8)}px Arial, sans-serif`;
+            const tw = g.measureText(t).width + 8;
+            g.fillStyle = '#1b1f24';
+            g.beginPath(); g.roundRect(q.x + R * 0.55, q.y + R * 0.35, tw, R * 0.95, 5); g.fill();
+            g.fillStyle = '#fff'; g.textAlign = 'left';
+            g.fillText(t, q.x + R * 0.55 + 4, q.y + R * 0.85);
+          }
+        });
+        url = out.toDataURL('image/jpeg', 0.9);
+      } else {
+        url = renderer.domElement.toDataURL('image/jpeg', 0.9);
+      }
       renderer.setClearColor(prevColor, prevAlpha);
       renderer.setPixelRatio(pr);
       renderer.setSize(size.x, size.y, false);
       grid.visible = gridWas;
+      saved.forEach(([mm, vis, em, ei, pos]) => { mm.visible = vis; mm.material.emissive.setHex(em); mm.material.emissiveIntensity = ei; mm.position.copy(pos); });
       needRender = true;
       return url;
     };

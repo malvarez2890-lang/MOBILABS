@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { materialOf, SHEETS, sectionLabel, sizeOptions } from '../lib/materials.js';
 import { fmt, cm } from '../lib/util.js';
+import { printHtml } from '../lib/print.js';
 import { fmtCLP, searchTerm, storeLinks, PRICE_NOTE } from '../lib/pricing.js';
 
 const hue = (label) => {
@@ -190,7 +191,25 @@ function PriceField({ row, onPrice }) {
   );
 }
 
-export function Shopping({ shop, priced, onCopy, copied, onPrice, onResetPrices, onExportPrices, onImportPrices }) {
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+/** Lista de compras limpia (sin cajas de precio ni botones) para guardar como PDF. */
+function printShopping(title, shop, priced) {
+  const rows = priced.groups.map((g) => `
+    <h4 class="doc-h">${esc(g.title)}</h4>
+    <table class="spec buy">
+      <thead><tr><th>Ítem</th><th class="r">Cant.</th><th class="r">Precio unit.</th><th class="r">Subtotal</th></tr></thead>
+      <tbody>${g.rows.map((r) => `<tr><td><b>${esc(r.label)}</b>${r.detail ? ` <span class="muted">· ${esc(r.detail)}</span>` : ''}${r.extra ? `<br><span class="muted">${esc(r.extra)}</span>` : ''}</td>
+        <td class="r">${esc(r.qty)} ${esc(r.unitLabel)}</td><td class="r">${r.unit == null ? '—' : esc(fmtCLP(r.unit))}${r.edited ? '' : ' *'}</td><td class="r">${r.unit == null ? '—' : esc(fmtCLP(r.subtotal))}</td></tr>`).join('')}
+      <tr class="sub"><td colspan="3">Subtotal ${esc(g.title.toLowerCase())}</td><td class="r"><b>${esc(fmtCLP(g.subtotal))}</b></td></tr></tbody>
+    </table>`).join('');
+  const html = `${shop.issues.length ? `<p><b>Revisa antes de comprar:</b> ${shop.issues.map(esc).join(' ')}</p>` : ''}
+    ${rows}
+    <p class="total">Costo aproximado: <b>${esc(fmtCLP(priced.total))}</b> <span class="muted">CLP</span></p>
+    <p class="muted">* Precio de ejemplo, no viene de ninguna tienda: reemplázalo con el de tu proveedor. ${esc(PRICE_NOTE)}</p>`;
+  printHtml(`${title}: lista de compras`, html);
+}
+
+export function Shopping({ shop, priced, onCopy, copied, onPrice, onResetPrices, onExportPrices, onImportPrices, title = 'Mueble' }) {
   return (
     <section>
       <div className="sec-head">
@@ -250,6 +269,7 @@ export function Shopping({ shop, priced, onCopy, copied, onPrice, onResetPrices,
         </React.Fragment>
       ))}
       <p className="hint">Las escuadrías y planchas son medidas comerciales típicas de Chile (referenciales): confirma en tu tienda. Las cantidades de herrajes son estimadas y los precios, de ejemplo hasta que los edites.</p>
+      <div className="doc-foot"><button className="btn" onClick={() => printShopping(title, shop, priced)}>Imprimir / PDF de la lista de compras</button></div>
     </section>
   );
 }

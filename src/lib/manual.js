@@ -104,6 +104,12 @@ export function buildManual(model, plans, shop) {
 
   // ---- 3. armado ----
   const asm = [];
+  if (model.parts.length >= 4) {
+    asm.push({
+      t: 'Antes de armar, ubica todas las piezas con la vista explosionada: cada letra es una pieza del despiece y “×n” indica cuántas hay iguales. Así sabes dónde va cada una.',
+      stage: { show: model.parts.map((q) => q.id), hl: [], fx: 'none', labels: model.parts.map((q) => [q.id, labelOfId.get(q.id)]).filter((x) => x[1]), explode: 1.5 },
+    });
+  }
   if (carcass) {
     const lat = ref('Lateral');
     asm.push(st(`Pon un ${lat.split(' (')[0].toLowerCase()} ${lat.slice(lat.indexOf('('))} acostado sobre el cartón, con la cara bonita hacia abajo.`, [['Lateral', 1]]));
@@ -162,8 +168,13 @@ export function buildManual(model, plans, shop) {
   // ---- 5. cajones ----
   if (drawers) {
     const nSl = hw(/^corredera/i)?.qty || 0;
+    // detalle ampliado de UN cajón, con sus piezas separadas y rotuladas
+    const f0 = model.parts.find((q) => q.name === 'Frente de cajón');
+    const unit = f0 ? model.parts.filter((q) => /de cajón$/.test(q.name) && q.center[1] >= f0.min[1] - 5 && q.center[1] <= f0.min[1] + f0.size[1] + 5 && Math.abs(q.center[0] - (f0.min[0] + f0.size[0] / 2)) <= f0.size[0] / 2 + 40).map((q) => q.id) : [];
+    const unitStage = unit.length ? { show: unit, hl: [], fx: 'none', labels: unit.map((id) => [id, labelOfId.get(id)]).filter((x) => x[1]), explode: 1.8, frame: 'subset' } : undefined;
     add('Cajones', [
-      st(`Arma cada cajón: une los costados de cajón ${refAll(/^Costado de cajón/)}, el trasero ${refAll(/^Trasero de cajón/)} y el frente ${refAll(/^Frente de cajón/)} con confirmat, y desliza el fondo ${refAll(/^Fondo de cajón/)} en la caja antes de cerrar (o fíjalo por debajo). Verifica la escuadra.`, [/^Costado de cajón/, /^Trasero de cajón/, /^Frente de cajón/, /^Fondo de cajón/], 'all'),
+      { t: `Arma cada cajón: une los costados de cajón ${refAll(/^Costado de cajón/)}, el trasero ${refAll(/^Trasero de cajón/)} y el frente ${refAll(/^Frente de cajón/)} con confirmat, y desliza el fondo ${refAll(/^Fondo de cajón/)} en la caja antes de cerrar (o fíjalo por debajo). Verifica la escuadra.`, stage: unitStage },
+      st(`Coloca los cajones armados en el mueble: cada letra con “×n” indica cuántos hay iguales. Más abajo se fijan las correderas.`, [/^Costado de cajón/, /^Trasero de cajón/, /^Frente de cajón/, /^Fondo de cajón/], 'all'),
       `Atornilla las correderas telescópicas (${nSl ? `${nSl} pares` : 'una por lado'}) al costado de cada cajón y al interior del mueble, a la misma altura en ambos lados, usando un tope o plantilla del mismo alto.`,
       `Instala el frente: apóyalo con cinta doble faz, comprueba holguras de 2–3 mm, y atornilla desde dentro con tornillos 4×30 mm.`,
     ]);
