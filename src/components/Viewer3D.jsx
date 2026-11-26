@@ -19,11 +19,11 @@ function tint(hex, seed) {
   return c;
 }
 
-export default function Viewer3D({ parts, bbox, explode, highlight, viewKey, viewCmd }) {
+export default function Viewer3D({ parts, bbox, explode, highlight, viewKey, viewCmd, onPick }) {
   const mount = useRef(null);
   const S = useRef({}); // objetos three.js
   const latest = useRef({});
-  latest.current = { parts, bbox, explode, highlight };
+  latest.current = { parts, bbox, explode, highlight, onPick };
 
   // ---- inicialización ----
   useEffect(() => {
@@ -69,6 +69,33 @@ export default function Viewer3D({ parts, bbox, explode, highlight, viewKey, vie
     const root = new THREE.Group();
     scene.add(root);
 
+    // --- selección de piezas: clic (sin arrastrar) sobre una pieza, o sobre el vacío para soltar ---
+    const ray = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    const pick = (e) => {
+      const r = renderer.domElement.getBoundingClientRect();
+      ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(ndc, camera);
+      const hit = ray.intersectObjects(root.children, false)[0];
+      return hit ? hit.object.userData.id : null;
+    };
+    let down = null;
+    const onDown = (e) => { down = { x: e.clientX, y: e.clientY }; };
+    const onUp = (e) => {
+      if (!down) return;
+      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+      down = null;
+      if (moved < 5) latest.current.onPick?.(pick(e));
+    };
+    const onMove = (e) => {
+      if (down || e.pointerType === 'touch') return;
+      renderer.domElement.style.cursor = pick(e) ? 'pointer' : 'grab';
+    };
+    renderer.domElement.style.cursor = 'grab';
+    renderer.domElement.addEventListener('pointerdown', onDown);
+    renderer.domElement.addEventListener('pointerup', onUp);
+    renderer.domElement.addEventListener('pointermove', onMove);
+
     const resize = () => {
       const w = el.clientWidth || 1;
       const h = el.clientHeight || 1;
@@ -91,6 +118,9 @@ export default function Viewer3D({ parts, bbox, explode, highlight, viewKey, vie
     S.current = { renderer, scene, camera, controls, root, lastSize: 0 };
     return () => {
       cancelAnimationFrame(raf);
+      renderer.domElement.removeEventListener('pointerdown', onDown);
+      renderer.domElement.removeEventListener('pointerup', onUp);
+      renderer.domElement.removeEventListener('pointermove', onMove);
       ro.disconnect();
       controls.dispose();
       root.children.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });

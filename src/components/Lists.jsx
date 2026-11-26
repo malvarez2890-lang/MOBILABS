@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { materialOf, SHEETS } from '../lib/materials.js';
 import { fmt, cm } from '../lib/util.js';
 
@@ -8,11 +8,15 @@ const hue = (label) => {
   return (h * 47) % 360;
 };
 export const labelColor = (label) => `hsl(${hue(label)} 55% 82%)`;
-const labelStroke = (label) => `hsl(${hue(label)} 35% 45%)`;
+export const labelStroke = (label) => `hsl(${hue(label)} 35% 45%)`;
 
 /* ------------------------------------------------------------------ DESPIECE */
-export function CutList({ plans, onHover }) {
+export function CutList({ plans, onHover, selectedKey, onSelect, scrollTo }) {
   const { groups } = plans;
+  const rowRefs = useRef({});
+  useEffect(() => {
+    if (scrollTo) rowRefs.current[scrollTo.key]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [scrollTo]);
   const totalPieces = groups.reduce((a, g) => a + g.qty, 0);
   return (
     <section>
@@ -29,6 +33,11 @@ export function CutList({ plans, onHover }) {
             {groups.map((g) => (
               <tr
                 key={g.key}
+                ref={(el) => { rowRefs.current[g.key] = el; }}
+                className={g.key === selectedKey ? 'sel' : ''}
+                aria-selected={g.key === selectedKey}
+                onClick={() => onSelect(g)}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect(g))}
                 onMouseEnter={() => onHover(new Set(g.ids))}
                 onMouseLeave={() => onHover(null)}
                 onFocus={() => onHover(new Set(g.ids))}
@@ -47,7 +56,7 @@ export function CutList({ plans, onHover }) {
           </tbody>
         </table>
       </div>
-      <p className="hint">Pasa el mouse sobre una fila para ver esa pieza en el 3D. “Canto” es el tapacanto total de esa fila (solo melamina).</p>
+      <p className="hint">Toca una fila (o una pieza en el 3D) para seleccionarla; pasa el mouse para verla en el modelo. “Canto” es el tapacanto total de esa fila (solo melamina).</p>
     </section>
   );
 }

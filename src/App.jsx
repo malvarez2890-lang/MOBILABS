@@ -7,7 +7,7 @@ import { cm, fmt } from './lib/util.js';
 import { Icon } from './components/Icons.jsx';
 import ParamsForm from './components/ParamsForm.jsx';
 import Viewer3D from './components/Viewer3D.jsx';
-import { CutList, SheetPlans, Shopping } from './components/Lists.jsx';
+import { CutList, SheetPlans, Shopping, labelColor, labelStroke } from './components/Lists.jsx';
 
 const STORE = 'mueblelab-v1';
 // En la página publicada no funcionan las descargas ni window.print(): se reemplazan por copiar al portapapeles.
@@ -35,6 +35,8 @@ export default function App() {
   const [hover, setHover] = useState(null);
   const [viewCmd, setViewCmd] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [selKey, setSelKey] = useState(null);
+  const [scrollTo, setScrollTo] = useState(null);
 
   const type = getType(typeId);
   const values = useMemo(() => ({ ...defaultsFor(type), ...store[type.id] }), [type, store]);
@@ -51,6 +53,25 @@ export default function App() {
   const plans = useMemo(() => packAll(model.parts, settings), [model, settings]);
   const shop = useMemo(() => buildShopping(model, plans), [model, plans]);
   const [bw, bh, bd] = model.bbox.dims;
+
+  // selección de piezas (clic en el 3D o en el despiece)
+  const selGroup = useMemo(() => plans.groups.find((g) => g.key === selKey) || null, [plans, selKey]);
+  const selIds = useMemo(() => (selGroup ? new Set(selGroup.ids) : null), [selGroup]);
+  const idToGroup = useMemo(() => {
+    const m = new Map();
+    plans.groups.forEach((g) => g.ids.forEach((id) => m.set(id, g)));
+    return m;
+  }, [plans]);
+  const pickFromModel = useCallback((id) => {
+    const g = id ? idToGroup.get(id) : null;
+    setSelKey(g ? g.key : null);
+    if (g) { setTab('piezas'); setScrollTo({ key: g.key, n: Date.now() }); }
+  }, [idToGroup]);
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && setSelKey(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const copy = useCallback(async () => {
     const text = shoppingText(type.name, model.bbox.dims, shop);
@@ -122,7 +143,7 @@ export default function App() {
         <h2 className="pane-title">¿Qué mueble quieres armar?</h2>
         <div className="types" role="tablist">
           {FURNITURE.map((f) => (
-            <button key={f.id} role="tab" aria-selected={f.id === typeId} className={`type ${f.id === typeId ? 'on' : ''}`} onClick={() => { setTypeId(f.id); setHover(null); }} title={f.desc}>
+            <button key={f.id} role="tab" aria-selected={f.id === typeId} className={`type ${f.id === typeId ? 'on' : ''}`} onClick={() => { setTypeId(f.id); setHover(null); setSelKey(null); }} title={f.desc}>
               <Icon id={f.id} />
               <span>{f.name}</span>
             </button>
@@ -155,10 +176,27 @@ export default function App() {
       {/* ---------------- visor ---------------- */}
       <main className="center">
         <div className="viewer">
-          <Viewer3D parts={model.parts} bbox={model.bbox} explode={explode} highlight={hover} viewKey={typeId} viewCmd={viewCmd} />
-          <div className="dims">
-            <b>{type.name}</b>
-            <span>{cm(bw)} <small>ancho</small> × {cm(bh)} <small>alto</small> × {cm(bd)} <small>fondo</small> cm</span>
+          <Viewer3D parts={model.parts} bbox={model.bbox} explode={explode} highlight={hover || selIds} viewKey={typeId} viewCmd={viewCmd} onPick={pickFromModel} />
+          <div className="hud">
+            <div className="dims">
+              <b>{type.name}</b>
+              <span>{cm(bw)} <small>ancho</small> × {cm(bh)} <small>alto</small> × {cm(bd)} <small>fondo</small> cm</span>
+            </div>
+            {selGroup && (
+              <div className="sel-card" role="status">
+                <span className="chip" style={{ background: labelColor(selGroup.label), borderColor: labelStroke(selGroup.label) }}>{selGroup.label}</span>
+                <div className="sel-info">
+                  <b>{selGroup.name}</b>
+                  <span>
+                    {selGroup.kind === 'sheet'
+                      ? `${fmt(selGroup.l)} × ${fmt(selGroup.w)} × ${selGroup.t} mm`
+                      : `${fmt(selGroup.l)} mm · ${materialOf(selGroup.mat).section.join('×')}`}
+                    {' · '}{selGroup.qty} {selGroup.qty === 1 ? 'pieza' : 'piezas'} · {materialOf(selGroup.mat).short}
+                  </span>
+                </div>
+                <button className="sel-x" onClick={() => setSelKey(null)} aria-label="Quitar selección" title="Quitar selección (Esc)">✕</button>
+              </div>
+            )}
           </div>
           <div className="viewbar">
             <div className="seg" role="group" aria-label="Vista">
@@ -198,7 +236,7 @@ export default function App() {
           </p>
         </div>
 
-        <div className={`tab-body ${tab === 'piezas' ? 'show' : ''}`}><CutList plans={plans} onHover={setHover} /></div>
+        <div className={`tab-body ${tab === 'piezas' ? 'show' : ''}`}><CutList plans={plans} onHover={setHover} selectedKey={selKey} onSelect={(g) => setSelKey(g.key)} scrollTo={scrollTo} /></div>
         <div className={`tab-body ${tab === 'cortes' ? 'show' : ''}`}><SheetPlans plans={plans} /></div>
         <div className={`tab-body ${tab === 'compras' ? 'show' : ''}`}><Shopping shop={shop} onCopy={copy} copied={copied} /></div>
       </aside>
