@@ -1,4 +1,4 @@
-# MuebleLab
+# MOBILABs
 
 App web para **diseñar muebles de forma paramétrica**, ver el modelo en 3D y obtener automáticamente
 el **despiece, el plan de corte por plancha y la lista de qué comprar** (sin precios, por ahora).

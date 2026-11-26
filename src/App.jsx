@@ -102,7 +102,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="top">
-        <div className="brand"><span className="logo" aria-hidden="true">▤</span> MuebleLab <small>diseña · cubica · compra</small></div>
+        <div className="brand"><span className="logo" aria-hidden="true">▤</span> MOBILABs <small>diseña · cubica · compra</small></div>
         <div className="top-actions">
           {PUBLISHED ? (
             <button className="btn primary" onClick={copyCuts} title="Copia el despiece y las compras para pegar en Excel, Sheets o un mensaje">
