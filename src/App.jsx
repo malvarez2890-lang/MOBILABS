@@ -10,6 +10,7 @@ import ParamsForm from './components/ParamsForm.jsx';
 import Viewer3D from './components/Viewer3D.jsx';
 import { CutList, SheetPlans, Shopping, labelColor, labelStroke } from './components/Lists.jsx';
 import { Planos, Manual } from './components/Docs.jsx';
+import { ViewManager } from './components/ViewWindows.jsx';
 import { buildDrawing, techSpec } from './lib/plans.js';
 import { buildManual } from './lib/manual.js';
 import ContextMenu from './components/ContextMenu.jsx';
@@ -388,6 +389,7 @@ export default function App() {
 
       {/* ---------------- visor ---------------- */}
       <main className="center">
+        <ViewManager drawing={drawing} />
         <div className="viewer">
           <Viewer3D parts={model.parts} fixtures={model.fixtures} bbox={model.bbox} explode={explode} highlight={hover || (selIds.size ? selIds : null)} viewKey={typeId} viewCmd={viewCmd} looks={looks} hiddenIds={hiddenIds} multi={multi} onPick={onPick} onBox={onBox} onContext={onContext} />
           <div className="hud">

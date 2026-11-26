@@ -68,6 +68,24 @@ export function printHtml(title, html, landscape = false) {
   setTimeout(go, 250);
 }
 
+/** Una sola vista del plano (para las pestañas y ventanas flotantes del área de dibujo). */
+export function ViewSvg({ drawing, vkey }) {
+  const v = drawing.views.find((x) => x.key === vkey);
+  if (!v) return null;
+  const x0 = v.x - 40, y0 = v.y - 70;
+  const w = v.w + 260, h = v.h + 270;
+  return (
+    <svg viewBox={`${x0} ${y0} ${w} ${h}`} className="view-svg" preserveAspectRatio="xMinYMin meet" role="img" aria-label={v.title} xmlns="http://www.w3.org/2000/svg">
+      <style>{STYLE}</style>
+      <text x={v.x} y={v.y - 30} className="vt">{v.title}</text>
+      <Polys v={v} />
+      {v.dims.map((d, i) => (d.t === 'h'
+        ? <HDim key={i} x1={d.x1} x2={d.x2} y={d.at} off={d.off} label={d.label} />
+        : <VDim key={i} y1={d.y1} y2={d.y2} x={d.at} off={d.off} label={d.label} />))}
+    </svg>
+  );
+}
+
 function Polys({ v }) {
   return <g>{v.polys.map((q, i) => <polygon key={i} className={`dr-poly dr-${q.cls}`} points={q.pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')} />)}</g>;
 }
