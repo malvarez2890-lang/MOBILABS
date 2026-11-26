@@ -41,7 +41,7 @@ export function buildManual(model, plans, shop) {
   const shelves = has('Repisa');
   const dividers = has('Divisor', 'Divisor central');
   const zocalo = has('Zócalo');
-  const hasTop = has('Tapa', 'Tapa superior');
+  const hasTop = hasRe(/^Tapa/);
   const handles = fx('handle') > 0;
   const platform = has('Plataforma del tocadiscos');
   const antiTip = !!hw(/anti-vuelco/i);
@@ -128,21 +128,21 @@ export function buildManual(model, plans, shop) {
   } else if (deskPanels) {
     asm.push(st(`Si el escritorio lleva cajonera: arma primero su caja (${ref('Lateral')}, ${ref('Base de cajonera')} y ${ref('Trasera de cajonera')}) con confirmat y verifica la escuadra con las diagonales.`, ['Lateral', 'Base de cajonera', 'Trasera de cajonera']));
     asm.push(st(`Coloca los ${ref('Lateral')} de pie, a la separación del plano, y une el ${ref('Panel trasero')} entre ellos si el diseño lo lleva.`, ['Lateral', 'Panel trasero']));
-    asm.push(st(`Pon la ${ref('Tapa')} con la cara bonita hacia abajo, apoya encima el conjunto de laterales y fíjalo con confirmat/escuadras desde adentro; la tapa debe sobresalir parejo por los costados.`, ['Tapa']));
+    asm.push(st(`Pon la ${ref('Tapa')} con la cara bonita hacia abajo, apoya encima el conjunto de laterales y fíjalo con confirmat/escuadras desde adentro; la tapa debe sobresalir parejo por los costados.`, [/^Tapa/]));
     asm.push(`Da vuelta el escritorio entre dos personas (o apoyado en un lateral) y verifica que quede a plomo.`);
   } else if (frameTable) {
     asm.push(st(`Arma los dos marcos laterales: une cada ${ref(/^Faldón (corto|lateral)$/)} a dos patas con tarugos encolados y tornillo 4×50 mm; verifica que queden en escuadra.`, [/^Pata/, /^Faldón (corto|lateral)$/]));
     asm.push(st(`Une los marcos con los ${ref(/^Faldón (largo)$/)} formando la estructura; si hay ${ref('Travesaño central')}, agrégalos ahora. Mide las diagonales para comprobar que está en escuadra.`, [/^Faldón largo$/, 'Travesaño central']));
     if (has('Listón del marco de repisa')) asm.push(st(`Fija el marco de la repisa inferior (${ref('Listón del marco de repisa')}) en los topes cuadrados de las patas y atornilla la ${ref('Repisa inferior')} desde abajo al marco.`, [/^Listón del marco/, 'Repisa inferior']));
     if (has('Panel trasero')) asm.push(st(`Atornilla el ${ref('Panel trasero')} a los faldones traseros por dentro.`, ['Panel trasero']));
-    asm.push(st(`Da vuelta la tapa (${ref('Tapa').replace(/^Tapa/, 'tapa')}) con la cara bonita hacia abajo sobre el cartón, apoya la estructura encima centrada y fíjala con las escuadras metálicas y tornillos 4×16 mm.`, ['Tapa']));
+    asm.push(st(`Da vuelta la tapa (${ref('Tapa').replace(/^Tapa/, 'tapa')}) con la cara bonita hacia abajo sobre el cartón, apoya la estructura encima centrada y fíjala con las escuadras metálicas y tornillos 4×16 mm.`, [/^Tapa/]));
   } else if (productLegs) {
-    asm.push(st(`Pon la ${ref('Tapa')} con la cara bonita hacia abajo sobre una manta.`, ['Tapa']));
-    asm.push(st(`Marca la posición de las patas: respeta el retranqueo del plano (cota en la planta). Atornilla las ${hw(/^placa de montaje/i)?.qty || 4} placas de montaje bajo la tapa, con tornillos 4×16 mm sin atravesarla.`, ['Tapa']));
+    asm.push(st(`Pon la ${ref('Tapa')} con la cara bonita hacia abajo sobre una manta.`, [/^Tapa/]));
+    asm.push(st(`Marca la posición de las patas: respeta el retranqueo del plano (cota en la planta). Atornilla las ${hw(/^placa de montaje/i)?.qty || 4} placas de montaje bajo la tapa, con tornillos 4×16 mm sin atravesarla.`, [/^Tapa/]));
     asm.push(st(`Enrosca cada pata cónica en su placa (traen un tornillo o inserto roscado). Apriétalas a mano y gira hasta que no hagan juego; si se sueltan, agrega un poco de cola o fijador.`, [], 'legs'));
   } else if (steel) {
     asm.push(st(`Suelda o atornilla el marco de acero según el plano (lo normal es mandarlo a hacer a un taller con las cotas indicadas). Revisa que quede plano y en escuadra y pásale una mano de pintura negro mate.`, [], 'legs'));
-    asm.push(st(`Da vuelta la tapa con la cara bonita hacia abajo, apoya el marco encima y fíjalo con las placas y tornillos 4×16 mm desde los rieles superiores.`, ['Tapa']));
+    asm.push(st(`Da vuelta la tapa con la cara bonita hacia abajo, apoya el marco encima y fíjalo con las placas y tornillos 4×16 mm desde los rieles superiores.`, [/^Tapa/]));
   } else if (metalLegs || woodLegs) {
     asm.push(`Une las partes principales según el modelo 3D (revisa cada letra del Despiece) con tarugos, cola y tornillos.`);
   } else {

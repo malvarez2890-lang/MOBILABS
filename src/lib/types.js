@@ -145,8 +145,9 @@ export const FURNITURE = [
       num('ancho', 'Largo', 160, 80, 240, 1, 'cm', { visibleIf: (v) => v.forma !== 'redonda' }),
       num('fondo', 'Ancho', 80, 50, 120, 1, 'cm', { visibleIf: (v) => v.forma !== 'redonda' }),
       num('diametro', 'Diámetro', 110, 60, 160, 1, 'cm', { visibleIf: (v) => v.forma === 'redonda' }),
+      sel('tapaHecha', 'Cómo se hace la tapa redonda', 'tablero', [['tablero', 'Disco de tablero (caladora)'], ['listones', 'Listones de pino encolados (caladora)']], { visibleIf: (v) => v.forma === 'redonda' }),
       num('alto', 'Alto', 75, 60, 80, 1, 'cm', { visibleIf: (v) => !isProductStyle(v.pataEstilo) }),
-      sel('tapa', 'Tapa', 'simple', TOP_OPTS, { section: 'Estructura' }),
+      sel('tapa', 'Tapa', 'simple', TOP_OPTS, { section: 'Estructura', visibleIf: (v) => !(v.forma === 'redonda' && v.tapaHecha === 'listones') }),
       num('voladizo', 'Retranqueo de patas', 6, 0, 15, 1, 'cm', { visibleIf: (v) => v.forma !== 'redonda' }),
       ...LEGS('grueso', {}, 'wood'),
       ...TABLE_WHEELS(),
@@ -157,6 +158,7 @@ export const FURNITURE = [
       { name: '6 personas', values: { ancho: 160, fondo: 80 } },
       { name: '8 personas', values: { ancho: 220, fondo: 90, tapa: 'doble' } },
       { name: 'Redonda 4 personas', values: { forma: 'redonda', diametro: 100 } },
+      { name: 'Redonda 4 personas (listones de pino)', values: { forma: 'redonda', diametro: 100, tapaHecha: 'listones' } },
       { name: 'Redonda 6 personas', values: { forma: 'redonda', diametro: 140, tapa: 'doble', pata: 'grueso' } },
       { name: 'Patas en diagonal', values: { pataEstilo: 'inclinada', pata: 'fino' } },
       { name: 'Estilo industrial', values: { pataEstilo: 'aceroU', pata: 'fino', ancho: 180, tapa: 'doble' } },
@@ -171,14 +173,15 @@ export const FURNITURE = [
         leg = legSpec('aceroDiagonal', v.pata);
         p.tip('El marco de acero en U no se puede usar con tapa redonda: se pusieron patas de acero en diagonal.');
       }
+      const plankTop = round && v.tapaHecha === 'listones';
       let mat = v.mat;
-      if (round && W > SHEETS[mat].size[1]) { // el disco no cabe en el ancho de la plancha: se usa un tablero del mismo espesor y más ancho
+      if (round && !plankTop && W > SHEETS[mat].size[1]) { // el disco no cabe en el ancho de la plancha: se usa un tablero del mismo espesor y más ancho
         const alt = MAIN_SHEETS.find((id) => SHEETS[id].t === SHEETS[mat].t && SHEETS[id].size[1] >= W);
         if (alt) { p.tip(`El disco de ${v.diametro} cm no cabe en ${SHEETS[mat].name.toLowerCase()} (ancho ${SHEETS[mat].size[1] / 10} cm): se usó ${SHEETS[alt].name.toLowerCase()}.`); mat = alt; }
       }
       tableFrame(p, {
         W, D, H: v.alto * 10, mat, layers: v.tapa === 'doble' ? 2 : 1,
-        leg, casters: casterOf(v), oh: v.voladizo * 10, round,
+        leg, casters: casterOf(v), oh: v.voladizo * 10, round, plankTop,
       });
       if (round) {
         const seats = Math.max(2, Math.floor(v.diametro / 25));

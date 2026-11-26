@@ -22,9 +22,11 @@ export function tableFrame(p, o) {
   const splay = !!spec.splay;
   let layers = o.layers || 1;
   const bigTop = W * D > (spec.kind === 'product' ? 1000000 : 1400000); // tapa grande: un solo tablero flecta
-  if (layers === 1 && bigTop) { layers = 2; p.tip('La tapa es grande: se usó tapa doble automáticamente (dos tableros pegados) para que no flecte.'); }
+  if (layers === 1 && bigTop && !(round && o.plankTop)) { layers = 2; p.tip('La tapa es grande: se usó tapa doble automáticamente (dos tableros pegados) para que no flecte.'); }
   const t = SHEETS[mat].t;
-  const topT = t * layers;
+  const plank = round && !!o.plankTop; // tapa redonda hecha con listones de pino encolados y cortada con caladora
+  if (plank) layers = 1;
+  const topT = plank ? 19 : t * layers;
   const product = spec.kind === 'product'; // patas listas: alto fijo; la altura total = pata + tapa
   const H = product ? spec.h + topT : o.H;
   const s = spec.s;
@@ -37,7 +39,27 @@ export function tableFrame(p, o) {
   const ohx = splay && !round ? Math.max(0, Math.min(Math.max(oh, want), (W - 2 * s - 120) / 2)) : oh;
   const ohz = splay && !round ? Math.max(0, Math.min(Math.max(oh, want), (D - 2 * s - 40) / 2)) : oh;
 
-  if (round) {
+  if (plank) {
+    // listones de 1×4" (19×90) canto con canto; cada uno se corta al largo que necesita su posición (cuerda del círculo + margen para la caladora)
+    const bw = 90;
+    const r = W / 2;
+    const n = Math.ceil(W / bw);
+    const x0 = (W - n * bw) / 2;
+    let count = 0;
+    let glue = 0;
+    for (let i = 0; i < n; i++) {
+      const a = x0 + i * bw;
+      const b = a + bw;
+      const dmin = a <= r && b >= r ? 0 : Math.min(Math.abs(a - r), Math.abs(b - r));
+      if (dmin >= r - 20) continue;
+      const len = Math.min(W + 40, 2 * Math.sqrt(r * r - dmin * dmin) + 40);
+      p.L('Tapa de listones', 'pino19x90', 'z', len, a, H - 19, D / 2 - len / 2, 'y');
+      count++;
+      glue += len;
+    }
+    p.hardware('Tarugo de madera 8×30 mm', Math.ceil(glue / 150), 'Unión canto con canto de los listones de la tapa');
+    p.tip(`Tapa redonda de listones: encola ${count} listones de pino canto con canto (con tarugos, 24 h bajo prensa o sargentos), traza el círculo de Ø${Math.round(W / 10)} cm con un compás de varilla (clavo al centro + lápiz a ${Math.round(W / 20)} cm), córtalo con caladora y lija el canto. Cada listón ya viene con el largo justo + 2 cm de margen.`);
+  } else if (round) {
     for (let l = 0; l < layers; l++) p.C('Tapa', mat, W / 2, H - t * (l + 1), D / 2, W);
   } else {
     stackTop(p, mat, layers, 0, H, 0, W, D, 'frbl');
