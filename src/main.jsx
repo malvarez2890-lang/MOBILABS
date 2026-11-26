@@ -16,16 +16,17 @@ if (boot) {
     window.dispatchEvent(new Event('mobilabs-enter'));
   };
   const onKey = (e) => { if (e.key === 'Enter' && go.classList.contains('ready')) enter(); };
-  // el botón se habilita cuando la barra terminó de llenarse (la animación corre aparte, aunque la carga ocupe el hilo principal)
-  const barAnim = boot.querySelector('.bar i')?.getAnimations?.()[0];
+  // el botón se habilita cuando la barra llegó al 100 % (la barra la mueve un script del propio index.html)
   const ready = () => {
+    const bar = boot.querySelector('.bar i');
+    if (bar) bar.style.transform = 'scaleX(1)';
     go.disabled = false;
     go.textContent = 'Listo para cortar →';
     go.classList.add('ready');
     go.focus();
   };
-  if (barAnim) barAnim.finished.then(ready, ready);
-  else setTimeout(ready, 2400);
+  if (window.__bootDone) ready();
+  else window.addEventListener('mobilabs-bar', ready, { once: true });
   go.addEventListener('click', enter);
   window.addEventListener('keydown', onKey);
 }
