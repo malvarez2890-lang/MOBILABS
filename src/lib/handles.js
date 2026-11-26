@@ -45,19 +45,26 @@ export function placeHandle(p, door, spec) {
   }
   let cx = door.center ? x + w / 2 : freeRight ? x + w - spec.offX : x + spec.offX;
   let cy = y + (h * spec.pctY) / 100;
+  const barSize = (c2c) => (spec.orient === 'vertical' ? [14, c2c + BAR_PAD, 24] : [c2c + BAR_PAD, 14, 24]);
+  const fitsIn = (s) => s[0] + 16 <= w && s[1] + 16 <= h;
   let size;
+  let auto = false;
   if (spec.type === 'perilla') {
     size = [30, 30, 24];
   } else {
-    const L = spec.c2c + BAR_PAD;
-    size = spec.orient === 'vertical' ? [14, L, 24] : [L, 14, 24];
+    size = barSize(spec.c2c);
+    if (!fitsIn(size)) { // la jaladera no cabe: se usa la más larga que sí cabe, o una perilla
+      const ok = HANDLE_C2C.map((c) => c[0]).filter((c) => c < spec.c2c && fitsIn(barSize(c))).pop();
+      if (ok) { spec = { ...spec, c2c: ok }; size = barSize(ok); auto = true; }
+      else { spec = { ...spec, type: 'perilla' }; size = [30, 30, 24]; auto = true; }
+    }
   }
   const clampTo = (v, lo, hi) => (hi < lo ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)));
   cx = clampTo(cx, x + size[0] / 2 + 8, x + w - size[0] / 2 - 8);
   cy = clampTo(cy, y + size[1] / 2 + 8, y + h - size[1] / 2 - 8);
   const fits = size[0] + 16 <= w && size[1] + 16 <= h;
   return p.fixture({
-    kind: 'handle', type: spec.type, orient: spec.orient, c2c: spec.c2c, parent: id, noBbox: true, fits,
+    kind: 'handle', type: spec.type, orient: spec.orient, c2c: spec.c2c, parent: id, noBbox: true, fits, auto,
     min: [cx - size[0] / 2, cy - size[1] / 2, front], size,
     drill: { fromFree: door.center ? (cx - x) : freeRight ? x + w - cx : cx - x, fromBottom: cy - y, center: !!door.center },
   });
@@ -78,7 +85,15 @@ export function handleSummary(p, spec, doors, fixtures, noun = 'puerta') {
     p.tip(`Tirador de perfil en el canto superior de cada ${noun}: se agarra por debajo del borde.`);
     return;
   }
-  if (spec.type === 'perilla') p.hardware('Perilla / pomo Ø30 mm', n, `Con tornillo; 1 taladro por ${noun}`);
+  const placed = fixtures.filter((f) => f.type === 'barra' || f.type === 'perilla');
+  if (placed.length) {
+    const bars = new Map();
+    placed.filter((f) => f.type === 'barra').forEach((f) => bars.set(f.c2c, (bars.get(f.c2c) || 0) + 1));
+    bars.forEach((q, c) => p.hardware(`Jaladera de barra ${c} mm entre ejes`, q, `2 taladros por ${noun}`));
+    const pomos = placed.filter((f) => f.type === 'perilla').length;
+    if (pomos) p.hardware('Perilla / pomo Ø30 mm', pomos, `Con tornillo; 1 taladro por ${noun}`);
+    if (placed.some((f) => f.auto)) p.tip(`Algunos ${plural} son más angostos que la jaladera elegida: se les puso una más corta o una perilla para que quepa.`);
+  } else if (spec.type === 'perilla') p.hardware('Perilla / pomo Ø30 mm', n, `Con tornillo; 1 taladro por ${noun}`);
   else p.hardware(`Jaladera de barra ${spec.c2c} mm entre ejes`, n, `2 taladros por ${noun}`);
 
   const f0 = fixtures[0];
@@ -90,8 +105,5 @@ export function handleSummary(p, spec, doors, fixtures, noun = 'puerta') {
         : `Tiradores: taladros a ${mm(f0.drill.fromFree)} mm del borde libre de la puerta y a ${mm(f0.drill.fromBottom)} mm desde su borde inferior`
           + `${spec.type === 'barra' ? ` (${spec.orient === 'vertical' ? 'jaladera vertical' : 'jaladera horizontal'}, ${spec.c2c} mm entre ejes)` : ''}.`,
     );
-  }
-  if (fixtures.some((f) => !f.fits)) {
-    p.warn(`El tirador es muy grande para ${plural === 'cajones' ? 'algún cajón' : 'alguna puerta'}: elige un largo menor o cámbialo a perilla o perfil de canto.`);
   }
 }

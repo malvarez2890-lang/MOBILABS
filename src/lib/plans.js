@@ -120,14 +120,15 @@ export function buildDrawing(model) {
   const { min, max } = model.bbox;
   const W = max[0] - min[0], H = max[1] - min[1], D = max[2] - min[2];
   const V = Object.fromEntries(Object.keys(PROJ).map((k) => [k, buildView(model, k)]));
-  const padR = 150, padB = 250, padT = 50, sheetW = 2000;
+  const padR = 100, padB = 190, padT = 50, sheetW = 2000;
   const grid = [['front', 'left', 'right'], ['back', 'plan', 'iso']];
   const colMm = [0, 1, 2].map((c) => Math.max(...grid.map((r) => V[r[c]].w)));
   const rowMm = grid.map((r) => Math.max(...r.map((k) => V[k].h)));
   const s = Math.min((sheetW - 3 * padR) / colMm.reduce((a, b) => a + b, 0), 1500 / (rowMm[0] + rowMm[1]));
-  const colX = [60, 60 + colMm[0] * s + padR, 60 + (colMm[0] + colMm[1]) * s + 2 * padR];
+  const colW = colMm.map((c) => Math.max(c * s, 440)); // cada columna debe alojar el título de su vista
+  const colX = [60, 60 + colW[0] + padR, 60 + colW[0] + colW[1] + 2 * padR];
   const rowY = [40 + padT, 40 + padT + rowMm[0] * s + padB + padT];
-  const total = { w: Math.max(sheetW, colX[2] + colMm[2] * s + padR), h: rowY[1] + rowMm[1] * s + padB + 170 };
+  const total = { w: Math.max(sheetW, colX[2] + colW[2] + padR), h: rowY[1] + rowMm[1] * s + padB + 150 };
   // escala aproximada al imprimir en A4 apaisado (277 mm útiles de ancho)
   const NICE = [1, 2, 2.5, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200];
   const raw = 1 / ((s * 277) / total.w);
@@ -142,29 +143,29 @@ export function buildDrawing(model) {
     const dims = [];
     const sx = (u) => ox + u * s;
     const sy = (w) => oy + w * s;
-    const hd = (a, b, lvl, label) => dims.push({ t: 'h', x1: sx(a), x2: sx(b), at: y + v.h * s + 12, off: lvl, label });
-    const vd = (a, b, lvl, label) => dims.push({ t: 'v', y1: sy(a), y2: sy(b), at: x + v.w * s + 12, off: lvl, label });
+    const hd = (a, b, lvl, label) => dims.push({ t: 'h', x1: sx(a), x2: sx(b), at: y + v.h * s + 8, off: lvl, label });
+    const vd = (a, b, lvl, label) => dims.push({ t: 'v', y1: sy(a), y2: sy(b), at: x + v.w * s + 8, off: lvl, label });
     const seg = (st) => st.slice(1).map((q, i) => [st[i], q]);
     if (k === 'front') {
-      hd(min[0], max[0], 78, cm(W));
+      hd(min[0], max[0], 50, cm(W));
       const cx = chainStops(model, 0);
-      if (cx.length > 2) seg(cx).forEach(([a, b]) => hd(a, b, 36, b - a < 25 ? '' : cm(b - a)));
-      vd(-max[1], -min[1], 44 + (chainStops(model, 1).length > 2 ? 48 : 0), cm(H));
+      if (cx.length > 2) seg(cx).forEach(([a, b]) => hd(a, b, 22, b - a < 25 ? '' : cm(b - a)));
+      vd(-max[1], -min[1], 30 + (chainStops(model, 1).length > 2 ? 30 : 0), cm(H));
       const cy = chainStops(model, 1);
-      if (cy.length > 2) seg(cy).forEach(([a, b]) => vd(-b, -a, 44, b - a < 25 ? '' : cm(b - a)));
+      if (cy.length > 2) seg(cy).forEach(([a, b]) => vd(-b, -a, 26, b - a < 25 ? '' : cm(b - a)));
     } else if (k === 'back') {
-      hd(-max[0], -min[0], 44, cm(W)); vd(-max[1], -min[1], 44, cm(H));
+      hd(-max[0], -min[0], 30, cm(W)); vd(-max[1], -min[1], 30, cm(H));
     } else if (k === 'left') {
-      hd(min[2], max[2], 44, cm(D)); vd(-max[1], -min[1], 44, cm(H));
+      hd(min[2], max[2], 30, cm(D)); vd(-max[1], -min[1], 30, cm(H));
     } else if (k === 'right') {
-      hd(-max[2], -min[2], 44, cm(D)); vd(-max[1], -min[1], 44, cm(H));
+      hd(-max[2], -min[2], 30, cm(D)); vd(-max[1], -min[1], 30, cm(H));
     } else if (k === 'plan') {
-      hd(min[0], max[0], 78, cm(W));
+      hd(min[0], max[0], 50, cm(W));
       const cx = chainStops(model, 0);
-      if (cx.length > 2) seg(cx).forEach(([a, b]) => hd(a, b, 36, b - a < 25 ? '' : cm(b - a)));
-      vd(min[2], max[2], 44 + (chainStops(model, 2).length > 2 ? 48 : 0), cm(D));
+      if (cx.length > 2) seg(cx).forEach(([a, b]) => hd(a, b, 22, b - a < 25 ? '' : cm(b - a)));
+      vd(min[2], max[2], 30 + (chainStops(model, 2).length > 2 ? 30 : 0), cm(D));
       const cz = chainStops(model, 2);
-      if (cz.length > 2) seg(cz).forEach(([a, b]) => vd(a, b, 44, b - a < 25 ? '' : cm(b - a)));
+      if (cz.length > 2) seg(cz).forEach(([a, b]) => vd(a, b, 26, b - a < 25 ? '' : cm(b - a)));
     }
     return { key: k, title: v.title, x, y, w: v.w * s, h: v.h * s, rowBottom: rowY[ri] + rowMm[ri] * s, polys, dims };
   }));

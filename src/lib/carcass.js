@@ -41,11 +41,17 @@ export function carcass(p, o) {
   // vanos demasiado anchos para el tablero: se agregan divisores solos hasta que cada vano aguante la carga
   const autoAdded = [];
   rows.forEach((r, i) => {
-    if (r.doorCells || r.load !== undefined || !(m.maxSpan > 0)) return;
-    const limit = m.maxSpan * (o.loadFactor ?? 1) * 0.98;
-    const innerWEst = W - 2 * t;
-    const need = Math.ceil((innerWEst + t) / (limit + t));
-    if (need > r.cols && need <= 8) { autoAdded.push({ i: i + 1, from: r.cols, to: need }); r.cols = need; }
+    if (!(m.maxSpan > 0)) return;
+    const limit = m.maxSpan * (r.load ?? o.loadFactor ?? 1) * 0.98;
+    const need = Math.ceil((W - 2 * t + t) / (limit + t));
+    if (need > r.cols && need <= 12) {
+      autoAdded.push({ i: i + 1, from: r.cols, to: need });
+      if (r.doorCells) { // las puertas se reubican: cada celda nueva hereda la puerta de la celda vieja que la contiene
+        const old = r.cols;
+        r.doorCells = Array.from({ length: need }, (_, k) => k).filter((k) => r.doorCells.includes(Math.min(old - 1, Math.floor(((k + 0.5) / need) * old))));
+      }
+      r.cols = need;
+    }
   });
 
   // --- alturas de fila ---
@@ -58,7 +64,7 @@ export function carcass(p, o) {
   }
   const H = baseH + 2 * t + (n - 1) * t + rows.reduce((a, r) => a + r.h, 0);
   if (o.H && Math.abs(H - o.H) > 5) {
-    p.warn(`El alto se ajustó a ${cm(H)} cm para que los niveles tengan al menos 6 cm libres.`);
+    p.tip(`El alto se ajustó a ${cm(H)} cm para que los niveles tengan al menos 6 cm libres.`);
   }
 
   const z0 = back === 'hdf' ? SHEETS.hdf3.t : 0; // la trasera MDF va por fuera

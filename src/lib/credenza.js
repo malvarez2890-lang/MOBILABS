@@ -13,7 +13,8 @@ import { cm } from './util.js';
  */
 export function credenza(p, o) {
   const t = SHEETS[o.mat].t;
-  const { W, D, H, Wt } = o;
+  const { W, D, Wt } = o;
+  let H = o.H;
   const izq = o.side !== 'der';
   const back = SHEETS.hdf3.t;
   const z0 = back;
@@ -31,7 +32,11 @@ export function credenza(p, o) {
     if (leg.splay && fits(leg, 45)) ins = 45; // diagonales: más hacia adentro para que al abrirse no sobresalgan
   }
   const baseH = base === 'none' ? 0 : leg.kind === 'caster' || leg.kind === 'product' ? leg.h : o.baseH;
-  const platformH = Math.min(o.platformH, H - 250); // al menos 25 cm de respaldo sobre la plataforma
+  // el compartimento del receiver necesita ≥ 20 cm libres: si la plataforma está muy baja, se sube (y el alto total, si hace falta)
+  const needPlat = baseH + 3 * t + 200 - t;
+  let platformH = o.platformH;
+  if (platformH < needPlat) { platformH = needPlat; p.tip(`Se subió la plataforma a ${cm(platformH)} cm para que el receiver tenga 20 cm libres de alto.`); }
+  if (H < platformH + 250) { H = platformH + 250; p.tip(`Se aumentó el alto total a ${cm(H)} cm para dejar 25 cm de respaldo sobre la plataforma.`); }
   const innerBottom = baseH + t; // piso interior (sobre la base)
   const ttTop = platformH - t; // cara inferior de la plataforma
 
@@ -119,11 +124,7 @@ export function credenza(p, o) {
 
   // ---- avisos y datos útiles ----
   p.tip(`Plataforma del tocadiscos: ${cm(ttW + t)} × ${cm(D)} cm, con ${cm(H - platformH)} cm de respaldo. Un tocadiscos típico mide ~43 × 36 cm.`);
-  if (ttW < 440) p.warn(`La plataforma del tocadiscos queda angosta (${cm(ttW)} cm libres): un tocadiscos estándar mide ~43 cm de ancho. Aumenta el ancho del módulo.`);
-  if (D < 380) p.warn('El fondo es menor a 38 cm: un tocadiscos estándar (~36 cm de fondo) quedaría al borde.');
-  if (ttH < 200) p.warn(`El compartimento del receiver queda de ${cm(ttH)} cm de alto libre; un receiver o amplificador pide ~15–20 cm más ventilación.`);
-  else p.tip(`Compartimento del receiver: ${cm(ttH)} cm de alto libre × ${cm(ttW)} cm de ancho. Deja la trasera ventilada si el equipo se calienta.`);
-  if (Db < 325) p.warn(`El fondo útil es de ${cm(Db)} cm; un LP mide 31,5 cm: sube el fondo para que entren.`);
+  p.tip(`Compartimento del receiver: ${cm(ttH)} cm de alto libre × ${cm(ttW)} cm de ancho. Deja la trasera ventilada si el equipo se calienta.`);
   if (rowH < 330) p.tip(`Cada celda de vinilos tiene ${cm(rowH)} cm de alto: los discos tendrán que ir inclinados o de canto.`);
   const lps = cols * rows * Math.round((cw / 10) * 2);
   p.tip(`Capacidad aproximada: ${lps} vinilos (2 por cm de ancho libre).`);

@@ -182,16 +182,17 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
 }
 .pill:hover { border-color: #50ade5; background: #285f82; color: #fff; }
 .params h4 {
-  margin: 12px -8px 5px;
-  padding: 4px 8px;
-  border-top: 1px solid #222b38;
-  border-bottom: 1px solid #222b38;
-  background: #2a3544;
-  color: #edf1f5;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: .01em;
-  text-transform: none;
+  margin: 16px -8px 6px;
+  padding: 7px 8px 7px 10px;
+  border-top: 1px solid #1c2531;
+  border-bottom: 1px solid #1c2531;
+  border-left: 4px solid #42a9e9;
+  background: #1f2a38;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
 }
 .params h4:first-child { margin-top: 8px; padding-top: 4px; border-top: 1px solid #222b38; }
 .field { display: grid; gap: 3px; margin: 6px 0; }
@@ -365,19 +366,20 @@ select { width: 100%; padding: 3px 6px; }
   padding: 5px 8px;
   border-bottom: 1px solid #1e2733;
   color: #f0f3f6;
-  font-size: 10.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
 }
 .tabs button {
-  padding: 7px 4px 6px;
+  padding: 10px 4px 9px;
   border: 0;
   border-right: 1px solid #1f2935;
   border-bottom: 2px solid transparent;
   background: #354153;
   color: #bfc8d3;
   cursor: pointer;
-  font-size: 10.5px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
 }
 .tabs button:hover { background: #404d61; color: #fff; }
 .tabs button.on { border-bottom-color: #42a9e9; background: #2c3746; color: #fff; }
@@ -385,7 +387,11 @@ select { width: 100%; padding: 3px 6px; }
 .tab-body.show { display: block; }
 .print-head { display: none; }
 .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 7px; margin-bottom: 8px; flex-wrap: wrap; }
-.sec-head h3 { color: #fff; font-size: 14px; font-weight: 600; }
+.sec-head h3 { color: #fff; font-size: 21px; font-weight: 700; }
+.docs .doc-h, .docs h4.doc-h { font-size: 19px; font-weight: 700; color: #fff; text-transform: none; letter-spacing: 0; margin: 22px 0 8px; }
+.manual .doc-h { font-size: 15px; color: #8fd0ff; text-transform: uppercase; letter-spacing: .05em; }
+.doc-foot { margin-top: 16px; display: flex; justify-content: flex-end; }
+.doc-foot .btn { padding: 7px 16px; font-size: 13px; }
 .right section h4 { margin: 13px 0 5px; color: #dfe5ec; font-size: 11px; font-weight: 600; letter-spacing: .01em; text-transform: none; }
 .hint { margin: 9px 0 0; color: var(--muted); font-size: 10.5px; }
 .table-wrap { overflow-x: auto; border: 1px solid #202a36; border-radius: 0; }
@@ -746,7 +752,8 @@ table.spec td { padding: 5px 0; border-bottom: 1px solid #2c3541; color: #dfe5ec
   table.spec th { color: #333; } table.spec td, .manual ol { color: #111; } table.spec th, table.spec td { border-color: #ccc; }
   .tab-body.show { display: block !important; }
 }
-.plan-sheet.big { position: fixed; inset: 0; z-index: 60; overflow: auto; padding: 12px; border-radius: 0; }
+.docs .plan-sheet { cursor: zoom-in; }
+.docs .plan-sheet.big { cursor: default; position: fixed; inset: 0; z-index: 60; overflow: auto; padding: 12px; border-radius: 0; }
 .plan-sheet.big .plan-svg { width: max(1100px, 100%); }
 .plan-close { position: sticky; top: 0; left: 0; z-index: 2; margin-bottom: 6px; }
 .sec-head .mini { margin-left: auto; padding: 3px 10px; font-size: 11px; }

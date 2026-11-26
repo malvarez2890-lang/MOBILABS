@@ -6,16 +6,16 @@ const INK = '#1b1f24';
 export const SITE_URL = 'https://mobilabs.elbunkerservers.com/';
 
 const RED = '#e10000';
-const tick = (x, y) => `M${x - 4} ${y} L${x} ${y - 4} L${x + 4} ${y} L${x} ${y + 4} Z`;
+const tick = (x, y) => `M${x - 3} ${y} L${x} ${y - 3} L${x + 3} ${y} L${x} ${y + 3} Z`;
 function HDim({ x1, x2, y, label, off = 0 }) {
   const yy = y + off;
   return (
     <g className="dim">
-      <line x1={x1} y1={y} x2={x1} y2={yy + 10} className="ext" />
-      <line x1={x2} y1={y} x2={x2} y2={yy + 10} className="ext" />
-      <line x1={x1 - 10} y1={yy} x2={x2 + 10} y2={yy} />
+      <line x1={x1} y1={y} x2={x1} y2={yy + 7} className="ext" />
+      <line x1={x2} y1={y} x2={x2} y2={yy + 7} className="ext" />
+      <line x1={x1 - 7} y1={yy} x2={x2 + 7} y2={yy} />
       <path d={`${tick(x1, yy)} ${tick(x2, yy)}`} className="tk" />
-      <text x={(x1 + x2) / 2} y={yy - 9} textAnchor="middle">{label}</text>
+      <text x={(x1 + x2) / 2} y={yy - 6} textAnchor="middle">{label}</text>
     </g>
   );
 }
@@ -24,22 +24,22 @@ function VDim({ y1, y2, x, label, off = 0 }) {
   const mid = (y1 + y2) / 2;
   return (
     <g className="dim">
-      <line x1={x} y1={y1} x2={xx + 10} y2={y1} className="ext" />
-      <line x1={x} y1={y2} x2={xx + 10} y2={y2} className="ext" />
-      <line x1={xx} y1={y1 - 10} x2={xx} y2={y2 + 10} />
+      <line x1={x} y1={y1} x2={xx + 7} y2={y1} className="ext" />
+      <line x1={x} y1={y2} x2={xx + 7} y2={y2} className="ext" />
+      <line x1={xx} y1={y1 - 7} x2={xx} y2={y2 + 7} />
       <path d={`${tick(xx, y1)} ${tick(xx, y2)}`} className="tk" />
-      <text x={xx - 9} y={mid} textAnchor="middle" transform={`rotate(-90 ${xx - 9} ${mid})`}>{label}</text>
+      <text x={xx - 6} y={mid} textAnchor="middle" transform={`rotate(-90 ${xx - 6} ${mid})`}>{label}</text>
     </g>
   );
 }
 /** Título de la vista bajo el dibujo, con subrayado y escala, como en un plano CAD. */
 function ViewTitle({ v, scaleN }) {
-  const y = v.rowBottom + 175;
+  const y = v.rowBottom + 150;
   return (
     <g>
       <text x={v.x + 20} y={y} className="vt">{v.title}</text>
-      <line x1={v.x} y1={y + 14} x2={v.x + Math.max(300, v.title.length * 15 + 50)} y2={y + 14} stroke={INK} strokeWidth="1.6" />
-      <text x={v.x + 40} y={y + 46} className="vs">1 : {scaleN}</text>
+      <line x1={v.x} y1={y + 14} x2={v.x + Math.max(260, v.title.length * 12.5 + 40)} y2={y + 14} stroke={INK} strokeWidth="1.6" />
+      <text x={v.x + 30} y={y + 38} className="vs">1 : {scaleN}</text>
     </g>
   );
 }
@@ -47,12 +47,12 @@ function ViewTitle({ v, scaleN }) {
 const STYLE = `
   .dr-poly{fill:#fff;stroke:${INK};stroke-width:1.3;stroke-linejoin:round}
   .dr-fix-front,.dr-fix-top,.dr-fix-side{fill:#fff}
-  .dim line,.dim path{stroke:${RED};stroke-width:1.2;fill:none}
+  .dim line,.dim path{stroke:${RED};stroke-width:1;fill:none}
   .dim path.tk{fill:${RED}}
-  .dim line.ext{stroke-width:.9}
-  .dim text{font:26px "Arial Narrow","Roboto Condensed","Liberation Sans Narrow",Arial,sans-serif;font-stretch:condensed;letter-spacing:.5px;fill:${RED}}
-  .vt{font:34px Arial,"Liberation Sans",sans-serif;fill:${INK}}
-  .vs{font:24px Arial,"Liberation Sans",sans-serif;fill:${INK}}
+  .dim line.ext{stroke-width:.7}
+  .dim text{font:17px "Arial Narrow","Roboto Condensed","Liberation Sans Narrow",Arial,sans-serif;font-stretch:condensed;letter-spacing:.3px;fill:${RED}}
+  .vt{font:28px Arial,"Liberation Sans",sans-serif;fill:${INK}}
+  .vs{font:20px Arial,"Liberation Sans",sans-serif;fill:${INK}}
 `;
 
 /** Imprime (o guarda como PDF) un fragmento de la página en una hoja blanca, sin depender del resto de la interfaz. */
@@ -86,7 +86,7 @@ export function ViewSvg({ drawing, vkey }) {
   const v = drawing.views.find((x) => x.key === vkey);
   if (!v) return null;
   const x0 = v.x - 50, y0 = v.y - 40;
-  const w = Math.max(v.w + 330, 560), h = v.rowBottom - v.y + 290;
+  const w = Math.max(v.w + 230, 480), h = v.rowBottom - v.y + 230;
   return (
     <svg viewBox={`${x0} ${y0} ${w} ${h}`} className="view-svg" preserveAspectRatio="xMinYMin meet" role="img" aria-label={v.title} xmlns="http://www.w3.org/2000/svg">
       <style>{STYLE}</style>
@@ -108,6 +108,12 @@ export function Planos({ drawing, spec, title, subtitle }) {
   const ref = React.useRef(null);
   const specRef = React.useRef(null);
   const { views, total } = drawing;
+  React.useEffect(() => {
+    if (!big) return undefined;
+    const k = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setBig(false); } };
+    window.addEventListener('keydown', k, true);
+    return () => window.removeEventListener('keydown', k, true);
+  }, [big]);
   const print = (which) => {
     const el = which === 'spec' ? specRef.current : ref.current;
     if (!el) return;
@@ -119,11 +125,9 @@ export function Planos({ drawing, spec, title, subtitle }) {
         <div className="sec-head">
           <h3>Planimetría base</h3>
           <span className="muted">cotas en cm · medidas finales del mueble armado</span>
-          <button className="btn mini" onClick={() => setBig((b) => !b)}>{big ? 'Cerrar' : 'Ampliar'}</button>
-          <button className="btn mini" onClick={() => print('planos')}>Imprimir / PDF</button>
         </div>
-        <div className={`plan-sheet ${big ? 'big' : ''}`}>
-          {big && <button className="btn mini plan-close" onClick={() => setBig(false)}>Cerrar ✕</button>}
+        <div className={`plan-sheet ${big ? 'big' : ''}`} onClick={() => !big && setBig(true)} title={big ? undefined : 'Clic para ampliar'}>
+          {big && <button className="btn mini plan-close" onClick={(e) => { e.stopPropagation(); setBig(false); }}>Cerrar ✕</button>}
           <svg viewBox={`0 0 ${total.w} ${total.h}`} role="img" aria-label={`Planos de ${title}`} className="plan-svg" xmlns="http://www.w3.org/2000/svg">
             <style>{STYLE}</style>
             <rect x="1" y="1" width={total.w - 2} height={total.h - 2} fill="#fff" stroke={INK} strokeWidth="2" />
@@ -146,11 +150,11 @@ export function Planos({ drawing, spec, title, subtitle }) {
             </g>
           </svg>
         </div>
+        <div className="doc-foot"><button className="btn" onClick={() => print('planos')}>Imprimir / PDF de los planos</button></div>
       </div>
       <div ref={specRef}>
         <div className="sec-head">
-          <h4 className="doc-h" style={{ margin: '16px 0 6px' }}>Especificación técnica</h4>
-          <button className="btn mini" onClick={() => print('spec')}>Imprimir / PDF</button>
+          <h4 className="doc-h" style={{ margin: '22px 0 8px' }}>Especificación técnica</h4>
         </div>
         <div className="table-wrap">
           <table className="spec">
@@ -159,6 +163,7 @@ export function Planos({ drawing, spec, title, subtitle }) {
             </tbody>
           </table>
         </div>
+        <div className="doc-foot"><button className="btn" onClick={() => print('spec')}>Imprimir / PDF de la especificación</button></div>
       </div>
     </section>
   );
@@ -173,7 +178,6 @@ export function Manual({ manual, title }) {
       <div className="sec-head">
         <h3>Manual de armado</h3>
         <span className="muted">{title} · {manual.stepCount} pasos</span>
-        <button className="btn mini" onClick={() => printHtml(`${title}: manual de armado`, ref.current.innerHTML)}>Imprimir / PDF</button>
       </div>
       {manual.sections.map((sec) => (
         <div key={sec.title} className="man-sec">
@@ -184,6 +188,7 @@ export function Manual({ manual, title }) {
         </div>
       ))}
       </div>
+      <div className="doc-foot"><button className="btn" onClick={() => printHtml(`${title}: manual de armado`, ref.current.innerHTML)}>Imprimir / PDF del manual</button></div>
     </section>
   );
 }

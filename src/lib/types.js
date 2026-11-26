@@ -171,15 +171,20 @@ export const FURNITURE = [
         leg = legSpec('aceroDiagonal', v.pata);
         p.tip('El marco de acero en U no se puede usar con tapa redonda: se pusieron patas de acero en diagonal.');
       }
+      let mat = v.mat;
+      if (round && W > SHEETS[mat].size[1]) { // el disco no cabe en el ancho de la plancha: se usa un tablero del mismo espesor y más ancho
+        const alt = MAIN_SHEETS.find((id) => SHEETS[id].t === SHEETS[mat].t && SHEETS[id].size[1] >= W);
+        if (alt) { p.tip(`El disco de ${v.diametro} cm no cabe en ${SHEETS[mat].name.toLowerCase()} (ancho ${SHEETS[mat].size[1] / 10} cm): se usó ${SHEETS[alt].name.toLowerCase()}.`); mat = alt; }
+      }
       tableFrame(p, {
-        W, D, H: v.alto * 10, mat: v.mat, layers: v.tapa === 'doble' ? 2 : 1,
+        W, D, H: v.alto * 10, mat, layers: v.tapa === 'doble' ? 2 : 1,
         leg, casters: casterOf(v), oh: v.voladizo * 10, round,
       });
       if (round) {
         const seats = Math.max(2, Math.floor(v.diametro / 25));
         p.tip(`Alcanza para ~${seats} personas (≈ 25 cm de diámetro por comensal).`);
         if (v.tapa === 'simple' && v.diametro > 120) p.tip('Con más de 120 cm de diámetro conviene la tapa doble.');
-        if (W > SHEETS[v.mat].size[1]) p.warn(`El disco de ${v.diametro} cm no cabe en el ancho de la plancha (${SHEETS[v.mat].size[1] / 10} cm). Usa un tablero más ancho (melamina o MDF) o reduce el diámetro.`);
+
       } else {
         const seats = Math.max(2, Math.floor(v.ancho / 60) * 2 + (v.ancho >= 140 && v.fondo >= 70 ? 2 : 0));
         p.tip(`Alcanza para ~${seats} personas (60 cm por comensal).`);
@@ -275,8 +280,16 @@ export const FURNITURE = [
         let mode = v.cajonera;
         const free = W - 2 * ox - 400;
         if (mode === 'ambos' && free < 600) { mode = 'izq'; p.tip('El escritorio es corto para dos cajoneras: se dejó solo la de la izquierda.'); }
-        if (mode !== 'no' && mode !== 'ambos' && free < 300) { mode = 'no'; p.warn('El escritorio es muy corto para una cajonera: alarga el largo (mínimo ~75 cm).'); }
-        const wc = Math.max(300, Math.min(v.anchoCajonera * 10, mode === 'ambos' ? free / 2 : free));
+        if (mode !== 'no' && mode !== 'ambos' && free < 300) { mode = 'no'; p.tip('El escritorio es muy corto para una cajonera (mínimo ~75 cm de largo): se quitó.'); }
+        let wc = Math.max(300, Math.min(v.anchoCajonera * 10, mode === 'ambos' ? free / 2 : free));
+        // hacen falta ≥ 50 cm libres para las piernas: se angosta la cajonera, y si aun así no alcanza, se quita una o todas
+        const legroom = (m2, w2) => W - 2 * ox - (m2 === 'izq' || m2 === 'ambos' ? w2 : t) - (m2 === 'der' || m2 === 'ambos' ? w2 : t);
+        const asked = `${mode}/${wc}`;
+        while (mode !== 'no' && legroom(mode, wc) < 500) {
+          if (wc > 300) wc = Math.max(300, wc - (500 - legroom(mode, wc)) / (mode === 'ambos' ? 2 : 1));
+          else mode = mode === 'ambos' ? 'izq' : 'no';
+        }
+        if (`${mode}/${wc}` !== asked && v.cajonera !== 'no') p.tip(mode === 'no' ? 'No cabe la cajonera dejando 50 cm libres para las piernas: se quitó. Alarga el escritorio si la quieres.' : `Para dejar 50 cm libres para las piernas, la cajonera se ajustó a ${cm(wc)} cm de ancho${mode !== v.cajonera ? ' y quedó solo una' : ''}.`);
         const leftC = mode === 'izq' || mode === 'ambos';
         const rightC = mode === 'der' || mode === 'ambos';
         // entre laterales de más de 120 cm la tapa de un tablero flecta: se pasa sola a tapa doble
@@ -302,7 +315,6 @@ export const FURNITURE = [
           handleSummary(p, hspec, fronts, fxs, 'cajón');
           p.tip(`La cajonera tiene ${v.cajones} cajones con correderas telescópicas; las cajas son de melamina de 15 mm con fondo de MDF de 3 mm.`);
         }
-        if (mode !== 'no' && iw < 500) p.warn(`Queda solo ${cm(iw)} cm libres para las piernas; lo cómodo son 50 cm o más. Reduce la cajonera o alarga el escritorio.`);
         if (v.panelFrontal) {
           p.B('Panel trasero', mat, leftEdge, H - topT - 350, oz, iw, 350, 'u');
           p.joint(350, 2);
@@ -369,7 +381,7 @@ export const FURNITURE = [
       const zone = yEnd - yStart;
       const maxN = Math.max(1, Math.floor((zone + 15) / (aH + 15)));
       const n = Math.min(v.tablas, maxN);
-      if (n < v.tablas) p.warn(`Solo caben ${n} tabla(s) en el respaldo con ese alto; sube el alto total para agregar más.`);
+      if (n < v.tablas) p.tip(`Con ese alto solo caben ${n} tabla(s) en el respaldo: se dejaron ${n}. Sube el alto total si quieres más.`);
       const gap = n > 1 ? (zone - n * aH) / (n - 1) : 0;
       for (let k = 0; k < n; k++) {
         p.L('Tabla de respaldo', 'pino19x90', 'x', W - 2 * s, s, yStart + k * (aH + gap), (s - aT) / 2);
@@ -459,16 +471,18 @@ export const FURNITURE = [
       const filas = !v.equipo && v.filas === 0 ? 1 : v.filas;
       const rows = Array.from({ length: filas }, () => ({ h: v.alturaCelda * 10, cols: v.columnas }));
       if (v.equipo) rows.push({ h: v.alturaEquipo * 10, cols: 1, load: 1 });
+      // la tapa debe alojar un tocadiscos estándar (~43 × 36 cm) y los discos (31,5 cm) deben entrar: si se pide menos, se amplía solo
+      const z3 = v.trasera === 'hdf' ? SHEETS.hdf3.t : 0;
+      const Wd = Math.max(v.ancho * 10, 450);
+      const Dd = Math.max(v.fondo * 10, 400, filas > 0 ? 328 + z3 : 0);
+      if (Wd > v.ancho * 10 || Dd > v.fondo * 10) p.tip(`Se amplió la tapa a ${cm(Wd)} × ${cm(Dd)} cm para que quepa un tocadiscos estándar (≈ 43 × 36 cm).`);
       const r = carcass(p, {
-        mat: v.mat, W: v.ancho * 10, D: v.fondo * 10, rows,
+        mat: v.mat, W: Wd, D: Dd, rows,
         base: v.base, baseH: v.altoBase * 10, back: v.trasera, leg: legOf(v), loadFactor: 0.8,
       });
       p.tip(`Superficie superior: ${v.ancho} × ${v.fondo} cm. Un tocadiscos típico mide ~43 × 36 cm.`);
-      if (v.fondo < 40 || v.ancho < 45) p.warn('La tapa queda justa para un tocadiscos de tamaño estándar (≈ 43 × 36 cm).');
       if (filas > 0) {
         const cw = r.rows[0].cw;
-        const D = v.fondo * 10 - r.z0;
-        if (D < 325) p.warn(`El fondo útil es de ${cm(D)} cm; un LP mide 31,5 cm: sube el fondo para que entren.`);
         const lps = filas * v.columnas * Math.round((cw / 10) * 2);
         p.tip(`Capacidad aproximada: ${lps} vinilos (2 por cm de ancho libre).`);
       }
@@ -505,11 +519,15 @@ export const FURNITURE = [
     ],
     build(v) {
       const p = new PartList();
-      const W = v.ancho * 10;
-      if (W - v.anchoModulo * 10 < 350) p.warn('El módulo de vinilos queda muy angosto: reduce el ancho del módulo del tocadiscos o alarga la credenza.');
+      const tt = SHEETS[v.mat].t;
+      // el tocadiscos pide 44 cm libres de ancho y 38 cm de fondo, y el módulo de vinilos al menos 35 cm: si no alcanza, se amplía solo
+      const Wt = Math.max(v.anchoModulo * 10, 440 + 2 * tt);
+      const W = Math.max(v.ancho * 10, Wt + 350);
+      const Dc = Math.max(v.fondo * 10, 380);
+      if (W > v.ancho * 10 || Dc > v.fondo * 10 || Wt > v.anchoModulo * 10) p.tip(`Se ajustaron las medidas para que quepa un tocadiscos estándar y un módulo de vinilos útil: largo ${cm(W)} cm, fondo ${cm(Dc)} cm, módulo del tocadiscos ${cm(Wt)} cm.`);
       credenza(p, {
-        mat: v.mat, W, D: v.fondo * 10, H: v.alto * 10, platformH: v.altoPlataforma * 10,
-        Wt: Math.min(v.anchoModulo * 10, W - 350), side: v.lado, cols: v.columnas, rows: v.filas, front: v.frente,
+        mat: v.mat, W, D: Dc, H: v.alto * 10, platformH: v.altoPlataforma * 10,
+        Wt, side: v.lado, cols: v.columnas, rows: v.filas, front: v.frente,
         base: v.base, baseH: v.altoBase * 10, leg: legOf(v), handle: handleFromValues(v),
       });
       return p.result();
@@ -543,23 +561,32 @@ export const FURNITURE = [
       const p = new PartList();
       const t = SHEETS[v.mat].t;
       const cw = v.anchoCelda * 10;
-      const W = v.columnas * cw + (v.columnas + 1) * t;
-      const rows = Array.from({ length: v.filas }, (_, i) => ({ h: v.alturaCelda * 10, cols: v.columnas, door: v.puertas === 'todas' || (v.puertas === 'abajo' && i === 0) }));
+      // ningún tablero puede pasar del largo de la plancha (2,44 m): se limita la cantidad de columnas y filas
+      const MAXL = 2430;
+      let colsV = v.columnas;
+      let filasV = v.filas;
+      while (colsV > 1 && colsV * cw + (colsV + 1) * t > MAXL) colsV--;
+      while (filasV > 1 && v.altoBase * 10 + filasV * v.alturaCelda * 10 + (filasV + 1) * t > MAXL) filasV--;
+      if (colsV < v.columnas || filasV < v.filas) p.tip(`Para que cada tablero quepa en una plancha (2,44 m) se dejaron ${colsV} columnas y ${filasV} filas. Para más capacidad, agrega otro mueble.`);
+      const W = colsV * cw + (colsV + 1) * t;
+      const rows = Array.from({ length: filasV }, (_, i) => ({ h: v.alturaCelda * 10, cols: colsV, door: v.puertas === 'todas' || (v.puertas === 'abajo' && i === 0) }));
+      const Dv = Math.max(v.fondo * 10, 328 + (v.trasera === 'hdf' ? SHEETS.hdf3.t : 0)); // un LP de 12" mide 31,5 cm
+      if (Dv > v.fondo * 10) p.tip(`El fondo se amplió a ${cm(Dv)} cm para que los discos entren completos.`);
       const r = carcass(p, {
-        mat: v.mat, W, D: v.fondo * 10, rows,
+        mat: v.mat, W, D: Dv, rows,
         base: v.base, baseH: v.altoBase * 10, back: v.trasera, leg: legOf(v), loadFactor: 1, handle: handleFromValues(v),
       });
       const perCell = Math.round(v.anchoCelda * 2);
-      const total = perCell * v.columnas * v.filas;
+      const total = perCell * colsV * filasV;
       const kg = Math.round(total * 0.25);
       p.tip(`Capacidad aproximada: ${perCell} LPs por celda, ${total} en total (2 por cm de ancho libre).`);
       p.tip(`Peso estimado con todos los discos: ~${kg} kg (≈ 250 g por LP con funda).`);
       if (kg > 250) {
-        p.warn(`Cargado pesa ~${kg} kg: apóyalo en piso firme, fíjalo a la muralla y prefiere zócalo o patas de 3×3" para repartir el peso.`);
+        p.hardware('Kit anti-vuelco (escuadra + tarugo)', 2, 'Para fijar el mueble a la muralla');
+        p.tip(`Cargado pesa ~${kg} kg: apóyalo en piso firme; se incluyó el kit anti-vuelco para fijarlo a la muralla.`);
       } else if (kg > 120) {
         p.tip('Con todos los discos es un mueble pesado: apóyalo en piso firme y fíjalo a la muralla.');
       }
-      if (v.fondo * 10 - r.z0 < 325) p.warn('El fondo útil es menor a 32,5 cm: un LP de 12" no entra completo.');
       return p.result();
     },
   },
