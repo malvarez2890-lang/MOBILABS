@@ -86,7 +86,10 @@ export default function App() {
   const plans = useMemo(() => packAll(model.parts, settings), [model, settings]);
   const shop = useMemo(() => buildShopping(model, plans), [model, plans]);
   const priced = useMemo(() => priceShop(shop, prices), [shop, prices]);
-  const drawing = useMemo(() => buildDrawing(model), [model]);
+  const [isoImg, setIsoImg] = useState(null); // render isométrico (imagen) tomado del visor 3D
+  const drawingBase = useMemo(() => buildDrawing(model), [model]);
+  const drawing = useMemo(() => ({ ...drawingBase, isoImage: isoImg }), [drawingBase, isoImg]);
+  const viewerApi = useRef(null);
   const manual = useMemo(() => buildManual(model, plans, shop), [model, plans, shop]);
   const [bw, bh, bd] = model.bbox.dims;
 
@@ -213,6 +216,16 @@ export default function App() {
     copyDims: () => copyText((selKeys.size ? selGroups : plans.groups)
       .map((g) => `${g.name} ×${g.qty} — ${g.kind === 'sheet' ? `${fmt(g.l)} × ${fmt(g.w)} × ${g.t} mm` : `${fmt(g.l)} mm`} (${materialOf(g.mat).short})`).join('\n')),
   };
+  // render isométrico para los planos: se toma del visor (con sus texturas) poco después de cada cambio
+  useEffect(() => {
+    const id = setTimeout(() => {
+      try {
+        const api = viewerApi.current;
+        if (api) setIsoImg(api.snapshot(1400, Math.round(1400 / drawingBase.isoAspect)));
+      } catch { /* sin WebGL: se usa el dibujo de líneas */ }
+    }, 450);
+    return () => clearTimeout(id);
+  }, [model, looks, hiddenIds, drawingBase.isoAspect]);
   const propsParts = useMemo(() => (selIds.size ? model.parts.filter((p) => selIds.has(p.id)) : model.parts), [model, selIds]);
   const propsGroups = useMemo(() => (selIds.size ? selGroups : plans.groups), [selIds, selGroups, plans]);
 
@@ -395,7 +408,7 @@ export default function App() {
       <main className="center">
         <ViewManager drawing={drawing} onSlot={setSlot3d} />
         <div className={`viewer ${slot3d ? 'in-tile' : ''}`} style={slot3d ? { left: slot3d.left, top: slot3d.top + 22, width: slot3d.width, height: slot3d.height - 22 } : undefined}>
-          <Viewer3D parts={model.parts} fixtures={model.fixtures} bbox={model.bbox} explode={explode} highlight={hover || (selIds.size ? selIds : null)} viewKey={typeId} viewCmd={viewCmd} looks={looks} hiddenIds={hiddenIds} multi={multi} onPick={onPick} onBox={onBox} onContext={onContext} />
+          <Viewer3D apiRef={viewerApi} parts={model.parts} fixtures={model.fixtures} bbox={model.bbox} explode={explode} highlight={hover || (selIds.size ? selIds : null)} viewKey={typeId} viewCmd={viewCmd} looks={looks} hiddenIds={hiddenIds} multi={multi} onPick={onPick} onBox={onBox} onContext={onContext} />
           <div className="hud">
             <div className="dims">
               <b>{type.name}</b>

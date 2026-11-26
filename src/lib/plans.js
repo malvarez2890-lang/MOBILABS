@@ -121,11 +121,14 @@ export function buildDrawing(model) {
   const W = max[0] - min[0], H = max[1] - min[1], D = max[2] - min[2];
   const V = Object.fromEntries(Object.keys(PROJ).map((k) => [k, buildView(model, k)]));
   const padR = 100, padB = 190, padT = 50, sheetW = 2000;
+  const isoAspect = Math.min(1.6, Math.max(0.75, V.iso.w / V.iso.h)); // proporción de la imagen render isométrica
   const grid = [['front', 'left', 'right'], ['back', 'plan', 'iso']];
   const colMm = [0, 1, 2].map((c) => Math.max(...grid.map((r) => V[r[c]].w)));
   const rowMm = grid.map((r) => Math.max(...r.map((k) => V[k].h)));
   const s = Math.min((sheetW - 3 * padR) / colMm.reduce((a, b) => a + b, 0), 1500 / (rowMm[0] + rowMm[1]));
   const colW = colMm.map((c) => Math.max(c * s, 440)); // cada columna debe alojar el título de su vista
+  const isoH = colW[2] / isoAspect; // la imagen isométrica ocupa todo el ancho de su columna
+  rowMm[1] = Math.max(rowMm[1], isoH / s);
   const colX = [60, 60 + colW[0] + padR, 60 + colW[0] + colW[1] + 2 * padR];
   const rowY = [40 + padT, 40 + padT + rowMm[0] * s + padB + padT];
   const total = { w: Math.max(sheetW, colX[2] + colW[2] + padR), h: rowY[1] + rowMm[1] * s + padB + 150 };
@@ -140,6 +143,7 @@ export function buildDrawing(model) {
     const oy = rowY[ri] - v.v0 * s;
     const polys = v.polys.map((q) => ({ cls: q.cls, pts: q.pts.map(([u, w]) => [ox + u * s, oy + w * s]) }));
     const x = colX[ci], y = rowY[ri];
+    const isIso = k === 'iso';
     const dims = [];
     const sx = (u) => ox + u * s;
     const sy = (w) => oy + w * s;
@@ -167,9 +171,12 @@ export function buildDrawing(model) {
       const cz = chainStops(model, 2);
       if (cz.length > 2) seg(cz).forEach(([a, b]) => vd(a, b, 26, b - a < 25 ? '' : cm(b - a)));
     }
-    return { key: k, title: v.title, x, y, w: v.w * s, h: v.h * s, rowBottom: rowY[ri] + rowMm[ri] * s, polys, dims };
+    const vw = isIso ? colW[2] : v.w * s;
+    const vh = isIso ? isoH : v.h * s;
+    const maxOff = dims.reduce((a, d) => Math.max(a, d.off), isIso ? 0 : 20);
+    return { key: k, title: v.title, x, y, w: vw, h: vh, titleY: y + vh + maxOff + 70, rowBottom: rowY[ri] + rowMm[ri] * s, polys, dims };
   }));
-  return { s, W, H, D, min, max, total, views, scaleN };
+  return { s, W, H, D, min, max, total, views, scaleN, isoAspect };
 }
 
 // ---------- ficha técnica ----------

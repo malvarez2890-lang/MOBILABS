@@ -34,7 +34,7 @@ function VDim({ y1, y2, x, label, off = 0 }) {
 }
 /** Título de la vista bajo el dibujo, con subrayado y escala, como en un plano CAD. */
 function ViewTitle({ v, scaleN }) {
-  const y = v.rowBottom + 150;
+  const y = v.titleY;
   return (
     <g>
       <text x={v.x + 20} y={y} className="vt">{v.title}</text>
@@ -86,12 +86,12 @@ export function ViewSvg({ drawing, vkey }) {
   const v = drawing.views.find((x) => x.key === vkey);
   if (!v) return null;
   const x0 = v.x - 50, y0 = v.y - 40;
-  const w = Math.max(v.w + 230, 480), h = v.rowBottom - v.y + 230;
+  const w = Math.max(v.w + 230, 480), h = v.titleY - v.y + 110;
   return (
     <svg viewBox={`${x0} ${y0} ${w} ${h}`} className="view-svg" preserveAspectRatio="xMinYMin meet" role="img" aria-label={v.title} xmlns="http://www.w3.org/2000/svg">
       <style>{STYLE}</style>
       <ViewTitle v={v} scaleN={drawing.scaleN} />
-      <Polys v={v} />
+      <Polys v={v} image={drawing.isoImage} />
       {v.dims.map((d, i) => (d.t === 'h'
         ? <HDim key={i} x1={d.x1} x2={d.x2} y={d.at} off={d.off} label={d.label} />
         : <VDim key={i} y1={d.y1} y2={d.y2} x={d.at} off={d.off} label={d.label} />))}
@@ -99,7 +99,8 @@ export function ViewSvg({ drawing, vkey }) {
   );
 }
 
-function Polys({ v }) {
+function Polys({ v, image }) {
+  if (v.key === 'iso' && image) return <image href={image} x={v.x} y={v.y} width={v.w} height={v.h} preserveAspectRatio="xMidYMid meet" />;
   return <g>{v.polys.map((q, i) => <polygon key={i} className={`dr-poly dr-${q.cls}`} points={q.pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')} />)}</g>;
 }
 
@@ -134,7 +135,7 @@ export function Planos({ drawing, spec, title, subtitle }) {
             {views.map((v) => (
               <g key={v.key}>
                 <ViewTitle v={v} scaleN={drawing.scaleN} />
-                <Polys v={v} />
+                <Polys v={v} image={drawing.isoImage} />
                 {v.dims.map((d, i) => (d.t === 'h'
                   ? <HDim key={i} x1={d.x1} x2={d.x2} y={d.at} off={d.off} label={d.label} />
                   : <VDim key={i} y1={d.y1} y2={d.y2} x={d.at} off={d.off} label={d.label} />))}

@@ -38,7 +38,7 @@ function tint(hex, seed) {
   return c;
 }
 
-export default function Viewer3D({ parts, fixtures = [], bbox, explode, highlight, viewKey, viewCmd, looks, hiddenIds, multi, onPick, onBox, onContext }) {
+export default function Viewer3D({ parts, fixtures = [], bbox, explode, highlight, viewKey, viewCmd, looks, hiddenIds, multi, onPick, onBox, onContext, apiRef }) {
   const mount = useRef(null);
   const S = useRef({}); // objetos three.js
   const latest = useRef({});
@@ -269,6 +269,49 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
       }
     };
     loop();
+
+    // Imagen tipo "render" de la vista isométrica (con las mismas texturas y sombras que el visor), para los planos
+    const snapshot = (w, h) => {
+      const bb = latest.current.bbox;
+      const [bw, bh, bd] = bb.dims.map((n) => n / 10);
+      const fov = 22;
+      const cam = new THREE.PerspectiveCamera(fov, w / h, 1, 6000);
+      const target = new THREE.Vector3(0, bh / 2, 0);
+      const R = 0.5 * Math.sqrt(bw * bw + bh * bh + bd * bd);
+      const vf = THREE.MathUtils.degToRad(fov);
+      const hf = 2 * Math.atan(Math.tan(vf / 2) * cam.aspect);
+      const dist = Math.max(R / Math.sin(vf / 2), R / Math.sin(hf / 2)) * 1.04;
+      const dirV = new THREE.Vector3(...VIEWS.iso).normalize();
+      cam.position.copy(target).addScaledVector(dirV, dist);
+      cam.lookAt(target);
+      // acerca la cámara hasta que el mueble ocupe ~94 % de la imagen
+      cam.updateMatrixWorld();
+      let m = 0;
+      const pv = new THREE.Vector3();
+      for (const x of [-bw / 2, bw / 2]) for (const y of [0, bh]) for (const z of [-bd / 2, bd / 2]) {
+        pv.set(x, y, z).project(cam);
+        m = Math.max(m, Math.abs(pv.x), Math.abs(pv.y));
+      }
+      if (m > 0) { cam.position.copy(target).addScaledVector(dirV, dist * (m / 0.94)); cam.lookAt(target); }
+      const size = renderer.getSize(new THREE.Vector2());
+      const pr = renderer.getPixelRatio();
+      const prevColor = renderer.getClearColor(new THREE.Color());
+      const prevAlpha = renderer.getClearAlpha();
+      const gridWas = grid.visible;
+      grid.visible = false;
+      renderer.setPixelRatio(1);
+      renderer.setSize(w, h, false);
+      renderer.setClearColor(0xffffff, 1);
+      renderer.render(scene, cam);
+      const url = renderer.domElement.toDataURL('image/jpeg', 0.92);
+      renderer.setClearColor(prevColor, prevAlpha);
+      renderer.setPixelRatio(pr);
+      renderer.setSize(size.x, size.y, false);
+      grid.visible = gridWas;
+      needRender = true;
+      return url;
+    };
+    if (apiRef) apiRef.current = { snapshot };
 
     S.current = { renderer, scene, camera, controls, root, lastSize: 0, invalidate };
     return () => {
