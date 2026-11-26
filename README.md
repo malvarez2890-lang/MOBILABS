@@ -27,3 +27,6 @@ npm test         # verifica geometría y cubicación de ~570 configuraciones
 | `src/components/` | Visor 3D (three.js), formulario y listas. |
 
 Unidades: parámetros en **cm**, despiece en **mm**. Sistema de coordenadas: x = ancho, y = alto, z = fondo.
+
+## Versión publicada
+https://malvarez2890-lang.github.io/ElBunkerLAb/ (se despliega sola con GitHub Actions al subir cambios a `main`).
