@@ -346,7 +346,6 @@ export default function App() {
           ) : (
             <>
               <button className="btn" onClick={exportCsv}><span className="long">Descargar </span>CSV</button>
-              <button className="btn primary" onClick={() => window.print()}>Imprimir<span className="long"> / PDF</span></button>
             </>
           )}
         </div>

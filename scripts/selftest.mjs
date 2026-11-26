@@ -79,7 +79,7 @@ function check(label, typeId, values) {
   const shop = buildShopping(m, plans);
   // planos, ficha técnica y manual: se generan sin errores y con contenido
   const dr = buildDrawing(m);
-  assert.ok(Number.isFinite(dr.s) && dr.s > 0 && dr.chain.y.length >= 2, `${label}: planimetría inválida`);
+  assert.ok(Number.isFinite(dr.s) && dr.s > 0 && dr.views.length === 6 && dr.views.every((v) => v.polys.length > 0), `${label}: planimetría inválida`);
   assert.ok(techSpec(m, plans, shop, FURNITURE.find((f) => f.id === typeId), values).length >= 6, `${label}: ficha técnica incompleta`);
   const man = buildManual(m, plans, shop);
   assert.ok(man.stepCount >= 8 && man.sections.every((x) => x.steps.every((t) => typeof t === 'string' && !/undefined|\[object/.test(t))), `${label}: manual inválido`);

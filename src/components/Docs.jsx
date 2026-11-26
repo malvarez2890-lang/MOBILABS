@@ -30,94 +30,104 @@ function VDim({ y1, y2, x, label, off = 0 }) {
   );
 }
 
-function ViewRects({ v }) {
-  return (
-    <g>
-      {v.rects.map((r, i) => {
-        const cls = `${r.kind === 'part' ? (r.leg ? 'dr-leg' : 'dr-sheet') : r.kind === 'handle' ? 'dr-handle' : 'dr-fix'}`;
-        return r.disc && v.title.startsWith('Planta')
-          ? <ellipse key={i} cx={r.x + r.w / 2} cy={r.y + r.h / 2} rx={r.w / 2} ry={r.h / 2} className={cls} />
-          : <rect key={i} x={r.x} y={r.y} width={Math.max(r.w, 0.8)} height={Math.max(r.h, 0.8)} className={cls} />;
-      })}
-    </g>
-  );
+const STYLE = `
+  .dr-sheet-top{fill:#f8f5ee}.dr-sheet-front{fill:#f1ece2}.dr-sheet-side{fill:#ddd5c4}
+  .dr-leg-top{fill:#efe4cf}.dr-leg-front{fill:#e2d3b8}.dr-leg-side{fill:#cdbd9f}
+  .dr-fix-top{fill:#b4bbc2}.dr-fix-front{fill:#8f979f}.dr-fix-side{fill:#737b83}
+  .dr-handle-top,.dr-handle-front,.dr-handle-side{fill:#c9ced4}
+  .dr-poly{stroke:${INK};stroke-width:1.6;stroke-linejoin:round}
+  .dim line,.dim path{stroke:#0b5d91;stroke-width:1.6;fill:none}
+  .dim line.ext{stroke-width:1;stroke-dasharray:5 4}
+  .dim text{font:22px system-ui,sans-serif;fill:#0b5d91}
+  .vt{font:600 26px system-ui,sans-serif;fill:${INK}}
+`;
+
+/** Imprime (o guarda como PDF) un fragmento de la página en una hoja blanca, sin depender del resto de la interfaz. */
+export function printHtml(title, html, landscape = false) {
+  const f = document.createElement('iframe');
+  f.setAttribute('aria-hidden', 'true');
+  Object.assign(f.style, { position: 'fixed', right: '0', bottom: '0', width: '0', height: '0', border: '0' });
+  document.body.appendChild(f);
+  const d = f.contentDocument;
+  d.open();
+  d.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${title}</title><style>
+    @page { size: A4 ${landscape ? 'landscape' : 'portrait'}; margin: 10mm; }
+    * { box-sizing: border-box; }
+    body { font: 12px/1.45 system-ui, sans-serif; color: #111; background: #fff; margin: 0; }
+    h1 { font-size: 20px; margin: 0 0 2px; } h3 { font-size: 16px; margin: 0 0 6px; } .muted { color: #555; font-size: 11px; }
+    .sec-head { display: flex; gap: 12px; align-items: baseline; } .btn, .mini, .plan-close { display: none !important; }
+    .plan-svg { width: 100%; height: auto; display: block; border: 1px solid #999; }
+    .doc-h { margin: 14px 0 6px; font-size: 13px; color: #075b8d; text-transform: uppercase; letter-spacing: .04em; break-after: avoid; }
+    table.spec { width: 100%; border-collapse: collapse; } table.spec th { text-align: left; width: 32%; vertical-align: top; padding: 4px 8px 4px 0; border-bottom: 1px solid #ccc; color: #333; }
+    table.spec td { padding: 4px 0; border-bottom: 1px solid #ccc; }
+    tr, li { break-inside: avoid; } ol { padding-left: 22px; margin: 0 0 6px; } li { margin: 0 0 6px; }
+    .page-break { break-before: page; }
+  </style></head><body><h1>${title}</h1>${html}</body></html>`);
+  d.close();
+  const go = () => { try { f.contentWindow.focus(); f.contentWindow.print(); } finally { setTimeout(() => f.remove(), 2000); } };
+  setTimeout(go, 250);
+}
+
+function Polys({ v }) {
+  return <g>{v.polys.map((q, i) => <polygon key={i} className={`dr-poly dr-${q.cls}`} points={q.pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')} />)}</g>;
 }
 
 export function Planos({ drawing, spec, title, subtitle }) {
   const [big, setBig] = React.useState(false);
-  const { views, chain, s, min, max, total } = drawing;
-  const f = views.front;
-  const sd = views.side;
-  const pl = views.plan;
-  const yPos = (val) => f.oy + (max[1] - val) * s; // altura en la elevación frontal
-  const xPos = (val) => f.ox + (val - min[0]) * s;
-  const zPos = (val) => pl.oy + (val - min[2]) * s;
-  const chainY = chain.y.slice(1).map((v, i) => [chain.y[i], v]);
-  const chainX = chain.x.slice(1).map((v, i) => [chain.x[i], v]);
-  const chainZ = chain.z.slice(1).map((v, i) => [chain.z[i], v]);
-  const showY = chain.y.length > 2;
-  const showX = chain.x.length > 2;
-  const showZ = chain.z.length > 2;
+  const ref = React.useRef(null);
+  const specRef = React.useRef(null);
+  const { views, total } = drawing;
+  const print = (which) => {
+    const el = which === 'spec' ? specRef.current : ref.current;
+    if (!el) return;
+    printHtml(which === 'spec' ? `${title}: especificación técnica` : `${title}: planimetría`, el.innerHTML, which !== 'spec');
+  };
   return (
     <section className="docs">
-      <div className="sec-head">
-        <h3>Planimetría base</h3>
-        <span className="muted">cotas en cm · medidas finales del mueble armado</span>
-        <button className="btn mini" onClick={() => setBig((b) => !b)}>{big ? 'Cerrar' : 'Ampliar'}</button>
+      <div ref={ref}>
+        <div className="sec-head">
+          <h3>Planimetría base</h3>
+          <span className="muted">cotas en cm · medidas finales del mueble armado</span>
+          <button className="btn mini" onClick={() => setBig((b) => !b)}>{big ? 'Cerrar' : 'Ampliar'}</button>
+          <button className="btn mini" onClick={() => print('planos')}>Imprimir / PDF</button>
+        </div>
+        <div className={`plan-sheet ${big ? 'big' : ''}`}>
+          {big && <button className="btn mini plan-close" onClick={() => setBig(false)}>Cerrar ✕</button>}
+          <svg viewBox={`0 0 ${total.w} ${total.h}`} role="img" aria-label={`Planos de ${title}`} className="plan-svg" xmlns="http://www.w3.org/2000/svg">
+            <style>{STYLE}</style>
+            <rect x="1" y="1" width={total.w - 2} height={total.h - 2} fill="#fff" stroke={INK} strokeWidth="2" />
+            {views.map((v) => (
+              <g key={v.key}>
+                <text x={v.x} y={v.y - 30} className="vt">{v.title}</text>
+                <Polys v={v} />
+                {v.dims.map((d, i) => (d.t === 'h'
+                  ? <HDim key={i} x1={d.x1} x2={d.x2} y={d.at} off={d.off} label={d.label} />
+                  : <VDim key={i} y1={d.y1} y2={d.y2} x={d.at} off={d.off} label={d.label} />))}
+              </g>
+            ))}
+            <g transform={`translate(${total.w - 660} ${total.h - 170})`}>
+              <rect width="640" height="150" fill="#fff" stroke={INK} strokeWidth="2" />
+              <line x1="0" y1="52" x2="640" y2="52" stroke={INK} strokeWidth="2" />
+              <text x="14" y="36" className="vt" style={{ fontSize: 30 }}>{title}</text>
+              <text x="14" y="86" style={{ font: '22px system-ui,sans-serif', fill: INK }}>{subtitle}</text>
+              <text x="14" y="116" style={{ font: '22px system-ui,sans-serif', fill: INK }}>Planimetría base · cotas en cm · sin escala fija</text>
+              <text x="14" y="140" style={{ font: '20px system-ui,sans-serif', fill: '#555' }}>MOBILABs · referencia de diseño, verifica en obra</text>
+            </g>
+          </svg>
+        </div>
       </div>
-      <div className={`plan-sheet ${big ? 'big' : ''}`}>
-        {big && <button className="btn mini plan-close" onClick={() => setBig(false)}>Cerrar ✕</button>}
-        <svg viewBox={`0 0 ${total.w} ${total.h}`} role="img" aria-label={`Planos de ${title}`} className="plan-svg">
-          <style>{`
-            .dr-sheet{fill:#f1ece2;stroke:${INK};stroke-width:1.8}
-            .dr-leg{fill:#e2d3b8;stroke:${INK};stroke-width:1.8}
-            .dr-fix{fill:#8f979f;stroke:${INK};stroke-width:1.8}
-            .dr-handle{fill:#c9ced4;stroke:${INK};stroke-width:1.4}
-            .dim line,.dim path{stroke:#0b5d91;stroke-width:1.6;fill:none}
-            .dim line.ext{stroke-width:1;stroke-dasharray:5 4}
-            .dim text{font:22px system-ui,sans-serif;fill:#0b5d91}
-            .vt{font:600 26px system-ui,sans-serif;fill:${INK}}
-          `}</style>
-          <rect x="1" y="1" width={total.w - 2} height={total.h - 2} fill="#fff" stroke={INK} />
-
-          <text x={f.ox} y={f.oy - 56} className="vt">{f.title}</text>
-          <ViewRects v={f} />
-          <HDim x1={f.ox} x2={f.ox + f.size.w} y={f.oy + f.size.h + 12} off={76} label={cm(drawing.W)} />
-          {showX && chainX.map(([a, b], i) => <HDim key={`fx${i}`} x1={xPos(a)} x2={xPos(b)} y={f.oy + f.size.h + 12} off={34} label={b - a < 25 ? '' : cm(b - a)} />)}
-          <VDim y1={f.oy} y2={f.oy + f.size.h} x={f.ox + f.size.w + 12} off={showY ? 92 : 44} label={cm(drawing.H)} />
-          {showY && chainY.map(([a, b], i) => <VDim key={`fy${i}`} y1={yPos(b)} y2={yPos(a)} x={f.ox + f.size.w + 12} off={42} label={b - a < 25 ? '' : cm(b - a)} />)}
-
-          <text x={sd.ox} y={sd.oy - 56} className="vt">{sd.title}</text>
-          <ViewRects v={sd} />
-          <HDim x1={sd.ox} x2={sd.ox + sd.size.w} y={sd.oy + sd.size.h + 12} off={42} label={cm(drawing.D)} />
-          <VDim y1={sd.oy} y2={sd.oy + sd.size.h} x={sd.ox + sd.size.w + 12} off={42} label={cm(drawing.H)} />
-
-          <text x={pl.ox} y={pl.oy - 56} className="vt">{pl.title}</text>
-          <ViewRects v={pl} />
-          <text x={pl.ox + pl.size.w + 130} y={pl.oy + 30} style={{ font: '20px system-ui,sans-serif', fill: '#555' }}>Planta: respaldo arriba, frente abajo</text>
-          <HDim x1={pl.ox} x2={pl.ox + pl.size.w} y={pl.oy + pl.size.h + 12} off={showX ? 76 : 44} label={cm(drawing.W)} />
-          {showX && chainX.map(([a, b], i) => <HDim key={`px${i}`} x1={xPos(a)} x2={xPos(b)} y={pl.oy + pl.size.h + 12} off={34} label={b - a < 25 ? '' : cm(b - a)} />)}
-          <VDim y1={pl.oy} y2={pl.oy + pl.size.h} x={pl.ox + pl.size.w + 12} off={showZ ? 92 : 44} label={cm(drawing.D)} />
-          {showZ && chainZ.map(([a, b], i) => <VDim key={`pz${i}`} y1={zPos(a)} y2={zPos(b)} x={pl.ox + pl.size.w + 12} off={42} label={b - a < 25 ? '' : cm(b - a)} />)}
-
-          {/* rótulo */}
-          <g transform={`translate(${total.w - 640} ${total.h - 190})`}>
-            <rect width="626" height="176" fill="#fff" stroke={INK} strokeWidth="2" />
-            <line x1="0" y1="56" x2="626" y2="56" stroke={INK} strokeWidth="2" />
-            <text x="14" y="38" className="vt" style={{ fontSize: 30 }}>{title}</text>
-            <text x="14" y="92" style={{ font: '22px system-ui,sans-serif', fill: INK }}>{subtitle}</text>
-            <text x="14" y="124" style={{ font: '22px system-ui,sans-serif', fill: INK }}>Planimetría base · cotas en cm · sin escala fija</text>
-            <text x="14" y="156" style={{ font: '20px system-ui,sans-serif', fill: '#555' }}>MOBILABs · referencia de diseño, verifica en obra</text>
-          </g>
-        </svg>
-      </div>
-      <h4 className="doc-h">Especificación técnica</h4>
-      <div className="table-wrap">
-        <table className="spec">
-          <tbody>
-            {spec.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}
-          </tbody>
-        </table>
+      <div ref={specRef}>
+        <div className="sec-head">
+          <h4 className="doc-h" style={{ margin: '16px 0 6px' }}>Especificación técnica</h4>
+          <button className="btn mini" onClick={() => print('spec')}>Imprimir / PDF</button>
+        </div>
+        <div className="table-wrap">
+          <table className="spec">
+            <tbody>
+              {spec.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );
@@ -125,11 +135,14 @@ export function Planos({ drawing, spec, title, subtitle }) {
 
 /* ------------------------------------------------------------------ MANUAL */
 export function Manual({ manual, title }) {
+  const ref = React.useRef(null);
   return (
     <section className="docs manual">
+      <div ref={ref}>
       <div className="sec-head">
         <h3>Manual de armado</h3>
         <span className="muted">{title} · {manual.stepCount} pasos</span>
+        <button className="btn mini" onClick={() => printHtml(`${title}: manual de armado`, ref.current.innerHTML)}>Imprimir / PDF</button>
       </div>
       {manual.sections.map((sec) => (
         <div key={sec.title} className="man-sec">
@@ -139,6 +152,7 @@ export function Manual({ manual, title }) {
           </ol>
         </div>
       ))}
+      </div>
     </section>
   );
 }

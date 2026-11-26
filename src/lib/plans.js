@@ -36,61 +36,135 @@ function chainStops(model, axis) {
   return u.length > 14 ? [min[axis], max[axis]] : u;
 }
 
-/** Proyecta las piezas en un plano. Devuelve rectángulos ya ordenados de atrás hacia adelante. */
-function project(model, view) {
-  const ax = { front: [0, 1, 2, false], side: [2, 1, 0, false], plan: [0, 2, 1, true] }[view]; // [horizontal, vertical, profundidad, invertir vertical]
+const C30 = Math.cos(Math.PI / 6);
+const PROJ = {
+  front: { u: (x, y, z) => x, v: (x, y, z) => -y, d: (c) => c[2], dir: 1 },
+  back: { u: (x, y, z) => -x, v: (x, y, z) => -y, d: (c) => c[2], dir: -1 },
+  right: { u: (x, y, z) => -z, v: (x, y, z) => -y, d: (c) => c[0], dir: 1 },
+  left: { u: (x, y, z) => z, v: (x, y, z) => -y, d: (c) => c[0], dir: -1 },
+  plan: { u: (x, y, z) => x, v: (x, y, z) => z, d: (c) => c[1], dir: 1 },
+  iso: { u: (x, y, z) => (x - z) * C30, v: (x, y, z) => (x + z) * 0.5 - y, d: (c) => c[0] + c[1] + c[2], dir: 1 },
+};
+const TITLES = {
+  front: 'Vista frontal', back: 'Vista trasera', left: 'Vista lateral izquierda', right: 'Vista lateral derecha',
+  plan: 'Planta (desde arriba)', iso: 'Vista isométrica',
+};
+
+const mulM = (A, B) => A.map((r, i) => [0, 1, 2].map((j) => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j]));
+const rotM = (rot) => {
+  const [a, b, c] = rot;
+  const Rx = [[1, 0, 0], [0, Math.cos(a), -Math.sin(a)], [0, Math.sin(a), Math.cos(a)]];
+  const Ry = [[Math.cos(b), 0, Math.sin(b)], [0, 1, 0], [-Math.sin(b), 0, Math.cos(b)]];
+  const Rz = [[Math.cos(c), -Math.sin(c), 0], [Math.sin(c), Math.cos(c), 0], [0, 0, 1]];
+  return mulM(mulM(Rx, Ry), Rz);
+};
+/** 8 esquinas 3D de una pieza (giradas alrededor de su centro si lleva `rot`). */
+function corners(o) {
+  const c = o.min.map((m, i) => m + o.size[i] / 2);
+  const R = o.rot ? rotM(o.rot) : null;
+  const out = [];
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+    const v = [sx * o.size[0] / 2, sy * o.size[1] / 2, sz * o.size[2] / 2];
+    out.push(R ? [0, 1, 2].map((i) => c[i] + R[i][0] * v[0] + R[i][1] * v[1] + R[i][2] * v[2]) : [c[0] + v[0], c[1] + v[1], c[2] + v[2]]);
+  }
+  return out;
+}
+/** Envolvente convexa (cadena monótona). */
+function hull(pts) {
+  const P = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [];
+  for (const q of P) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  const up = [];
+  for (const q of [...P].reverse()) { while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  return [...lo.slice(0, -1), ...up.slice(0, -1)];
+}
+
+/** Dibuja un elemento en una vista: devuelve polígonos [{pts, cls}] en mm de la vista (u, v). */
+function shapes(o, view, kind) {
+  const P = PROJ[view];
+  const pr = (c) => [P.u(...c), P.v(...c)];
+  if (view !== 'iso') return [{ pts: hull(corners(o).map(pr)), cls: `${kind}-front` }];
+  const [x0, y0, z0] = o.min;
+  const [x1, y1, z1] = [x0 + o.size[0], y0 + o.size[1], z0 + o.size[2]];
+  if (o.shape === 'disc') {
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, r = o.size[0] / 2;
+    const ring = (y) => Array.from({ length: 48 }, (_, i) => pr([cx + r * Math.cos((i / 48) * 2 * Math.PI), y, cz + r * Math.sin((i / 48) * 2 * Math.PI)]));
+    return [{ pts: hull([...ring(y0), ...ring(y1)]), cls: `${kind}-side` }, { pts: ring(y1), cls: `${kind}-top` }];
+  }
+  if (o.rot) return [{ pts: hull(corners(o).map(pr)), cls: `${kind}-front` }];
+  return [
+    { pts: [[x1, y0, z0], [x1, y0, z1], [x1, y1, z1], [x1, y1, z0]].map(pr), cls: `${kind}-side` },
+    { pts: [[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]].map(pr), cls: `${kind}-front` },
+    { pts: [[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]].map(pr), cls: `${kind}-top` },
+  ];
+}
+
+function buildView(model, view) {
+  const P = PROJ[view];
   const items = [];
-  const push = (o, kind, extra = {}) => {
-    const b = box(o);
-    items.push({
-      x: b.min[ax[0]], y: b.min[ax[1]], w: b.size[ax[0]], h: b.size[ax[1]], depth: b.min[ax[2]], kind,
-      disc: o.shape === 'disc', leg: !!extra.leg, name: o.name || o.kind,
-    });
+  const add = (o, kind) => {
+    const c = o.min.map((m, i) => m + o.size[i] / 2);
+    items.push({ depth: P.d(c) * P.dir, polys: shapes(o, view, kind) });
   };
-  model.parts.forEach((p) => push(p, 'part', { leg: p.kind === 'linear' }));
-  model.fixtures.forEach((f) => { if (!f.noBbox) push(f, f.kind === 'handle' ? 'handle' : 'fixture', { leg: f.kind !== 'handle' }); });
-  items.sort((a, b) => a.depth - b.depth); // lo más lejano del observador se dibuja primero
-  return items;
+  model.parts.forEach((p) => add(p, p.kind === 'linear' ? 'leg' : 'sheet'));
+  model.fixtures.forEach((f) => { if (!f.noBbox) add(f, f.kind === 'handle' ? 'handle' : 'fix'); });
+  items.sort((a, b) => a.depth - b.depth);
+  const polys = items.flatMap((i) => i.polys);
+  let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+  polys.forEach((q) => q.pts.forEach(([u, v]) => { u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }));
+  return { key: view, title: TITLES[view], polys, u0, u1, v0, v1, w: u1 - u0, h: v1 - v0 };
 }
 
 export function buildDrawing(model) {
   const { min, max } = model.bbox;
-  const W = max[0] - min[0];
-  const H = max[1] - min[1];
-  const D = max[2] - min[2];
-  const margin = 150;
-  const gap = 210;
-  const sheetW = 1500;
-  const s = Math.min((sheetW - 2 * margin - gap) / (W + D), 900 / (H + D));
-  const frontX = margin;
-  const frontY = margin;
-  const sideX = frontX + W * s + gap;
-  const planY = frontY + H * s + gap * 0.95;
-  const total = { w: sheetW, h: planY + D * s + margin + 140 };
-  const views = {
-    front: { title: 'Elevación frontal', ox: frontX, oy: frontY, items: project(model, 'front'), a: [0, 1] },
-    side: { title: 'Elevación lateral derecha', ox: sideX, oy: frontY, items: project(model, 'side'), a: [2, 1] },
-    plan: { title: 'Planta (vista desde arriba)', ox: frontX, oy: planY, items: project(model, 'plan'), a: [0, 2] },
-  };
-  // convierte a coordenadas de dibujo (y hacia abajo)
-  const rect = (v, it) => {
-    // lateral derecha: se mira desde +x, así que el frente (z máximo) queda a la izquierda
-    const x = v.a[0] === 2 ? v.ox + (max[2] - (it.x + it.w)) * s : v.ox + (it.x - min[0]) * s;
-    const vMax = v.a[1] === 1 ? max[1] : max[2];
-    // en frente/lateral, y crece hacia arriba; en planta, z crece hacia el frente (hacia abajo en el dibujo)
-    const y = v.a[1] === 1 ? v.oy + (vMax - (it.y + it.h)) * s : v.oy + (it.y - min[2]) * s;
-    return { x, y, w: it.w * s, h: it.h * s, kind: it.kind, disc: it.disc, leg: it.leg, name: it.name };
-  };
-  for (const v of Object.values(views)) v.rects = v.items.map((it) => rect(v, it));
-  views.front.size = { w: W * s, h: H * s };
-  views.side.size = { w: D * s, h: H * s };
-  views.plan.size = { w: W * s, h: D * s };
-  const chain = {
-    y: chainStops(model, 1),
-    x: chainStops(model, 0),
-    z: chainStops(model, 2),
-  };
-  return { s, W, H, D, min, max, total, views, chain };
+  const W = max[0] - min[0], H = max[1] - min[1], D = max[2] - min[2];
+  const V = Object.fromEntries(Object.keys(PROJ).map((k) => [k, buildView(model, k)]));
+  const padR = 150, padB = 150, padT = 70, sheetW = 2000;
+  const grid = [['front', 'left', 'right'], ['back', 'plan', 'iso']];
+  const colMm = [0, 1, 2].map((c) => Math.max(...grid.map((r) => V[r[c]].w)));
+  const rowMm = grid.map((r) => Math.max(...r.map((k) => V[k].h)));
+  const s = Math.min((sheetW - 3 * padR) / colMm.reduce((a, b) => a + b, 0), 1500 / (rowMm[0] + rowMm[1]));
+  const colX = [60, 60 + colMm[0] * s + padR, 60 + (colMm[0] + colMm[1]) * s + 2 * padR];
+  const rowY = [40 + padT, 40 + padT + rowMm[0] * s + padB + padT];
+  const total = { w: Math.max(sheetW, colX[2] + colMm[2] * s + padR), h: rowY[1] + rowMm[1] * s + padB + 150 };
+  const views = grid.flatMap((r, ri) => r.map((k, ci) => {
+    const v = V[k];
+    // cada vista se alinea arriba-izquierda de su celda
+    const ox = colX[ci] - v.u0 * s;
+    const oy = rowY[ri] - v.v0 * s;
+    const polys = v.polys.map((q) => ({ cls: q.cls, pts: q.pts.map(([u, w]) => [ox + u * s, oy + w * s]) }));
+    const x = colX[ci], y = rowY[ri];
+    const dims = [];
+    const sx = (u) => ox + u * s;
+    const sy = (w) => oy + w * s;
+    const hd = (a, b, lvl, label) => dims.push({ t: 'h', x1: sx(a), x2: sx(b), at: y + v.h * s + 12, off: lvl, label });
+    const vd = (a, b, lvl, label) => dims.push({ t: 'v', y1: sy(a), y2: sy(b), at: x + v.w * s + 12, off: lvl, label });
+    const seg = (st) => st.slice(1).map((q, i) => [st[i], q]);
+    if (k === 'front') {
+      hd(min[0], max[0], 78, cm(W));
+      const cx = chainStops(model, 0);
+      if (cx.length > 2) seg(cx).forEach(([a, b]) => hd(a, b, 36, b - a < 25 ? '' : cm(b - a)));
+      vd(-max[1], -min[1], 44 + (chainStops(model, 1).length > 2 ? 48 : 0), cm(H));
+      const cy = chainStops(model, 1);
+      if (cy.length > 2) seg(cy).forEach(([a, b]) => vd(-b, -a, 44, b - a < 25 ? '' : cm(b - a)));
+    } else if (k === 'back') {
+      hd(-max[0], -min[0], 44, cm(W)); vd(-max[1], -min[1], 44, cm(H));
+    } else if (k === 'left') {
+      hd(min[2], max[2], 44, cm(D)); vd(-max[1], -min[1], 44, cm(H));
+    } else if (k === 'right') {
+      hd(-max[2], -min[2], 44, cm(D)); vd(-max[1], -min[1], 44, cm(H));
+    } else if (k === 'plan') {
+      hd(min[0], max[0], 78, cm(W));
+      const cx = chainStops(model, 0);
+      if (cx.length > 2) seg(cx).forEach(([a, b]) => hd(a, b, 36, b - a < 25 ? '' : cm(b - a)));
+      vd(min[2], max[2], 44 + (chainStops(model, 2).length > 2 ? 48 : 0), cm(D));
+      const cz = chainStops(model, 2);
+      if (cz.length > 2) seg(cz).forEach(([a, b]) => vd(a, b, 44, b - a < 25 ? '' : cm(b - a)));
+    }
+    return { key: k, title: v.title, x, y, w: v.w * s, h: v.h * s, polys, dims };
+  }));
+  return { s, W, H, D, min, max, total, views };
 }
 
 // ---------- ficha técnica ----------
