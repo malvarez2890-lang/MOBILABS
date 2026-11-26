@@ -9,8 +9,12 @@ import logoUrl from './assets/logo.png';
 import ParamsForm from './components/ParamsForm.jsx';
 import Viewer3D from './components/Viewer3D.jsx';
 import { CutList, SheetPlans, Shopping, labelColor, labelStroke } from './components/Lists.jsx';
+import ContextMenu from './components/ContextMenu.jsx';
+import PropsDialog from './components/PropsDialog.jsx';
+import { partKeys, TEXTURES } from './lib/looks.js';
 
 const STORE = 'mueblelab-v1';
+const EMPTY_LOOK = { all: null, parts: {} }; // aspecto por defecto: sin color ni textura elegidos
 // Teléfono en vertical, o en horizontal (pantalla baja): se usa navegación inferior por secciones
 const PHONE_QUERY = '(max-width: 760px), (max-width: 950px) and (max-height: 520px) and (orientation: landscape)';
 function useMedia(query) {
@@ -49,7 +53,13 @@ export default function App() {
   const [hover, setHover] = useState(null);
   const [viewCmd, setViewCmd] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [selKey, setSelKey] = useState(null);
+  const [selKeys, setSelKeys] = useState(() => new Set()); // piezas seleccionadas (claves estables)
+  const [hiddenKeys, setHiddenKeys] = useState(() => new Set());
+  const [looksStore, setLooksStore] = useState(saved.looks || {}); // aspecto por mueble: { todo, piezas }
+  const [menu, setMenu] = useState(null); // menú de clic derecho
+  const [propsOpen, setPropsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [multi, setMulti] = useState(false); // selección múltiple con toques (pantallas táctiles)
   const [mview, setMview] = useState('diseno'); // en teléfono: 'diseno' | 'resultados'
   const isPhone = useMedia(PHONE_QUERY);
   const [scrollTo, setScrollTo] = useState(null);
@@ -58,8 +68,8 @@ export default function App() {
   const values = useMemo(() => ({ ...defaultsFor(type), ...store[type.id] }), [type, store]);
 
   useEffect(() => {
-    try { localStorage.setItem(STORE, JSON.stringify({ typeId, values: store, settings })); } catch { /* sin almacenamiento */ }
-  }, [typeId, store, settings]);
+    try { localStorage.setItem(STORE, JSON.stringify({ typeId, values: store, settings, looks: looksStore })); } catch { /* sin almacenamiento */ }
+  }, [typeId, store, settings, looksStore]);
 
   const setValue = (key, val) => setStore((s) => ({ ...s, [type.id]: { ...defaultsFor(type), ...s[type.id], [key]: val } }));
   const applyPreset = (pr) => setStore((s) => ({ ...s, [type.id]: { ...defaultsFor(type), ...pr.values } }));
@@ -70,27 +80,131 @@ export default function App() {
   const shop = useMemo(() => buildShopping(model, plans), [model, plans]);
   const [bw, bh, bd] = model.bbox.dims;
 
-  // selección de piezas (clic en el 3D o en el despiece)
-  const selGroup = useMemo(() => plans.groups.find((g) => g.key === selKey) || null, [plans, selKey]);
-  const selIds = useMemo(() => (selGroup ? new Set(selGroup.ids) : null), [selGroup]);
+  // ---- piezas: claves estables, selección múltiple, ocultas y aspecto ----
+  const { keyOf, idOf } = useMemo(() => partKeys(model.parts), [model]);
+  const allKeys = useMemo(() => model.parts.map((p) => keyOf.get(p.id)), [model, keyOf]);
+  const visibleKeys = useMemo(() => allKeys.filter((k) => !hiddenKeys.has(k)), [allKeys, hiddenKeys]);
+  const idsOf = (keys) => { const s = new Set(); keys.forEach((k) => { const id = idOf.get(k); if (id) s.add(id); }); return s; };
+  const selIds = useMemo(() => idsOf(selKeys), [selKeys, idOf]);
+  const hiddenIds = useMemo(() => idsOf(hiddenKeys), [hiddenKeys, idOf]);
   const idToGroup = useMemo(() => {
     const m = new Map();
     plans.groups.forEach((g) => g.ids.forEach((id) => m.set(id, g)));
     return m;
   }, [plans]);
-  const pickFromModel = useCallback((id) => {
+  const selGroups = useMemo(() => plans.groups.filter((g) => g.ids.some((id) => selIds.has(id))), [plans, selIds]);
+  const fullKeys = useMemo(() => new Set(selGroups.filter((g) => g.ids.every((id) => selIds.has(id))).map((g) => g.key)), [selGroups, selIds]);
+  const partialKeys = useMemo(() => new Set(selGroups.filter((g) => !fullKeys.has(g.key)).map((g) => g.key)), [selGroups, fullKeys]);
+  const oneGroup = selGroups.length === 1 && fullKeys.size === 1 ? selGroups[0] : null;
+  const keysOfIds = (ids) => ids.map((id) => keyOf.get(id)).filter(Boolean);
+
+  const lookCfg = useMemo(() => looksStore[typeId] || EMPTY_LOOK, [looksStore, typeId]);
+  const effectiveLook = (k) => ({ ...(lookCfg.all || {}), ...(lookCfg.parts[k] || {}) });
+  const looks = useMemo(() => {
+    const m = new Map();
+    for (const p of model.parts) {
+      const v = effectiveLook(keyOf.get(p.id));
+      if (v.color || v.texture) m.set(p.id, v);
+    }
+    return m;
+  }, [model, keyOf, lookCfg]);
+
+  const targetKeys = selKeys.size ? [...selKeys] : null; // null = todo el mueble
+  const currentLook = useMemo(() => {
+    const ks = targetKeys || allKeys;
+    const ls = ks.map(effectiveLook);
+    const same = (f) => (ls.length && ls.every((l) => (l[f] || null) === (ls[0][f] || null)) ? ls[0][f] || null : undefined);
+    const texture = same('texture');
+    return {
+      color: same('color') || undefined,
+      texture: texture || undefined,
+      textureName: texture === undefined ? 'varias' : TEXTURES.find((t) => t.id === (texture || 'liso'))?.name || 'Liso',
+    };
+  }, [selKeys, allKeys, lookCfg]);
+
+  const applyLook = (patch, keys) => setLooksStore((ls) => {
+    const cur = ls[typeId] || EMPTY_LOOK;
+    if (!keys) { // todo el mueble: reemplaza también lo que se hubiera puesto pieza por pieza
+      const parts = {};
+      for (const [k, v] of Object.entries(cur.parts)) {
+        const nv = { ...v };
+        Object.keys(patch).forEach((f) => delete nv[f]);
+        if (Object.keys(nv).length) parts[k] = nv;
+      }
+      return { ...ls, [typeId]: { all: { ...(cur.all || {}), ...patch }, parts } };
+    }
+    const parts = { ...cur.parts };
+    keys.forEach((k) => { parts[k] = { ...(parts[k] || {}), ...patch }; });
+    return { ...ls, [typeId]: { ...cur, parts } };
+  });
+  const resetLook = (keys) => setLooksStore((ls) => {
+    const cur = ls[typeId] || EMPTY_LOOK;
+    if (!keys) return { ...ls, [typeId]: EMPTY_LOOK };
+    const parts = { ...cur.parts };
+    keys.forEach((k) => delete parts[k]);
+    return { ...ls, [typeId]: { ...cur, parts } };
+  });
+
+  // clic: selecciona la pieza y sus idénticas; Ctrl/Mayús + clic suma o quita; en el vacío, suelta
+  const onPick = useCallback((id, { add } = {}) => {
     const g = id ? idToGroup.get(id) : null;
-    setSelKey(g ? g.key : null);
-    if (g) {
+    if (!g) { if (!add) setSelKeys(new Set()); return; }
+    const keys = keysOfIds(g.ids);
+    setSelKeys((prev) => {
+      if (!add) return new Set(keys);
+      const n = new Set(prev);
+      const all = keys.every((k) => prev.has(k));
+      keys.forEach((k) => (all ? n.delete(k) : n.add(k)));
+      return n;
+    });
+    if (!add) {
       if (!isPhone) setTab('piezas'); // en el teléfono no se cambia de sección: la tarjeta del visor ya muestra la pieza
       setScrollTo({ key: g.key, n: Date.now() });
     }
-  }, [idToGroup, isPhone]);
+  }, [idToGroup, keyOf, isPhone]);
+  const onBox = useCallback((ids, { add } = {}) => {
+    const keys = keysOfIds(ids);
+    setSelKeys((prev) => (add ? new Set([...prev, ...keys]) : new Set(keys)));
+  }, [keyOf]);
+  const onContext = useCallback(({ x, y, id }) => {
+    const g = id ? idToGroup.get(id) : null;
+    if (g) { // clic derecho sobre una pieza fuera de la selección: la selecciona primero
+      const keys = keysOfIds(g.ids);
+      setSelKeys((prev) => (keys.some((k) => prev.has(k)) ? prev : new Set(keys)));
+    }
+    setMenu({ x, y });
+  }, [idToGroup, keyOf]);
+  const closeMenu = useCallback(() => setMenu(null), []);
+
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && setSelKey(null);
+    const onKey = (e) => { if (e.key === 'Escape') { setSelKeys(new Set()); setHelpOpen(false); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  const copyText = async (text) => {
+    try { await navigator.clipboard.writeText(text); } catch {
+      const ta = Object.assign(document.createElement('textarea'), { value: text });
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    }
+  };
+  const menuActions = {
+    properties: () => setPropsOpen(true),
+    setLook: (patch) => applyLook(patch, targetKeys),
+    resetLook: () => resetLook(targetKeys),
+    selectIdentical: () => setSelKeys((prev) => { const n = new Set(prev); selGroups.forEach((g) => keysOfIds(g.ids).forEach((k) => n.add(k))); return n; }),
+    invert: () => setSelKeys(new Set(visibleKeys.filter((k) => !selKeys.has(k)))),
+    selectAll: () => setSelKeys(new Set(visibleKeys)),
+    clearSel: () => setSelKeys(new Set()),
+    isolate: () => setHiddenKeys(new Set(allKeys.filter((k) => !selKeys.has(k)))),
+    hide: () => { setHiddenKeys((prev) => new Set([...prev, ...selKeys])); setSelKeys(new Set()); },
+    showAll: () => setHiddenKeys(new Set()),
+    view: (n) => setViewCmd({ name: n, t: Date.now() }),
+    copyDims: () => copyText((selKeys.size ? selGroups : plans.groups)
+      .map((g) => `${g.name} ×${g.qty} — ${g.kind === 'sheet' ? `${fmt(g.l)} × ${fmt(g.w)} × ${g.t} mm` : `${fmt(g.l)} mm`} (${materialOf(g.mat).short})`).join('\n')),
+  };
+  const propsParts = useMemo(() => (selIds.size ? model.parts.filter((p) => selIds.has(p.id)) : model.parts), [model, selIds]);
+  const propsGroups = useMemo(() => (selIds.size ? selGroups : plans.groups), [selIds, selGroups, plans]);
 
   const copy = useCallback(async () => {
     const text = shoppingText(type.name, model.bbox.dims, shop);
@@ -162,7 +276,7 @@ export default function App() {
         <h2 className="pane-title">¿Qué mueble quieres armar?</h2>
         <div className="types" role="tablist">
           {FURNITURE.map((f) => (
-            <button key={f.id} role="tab" aria-selected={f.id === typeId} className={`type ${f.id === typeId ? 'on' : ''}`} onClick={() => { setTypeId(f.id); setHover(null); setSelKey(null); }} title={f.desc}>
+            <button key={f.id} role="tab" aria-selected={f.id === typeId} className={`type ${f.id === typeId ? 'on' : ''}`} onClick={() => { setTypeId(f.id); setHover(null); setSelKeys(new Set()); setHiddenKeys(new Set()); setMenu(null); }} title={f.desc}>
               <Icon id={f.id} />
               <span>{f.name}</span>
             </button>
@@ -195,25 +309,59 @@ export default function App() {
       {/* ---------------- visor ---------------- */}
       <main className="center">
         <div className="viewer">
-          <Viewer3D parts={model.parts} fixtures={model.fixtures} bbox={model.bbox} explode={explode} highlight={hover || selIds} viewKey={typeId} viewCmd={viewCmd} onPick={pickFromModel} />
+          <Viewer3D parts={model.parts} fixtures={model.fixtures} bbox={model.bbox} explode={explode} highlight={hover || (selIds.size ? selIds : null)} viewKey={typeId} viewCmd={viewCmd} looks={looks} hiddenIds={hiddenIds} multi={multi} onPick={onPick} onBox={onBox} onContext={onContext} />
           <div className="hud">
             <div className="dims">
               <b>{type.name}</b>
               <span>{cm(bw)} <small>ancho</small> × {cm(bh)} <small>alto</small> × {cm(bd)} <small>fondo</small> cm</span>
             </div>
-            {selGroup && (
+            {oneGroup && (
               <div className="sel-card" role="status">
-                <span className="chip" style={{ background: labelColor(selGroup.label), borderColor: labelStroke(selGroup.label) }}>{selGroup.label}</span>
+                <span className="chip" style={{ background: labelColor(oneGroup.label), borderColor: labelStroke(oneGroup.label) }}>{oneGroup.label}</span>
                 <div className="sel-info">
-                  <b>{selGroup.name}</b>
+                  <b>{oneGroup.name}</b>
                   <span>
-                    {selGroup.kind === 'sheet'
-                      ? `${fmt(selGroup.l)} × ${fmt(selGroup.w)} × ${selGroup.t} mm`
-                      : `${fmt(selGroup.l)} mm · ${sectionLabel(selGroup.mat)}`}
-                    {' · '}{selGroup.qty} {selGroup.qty === 1 ? 'pieza' : 'piezas'} · {materialOf(selGroup.mat).short}
+                    {oneGroup.kind === 'sheet'
+                      ? `${fmt(oneGroup.l)} × ${fmt(oneGroup.w)} × ${oneGroup.t} mm`
+                      : `${fmt(oneGroup.l)} mm · ${sectionLabel(oneGroup.mat)}`}
+                    {' · '}{oneGroup.qty} {oneGroup.qty === 1 ? 'pieza' : 'piezas'} · {materialOf(oneGroup.mat).short}
                   </span>
                 </div>
-                <button className="sel-x" onClick={() => setSelKey(null)} aria-label="Quitar selección" title="Quitar selección (Esc)">✕</button>
+                <button className="sel-x" onClick={() => setSelKeys(new Set())} aria-label="Quitar selección" title="Quitar selección (Esc)">✕</button>
+              </div>
+            )}
+            {selIds.size > 0 && !oneGroup && (
+              <div className="sel-card" role="status">
+                <span className="chip multi-chip">{selIds.size}</span>
+                <div className="sel-info">
+                  <b>{selIds.size} piezas seleccionadas</b>
+                  <span>{selGroups.slice(0, 4).map((g) => `${g.name} ×${g.ids.filter((id) => selIds.has(id)).length}`).join(' · ')}{selGroups.length > 4 ? ' …' : ''}</span>
+                </div>
+                <button className="sel-x" onClick={() => setSelKeys(new Set())} aria-label="Quitar selección" title="Quitar selección (Esc)">✕</button>
+              </div>
+            )}
+            {hiddenKeys.size > 0 && (
+              <button className="hidden-chip" onClick={() => setHiddenKeys(new Set())} title="Volver a mostrar las piezas ocultas">
+                {hiddenKeys.size} {hiddenKeys.size === 1 ? 'pieza oculta' : 'piezas ocultas'} · Mostrar todo
+              </button>
+            )}
+          </div>
+          <div className="vtools">
+            <button className={`vbtn multi-btn ${multi ? 'on' : ''}`} aria-pressed={multi} onClick={() => setMulti((m) => !m)} title="Selección múltiple: cada toque suma o quita piezas">Multi</button>
+            <button className={`vbtn ${helpOpen ? 'on' : ''}`} aria-expanded={helpOpen} aria-label="Controles del visor" onClick={() => setHelpOpen((h) => !h)} title="Controles del visor">?</button>
+            {helpOpen && (
+              <div className="vhelp" role="dialog" aria-label="Controles del visor">
+                <b>Controles del visor</b>
+                <dl>
+                  <dt>Clic izquierdo</dt><dd>Seleccionar. Ctrl o Mayús + clic: sumar o quitar</dd>
+                  <dt>Arrastrar (izq.)</dt><dd>Rectángulo de selección: → piezas completas · ← las que toque</dd>
+                  <dt>Rueda + arrastrar</dt><dd>Desplazar</dd>
+                  <dt>Mayús + rueda + arrastrar</dt><dd>Girar el 3D</dd>
+                  <dt>Girar la rueda</dt><dd>Acercar / alejar</dd>
+                  <dt>Clic derecho</dt><dd>Menú: propiedades, color, textura, ocultar…</dd>
+                  <dt>Esc</dt><dd>Quitar la selección</dd>
+                  <dt>Celular</dt><dd>1 dedo gira · 2 dedos desplazan y acercan · mantener presionado abre el menú · “Multi” suma piezas</dd>
+                </dl>
               </div>
             )}
           </div>
@@ -230,6 +378,13 @@ export default function App() {
             </label>
           </div>
         </div>
+
+        {menu && (
+          <ContextMenu x={menu.x} y={menu.y} count={selIds.size} current={currentLook} hiddenCount={hiddenKeys.size} onClose={closeMenu} actions={menuActions} />
+        )}
+        {propsOpen && (
+          <PropsDialog parts={propsParts} groups={propsGroups} scopeAll={!selIds.size} look={currentLook} textureName={currentLook.textureName} onClose={() => setPropsOpen(false)} />
+        )}
 
         <div className="notices">
           {warns.map((n, i) => <div key={`w${i}`} className="notice warn">⚠ {n.text}</div>)}
@@ -256,7 +411,7 @@ export default function App() {
           </p>
         </div>
 
-        <div className={`tab-body ${tab === 'piezas' ? 'show' : ''}`}><CutList plans={plans} onHover={setHover} selectedKey={selKey} onSelect={(g) => setSelKey(g.key)} scrollTo={scrollTo} /></div>
+        <div className={`tab-body ${tab === 'piezas' ? 'show' : ''}`}><CutList plans={plans} onHover={setHover} selectedKeys={fullKeys} partialKeys={partialKeys} onSelect={(g, add) => onPick(g.ids[0], { add })} scrollTo={scrollTo} /></div>
         <div className={`tab-body ${tab === 'cortes' ? 'show' : ''}`}><SheetPlans plans={plans} /></div>
         <div className={`tab-body ${tab === 'compras' ? 'show' : ''}`}><Shopping shop={shop} onCopy={copy} copied={copied} /></div>
       </aside>

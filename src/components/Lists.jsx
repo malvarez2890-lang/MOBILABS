@@ -11,7 +11,7 @@ export const labelColor = (label) => `hsl(${hue(label)} 55% 82%)`;
 export const labelStroke = (label) => `hsl(${hue(label)} 35% 45%)`;
 
 /* ------------------------------------------------------------------ DESPIECE */
-export function CutList({ plans, onHover, selectedKey, onSelect, scrollTo }) {
+export function CutList({ plans, onHover, selectedKeys, partialKeys, onSelect, scrollTo }) {
   const { groups } = plans;
   const rowRefs = useRef({});
   useEffect(() => {
@@ -34,10 +34,10 @@ export function CutList({ plans, onHover, selectedKey, onSelect, scrollTo }) {
               <tr
                 key={g.key}
                 ref={(el) => { rowRefs.current[g.key] = el; }}
-                className={g.key === selectedKey ? 'sel' : ''}
-                aria-selected={g.key === selectedKey}
-                onClick={() => onSelect(g)}
-                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect(g))}
+                className={selectedKeys.has(g.key) ? 'sel' : partialKeys.has(g.key) ? 'part' : ''}
+                aria-selected={selectedKeys.has(g.key)}
+                onClick={(e) => onSelect(g, e.ctrlKey || e.metaKey || e.shiftKey)}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect(g, e.ctrlKey || e.metaKey || e.shiftKey))}
                 onMouseEnter={() => onHover(new Set(g.ids))}
                 onMouseLeave={() => onHover(null)}
                 onFocus={() => onHover(new Set(g.ids))}
@@ -56,7 +56,7 @@ export function CutList({ plans, onHover, selectedKey, onSelect, scrollTo }) {
           </tbody>
         </table>
       </div>
-      <p className="hint">Toca una fila (o una pieza en el 3D) para seleccionarla; pasa el mouse para verla en el modelo. “Canto” es el tapacanto total de esa fila (solo melamina).</p>
+      <p className="hint">Toca una fila (o una pieza en el 3D) para seleccionarla; con Ctrl o Mayús sumas varias. Pasa el mouse para verla en el modelo. “Canto” es el tapacanto total de esa fila (solo melamina).</p>
     </section>
   );
 }

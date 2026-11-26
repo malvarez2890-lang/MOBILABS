@@ -2,7 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { materialOf } from '../lib/materials.js';
-import { partGeometry, fixtureGeometry } from './geometry.js';
+import { partGeometry, fixtureGeometry, applyWorldUV } from './geometry.js';
+import { getTexture } from './textures.js';
 import CURSOR_MOVE from '../assets/cursor-move.png';
 import CURSOR_ROTATE from '../assets/cursor-rotate.png';
 
@@ -22,11 +23,11 @@ function tint(hex, seed) {
   return c;
 }
 
-export default function Viewer3D({ parts, fixtures = [], bbox, explode, highlight, viewKey, viewCmd, onPick }) {
+export default function Viewer3D({ parts, fixtures = [], bbox, explode, highlight, viewKey, viewCmd, looks, hiddenIds, multi, onPick, onBox, onContext }) {
   const mount = useRef(null);
   const S = useRef({}); // objetos three.js
   const latest = useRef({});
-  latest.current = { parts, fixtures, bbox, explode, highlight, onPick };
+  latest.current = { parts, fixtures, bbox, explode, highlight, looks, hiddenIds, multi, onPick, onBox, onContext };
 
   // ---- inicialización ----
   useEffect(() => {
@@ -46,6 +47,8 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     controls.dampingFactor = 0.08;
     controls.maxPolarAngle = Math.PI / 2 - 0.01;
     controls.minDistance = 20;
+    // Rueda (clic del medio) = desplazar; Mayús/Ctrl + rueda = girar. Izquierdo = seleccionar; derecho = menú.
+    controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: null };
 
     scene.add(new THREE.HemisphereLight(0xffffff, 0xc9d0d8, 1.0));
     const sun = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -73,50 +76,128 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     const root = new THREE.Group();
     scene.add(root);
 
-    // --- selección de piezas: clic (sin arrastrar) sobre una pieza, o sobre el vacío para soltar ---
+    const canvas = renderer.domElement;
     const ray = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
     const pick = (e) => {
-      const r = renderer.domElement.getBoundingClientRect();
+      const r = canvas.getBoundingClientRect();
       ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       ray.setFromCamera(ndc, camera);
-      const hit = ray.intersectObjects(root.children, false)[0];
+      const hit = ray.intersectObjects(root.children.filter((m) => m.visible), false)[0];
       if (!hit) return null;
       const u = hit.object.userData;
       return u.pickId !== undefined ? u.pickId : u.id; // un tirador cuenta como su puerta; patas compradas no se seleccionan
     };
-    // Cursor: siempre la flecha normal. Solo mientras se arrastra aparece el ícono de girar o de desplazar.
-    const canvas = renderer.domElement;
+
+    // Selección por rectángulo: hacia la derecha = ventana (piezas completas dentro); hacia la izquierda = cruce (que lo toquen)
+    const boxSelect = (x0, y0, x1, y1) => {
+      const cr = canvas.getBoundingClientRect();
+      const crossing = x1 < x0;
+      const rx0 = Math.min(x0, x1) - cr.left;
+      const rx1 = Math.max(x0, x1) - cr.left;
+      const ry0 = Math.min(y0, y1) - cr.top;
+      const ry1 = Math.max(y0, y1) - cr.top;
+      root.updateMatrixWorld(true);
+      const box = new THREE.Box3();
+      const v = new THREE.Vector3();
+      const ids = [];
+      root.children.forEach((m) => {
+        if (m.userData.fixture || !m.visible) return;
+        box.setFromObject(m);
+        let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
+        for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+          v.set(x, y, z).project(camera);
+          const sx = (v.x * 0.5 + 0.5) * cr.width;
+          const sy = (-v.y * 0.5 + 0.5) * cr.height;
+          minX = Math.min(minX, sx); maxX = Math.max(maxX, sx); minY = Math.min(minY, sy); maxY = Math.max(maxY, sy);
+        }
+        const inside = minX >= rx0 && maxX <= rx1 && minY >= ry0 && maxY <= ry1;
+        const touches = maxX >= rx0 && minX <= rx1 && maxY >= ry0 && minY <= ry1;
+        if (crossing ? touches : inside) ids.push(m.userData.id);
+      });
+      return ids;
+    };
+
+    // Cursor: siempre la flecha normal. Solo mientras se arrastra con la rueda aparece el ícono de desplazar o de girar.
     const setCursor = (mode) => {
       canvas.style.cursor = mode === 'rotate' ? `url("${CURSOR_ROTATE}") 16 16, grabbing`
         : mode === 'pan' ? `url("${CURSOR_MOVE}") 16 16, move` : 'default';
     };
     setCursor(null);
-    let down = null;
+
+    const marquee = document.createElement('div');
+    marquee.className = 'marquee';
+    marquee.hidden = true;
+    el.appendChild(marquee);
+
+    let st = null; // gesto en curso
     const onDown = (e) => {
-      // igual que OrbitControls: botón derecho (o Ctrl/Mayús/⌘ + izquierdo) desplaza; izquierdo gira; rueda = zoom
-      const pan = e.pointerType === 'mouse' && (e.button === 2 || e.ctrlKey || e.metaKey || e.shiftKey);
-      down = { x: e.clientX, y: e.clientY, pan, mouse: e.pointerType === 'mouse', button: e.button, dragging: false };
+      if (!e.isPrimary) { // segundo dedo: es un gesto de cámara, no un toque
+        if (st) { clearTimeout(st.timer); st.moved = true; }
+        return;
+      }
+      const touch = e.pointerType === 'touch';
+      st = { x: e.clientX, y: e.clientY, button: e.button, mod: e.shiftKey || e.ctrlKey || e.metaKey, touch, moved: false, marquee: false, long: false, cursorSet: false, timer: 0 };
+      if (touch) { // mantener el dedo quieto abre el menú (equivale al clic derecho)
+        st.timer = setTimeout(() => {
+          if (st && !st.moved) {
+            st.long = true;
+            latest.current.onContext?.({ x: st.x, y: st.y, id: pick({ clientX: st.x, clientY: st.y }) });
+          }
+        }, 550);
+      }
     };
     const onMove = (e) => {
-      if (!down || !down.mouse || down.button === 1 || down.dragging) return;
-      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) {
-        down.dragging = true; // ya es un arrastre (no un clic de selección)
-        setCursor(down.pan ? 'pan' : 'rotate');
+      if (!st) return;
+      const dx = e.clientX - st.x;
+      const dy = e.clientY - st.y;
+      const d = Math.hypot(dx, dy);
+      if (d > (st.touch ? 8 : 4)) { st.moved = true; clearTimeout(st.timer); }
+      if (st.touch) return;
+      if (st.button === 1 && st.moved && !st.cursorSet) { // rueda: desplaza; con Mayús/Ctrl gira
+        st.cursorSet = true;
+        setCursor(st.mod ? 'rotate' : 'pan');
+      }
+      if (st.button === 0 && d > 5) {
+        st.marquee = true;
+        const cr = canvas.getBoundingClientRect();
+        Object.assign(marquee.style, {
+          left: `${Math.min(st.x, e.clientX) - cr.left}px`, top: `${Math.min(st.y, e.clientY) - cr.top}px`,
+          width: `${Math.abs(dx)}px`, height: `${Math.abs(dy)}px`,
+        });
+        marquee.classList.toggle('crossing', dx < 0);
+        marquee.hidden = false;
       }
     };
     const onUp = (e) => {
-      if (!down) return;
-      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
-      down = null;
+      if (!st || !e.isPrimary) return;
+      const s = st;
+      st = null;
+      clearTimeout(s.timer);
       setCursor(null);
-      if (moved < 5) latest.current.onPick?.(pick(e));
+      marquee.hidden = true;
+      const L = latest.current;
+      if (s.touch) {
+        if (!s.long && !s.moved) L.onPick?.(pick(e), { add: !!L.multi });
+        return;
+      }
+      if (s.button === 0) {
+        if (s.marquee) L.onBox?.(boxSelect(s.x, s.y, e.clientX, e.clientY), { add: s.mod || !!L.multi });
+        else L.onPick?.(pick(e), { add: s.mod || !!L.multi });
+      } else if (s.button === 2 && Math.hypot(e.clientX - s.x, e.clientY - s.y) < 5) {
+        L.onContext?.({ x: e.clientX, y: e.clientY, id: pick(e) });
+      }
     };
-    const onCancel = () => { down = null; setCursor(null); };
+    const onCancel = () => { if (st) clearTimeout(st.timer); st = null; setCursor(null); marquee.hidden = true; };
+    const noMiddleScroll = (e) => { if (e.button === 1) e.preventDefault(); }; // evita el "autoscroll" de la rueda
+    const noMenu = (e) => e.preventDefault();
     canvas.addEventListener('pointerdown', onDown);
     canvas.addEventListener('pointermove', onMove);
     canvas.addEventListener('pointerup', onUp);
     canvas.addEventListener('pointercancel', onCancel);
+    canvas.addEventListener('mousedown', noMiddleScroll);
+    canvas.addEventListener('auxclick', noMiddleScroll);
+    canvas.addEventListener('contextmenu', noMenu);
 
     let needRender = true; // se dibuja solo si algo cambió: ahorra batería en el teléfono
     const invalidate = () => { needRender = true; };
@@ -164,6 +245,11 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
       canvas.removeEventListener('pointercancel', onCancel);
+      canvas.removeEventListener('mousedown', noMiddleScroll);
+      canvas.removeEventListener('auxclick', noMiddleScroll);
+      canvas.removeEventListener('contextmenu', noMenu);
+      clearTimeout(st?.timer);
+      marquee.remove();
       ro.disconnect();
       controls.dispose();
       root.children.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
@@ -222,7 +308,9 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     const [bx, , bz] = [0, 1, 2].map((i) => (bbox.min[i] + bbox.max[i]) / 2);
     parts.forEach((p, i) => {
       const geo = partGeometry(p);
-      const mat = new THREE.MeshStandardMaterial({ color: tint(materialOf(p.mat).color, i), roughness: 0.78, metalness: 0 });
+      applyWorldUV(geo, p.size, 60, i + 1);
+      const baseColor = tint(materialOf(p.mat).color, i);
+      const mat = new THREE.MeshStandardMaterial({ color: baseColor.clone(), roughness: 0.78, metalness: 0 });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -233,6 +321,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
       mesh.add(edges);
       mesh.userData = {
         id: p.id,
+        baseColor,
         base: new THREE.Vector3((p.center[0] - bx) / 10, p.center[1] / 10, (p.center[2] - bz) / 10),
       };
       mesh.position.copy(mesh.userData.base);
@@ -266,7 +355,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     const { root } = S.current;
     if (!root) return;
     S.current.invalidate?.();
-    const { bbox: bb, explode: ex, highlight: hl } = latest.current;
+    const { bbox: bb, explode: ex, highlight: hl, looks, hiddenIds } = latest.current;
     const cx = 0;
     const cy = bb.dims[1] / 20;
     const cz = 0;
@@ -278,8 +367,23 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
         b.y + (a.y - cy) * ex * 0.42,
         b.z + (a.z - cz) * ex * 0.42,
       );
-      const on = !hl || hl.has(m.userData.fixture ? m.userData.parent : m.userData.id);
+      const ownerId = m.userData.fixture ? m.userData.parent : m.userData.id;
+      m.visible = !(ownerId && hiddenIds && hiddenIds.has(ownerId)); // ocultas desde el menú
+      const on = !hl || hl.has(ownerId);
       const mat = m.material;
+      if (!m.userData.fixture) { // color / textura elegidos por el usuario
+        const look = looks && looks.get(m.userData.id);
+        const sig = look ? `${look.texture || ''}|${look.color || ''}` : '';
+        if (m.userData.lookSig !== sig) {
+          m.userData.lookSig = sig;
+          const tex = look && look.texture && look.texture !== 'liso' ? getTexture(look.texture) : null;
+          mat.map = tex;
+          if (look && look.color) mat.color.set(look.color);
+          else if (tex) mat.color.set('#ffffff');
+          else mat.color.copy(m.userData.baseColor);
+          mat.needsUpdate = true;
+        }
+      }
       const transparent = !!hl && !on;
       if (mat.transparent !== transparent) { mat.transparent = transparent; mat.needsUpdate = true; }
       mat.opacity = transparent ? 0.16 : 1;
@@ -289,7 +393,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     });
   };
 
-  useEffect(applyState, [explode, highlight]);
+  useEffect(applyState, [explode, highlight, looks, hiddenIds]);
 
   // ---- cambio de mueble: reencuadre ----
   useEffect(() => { frame('iso'); }, [viewKey]);

@@ -88,3 +88,27 @@ export function fixtureGeometry(f) {
   });
   return { geo: mergeGeometries([bar, ...posts], false), color: '#aeb3ba', metal: 0.7 };
 }
+
+/**
+ * Coordenadas de textura en centímetros reales (la veta no se estira en tableros largos).
+ * La veta corre por el lado más largo de cada cara. `seed` desfasa la textura entre piezas.
+ */
+export function applyWorldUV(geo, sizeMm, tileCm = 60, seed = 0) {
+  const pos = geo.attributes.position;
+  const nor = geo.attributes.normal;
+  if (!pos || !nor) return;
+  const sz = sizeMm.map((v) => v / 10);
+  const ox = ((seed * 37) % 100) / 100;
+  const oy = ((seed * 91) % 100) / 100;
+  const uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    const n = [Math.abs(nor.getX(i)), Math.abs(nor.getY(i)), Math.abs(nor.getZ(i))];
+    const d = n[0] >= n[1] && n[0] >= n[2] ? 0 : n[1] >= n[2] ? 1 : 2;
+    const [a, b] = d === 0 ? [1, 2] : d === 1 ? [0, 2] : [0, 1];
+    const [ua, va] = sz[a] >= sz[b] ? [a, b] : [b, a];
+    const p = [pos.getX(i), pos.getY(i), pos.getZ(i)];
+    uv[i * 2] = p[ua] / tileCm + ox;
+    uv[i * 2 + 1] = p[va] / tileCm + oy;
+  }
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+}
