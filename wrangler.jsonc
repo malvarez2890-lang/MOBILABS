@@ -1,0 +1,9 @@
+{
+  // Sitio estático: Cloudflare publica la carpeta dist tal cual, sin script de servidor.
+  // El nombre debe coincidir con el del proyecto en Cloudflare ("mobilabs").
+  "name": "mobilabs",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist"
+  }
+}
