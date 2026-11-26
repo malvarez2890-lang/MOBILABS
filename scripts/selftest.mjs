@@ -100,6 +100,13 @@ for (const type of FURNITURE) {
   for (const style of ['afinada', 'redonda', 'redondaAfinada', 'metalica', 'ruedas']) {
     for (const size of ['fino', 'grueso']) { check(`${type.name} patas ${style}/${size}`, type.id, { base: 'patas', pataEstilo: style, pata: size }); runs++; }
   }
+  if (type.params.some((p) => p.key === 'ruedaTam')) { // ruedas: como base (muebles de cajón) o bajo las patas (mesas)
+    for (const size of ['fino', 'grueso']) {
+      const vals = type.params.some((p) => p.key === 'base') ? { base: 'ruedas', ruedaTam: size } : { ruedas: true, ruedaTam: size, estilo: 'patas' };
+      const r = check(`${type.name} ruedas ${size}`, type.id, vals); runs++;
+      assert.equal(r.m.fixtures.filter((f) => f.kind === 'caster').length, 4, `${type.name}: debe tener 4 ruedas (${size})`);
+    }
+  }
   if (type.params.some((p) => p.key === 'tirador')) {
     for (const tirador of ['barra', 'perilla', 'canto', 'ninguno']) {
       for (const bisagra of ['auto', 'izq', 'der']) { check(`${type.name} tirador ${tirador}/${bisagra}`, type.id, { puertas: true, tirador, bisagra, tiradorOrient: 'horizontal' }); runs++; }

@@ -30,14 +30,29 @@ const HANDLES = (hasDoors) => {
     sel('bisagra', 'Lado de las bisagras', 'auto', HINGE_MODES, { visibleIf: on(() => true) }),
   ];
 };
-const showBaseH = (v) => v.base !== 'none' && !(v.base === 'patas' && v.pataEstilo === 'ruedas');
-const legOf = (v) => legSpec(v.pataEstilo, v.pata);
+const WHEEL_SIZES = [['fino', 'Ø50 mm (7 cm de alto)'], ['grueso', 'Ø75 mm (10 cm de alto)']];
+const showBaseH = (v) => v.base === 'zocalo' || v.base === 'patas'; // con ruedas, la altura la define la rueda
+const legOf = (v) => (v.base === 'ruedas' ? legSpec('ruedas', v.ruedaTam) : legSpec(v.pataEstilo, v.pata));
 
-const BASE_OPTS = [['none', 'Sin base'], ['zocalo', 'Zócalo'], ['patas', 'Patas / ruedas']];
+/** Patas y ruedas de los muebles de cajón: aparecen justo debajo de "Base", según lo elegido. */
+const CARCASS_LEGS = (size = 'fino') => [
+  sel('pataEstilo', 'Estilo de patas', 'cuadrada', LEG_STYLES_ALL, { visibleIf: isLegs }),
+  sel('pata', 'Tamaño de las patas', size, [['fino', 'Delgadas'], ['grueso', 'Gruesas']], { visibleIf: isLegs }),
+  sel('ruedaTam', 'Tamaño de las ruedas', 'fino', WHEEL_SIZES, { visibleIf: isWheels }),
+];
+/** "Con ruedas" para mesas: las patas se acortan y cada una apoya en una rueda. */
+const TABLE_WHEELS = (visibleIf = () => true) => [
+  bool('ruedas', 'Con ruedas giratorias', false, { visibleIf }),
+  sel('ruedaTam', 'Tamaño de las ruedas', 'fino', WHEEL_SIZES, { visibleIf: (v) => visibleIf(v) && v.ruedas }),
+];
+const casterOf = (v) => (v.ruedas ? legSpec('ruedas', v.ruedaTam) : null);
+
+const BASE_OPTS = [['none', 'Sin base'], ['zocalo', 'Zócalo'], ['patas', 'Patas'], ['ruedas', 'Ruedas giratorias']];
 const BACK_OPTS = [['hdf', 'Panel HDF 3 mm'], ['rails', 'Travesaños (abierta)'], ['none', 'Sin trasera']];
 const TOP_OPTS = [['simple', 'Un tablero'], ['doble', 'Doble (más gruesa)']];
 const notNone = (v) => v.base !== 'none';
 const isLegs = (v) => v.base === 'patas';
+const isWheels = (v) => v.base === 'ruedas';
 
 const buildLevels = (p, rows, label = 'Nivel') =>
   rows.forEach((r, i) => p.tip(`${label} ${i + 1}: ${cm(r.h)} cm de alto libre × ${cm(r.cw)} cm de ancho libre.`));
@@ -54,9 +69,9 @@ export const FURNITURE = [
       num('niveles', 'Niveles (espacios)', 5, 1, 12, 1, 'u', { section: 'Estructura' }),
       sel('base', 'Base', 'zocalo', BASE_OPTS),
       num('altoBase', 'Alto de la base', 6, 3, 20, 1, 'cm', { visibleIf: showBaseH }),
+      ...CARCASS_LEGS('fino'),
       sel('trasera', 'Parte trasera', 'rails', BACK_OPTS),
       MAT,
-      ...LEGS('fino', { visibleIf: isLegs }),
     ],
     presets: [
       { name: 'Clásico 5 niveles', values: {} },
@@ -88,9 +103,9 @@ export const FURNITURE = [
       ...HANDLES((v) => v.puertas),
       sel('base', 'Base', 'zocalo', BASE_OPTS),
       num('altoBase', 'Alto de la base', 8, 3, 20, 1, 'cm', { visibleIf: showBaseH }),
+      ...CARCASS_LEGS('fino'),
       sel('trasera', 'Parte trasera', 'hdf', BACK_OPTS),
       MAT,
-      ...LEGS('fino', { visibleIf: isLegs }),
     ],
     presets: [
       { name: '100 × 200, 2 columnas', values: {} },
@@ -120,6 +135,7 @@ export const FURNITURE = [
       sel('tapa', 'Tapa', 'simple', TOP_OPTS, { section: 'Estructura' }),
       num('voladizo', 'Retranqueo de patas', 6, 0, 15, 1, 'cm'),
       ...LEGS('grueso', {}, 'wood'),
+      ...TABLE_WHEELS(),
       MAT,
     ],
     presets: [
@@ -132,7 +148,7 @@ export const FURNITURE = [
       const W = v.ancho * 10;
       tableFrame(p, {
         W, D: v.fondo * 10, H: v.alto * 10, mat: v.mat, layers: v.tapa === 'doble' ? 2 : 1,
-        leg: legOf(v), oh: v.voladizo * 10,
+        leg: legOf(v), casters: casterOf(v), oh: v.voladizo * 10,
       });
       const seats = Math.max(2, Math.floor(v.ancho / 60) * 2 + (v.ancho >= 140 && v.fondo >= 70 ? 2 : 0));
       p.tip(`Alcanza para ~${seats} personas (60 cm por comensal).`);
@@ -152,6 +168,7 @@ export const FURNITURE = [
       num('altoEstante', 'Altura de la repisa', 20, 10, 50, 1, 'cm', { visibleIf: (v) => v.estante }),
       num('voladizo', 'Retranqueo de patas', 3, 0, 8, 1, 'cm'),
       ...LEGS('fino', {}, 'wood'),
+      ...TABLE_WHEELS(),
       MAT,
     ],
     presets: [
@@ -161,7 +178,7 @@ export const FURNITURE = [
     build(v) {
       const p = new PartList();
       tableFrame(p, {
-        W: v.ancho * 10, D: v.fondo * 10, H: v.alto * 10, mat: v.mat, layers: 1, leg: legOf(v), oh: v.voladizo * 10,
+        W: v.ancho * 10, D: v.fondo * 10, H: v.alto * 10, mat: v.mat, layers: 1, leg: legOf(v), casters: casterOf(v), oh: v.voladizo * 10,
         shelf: v.estante ? { y: v.altoEstante * 10 } : null,
       });
       return p.result();
@@ -180,6 +197,7 @@ export const FURNITURE = [
       bool('panelFrontal', 'Panel trasero (esconde cables)', true),
       bool('repisaInferior', 'Repisa inferior', false),
       ...LEGS('fino', { visibleIf: (v) => v.estilo === 'patas' }, 'wood'),
+      ...TABLE_WHEELS((v) => v.estilo === 'patas'),
       MAT,
     ],
     presets: [
@@ -197,7 +215,7 @@ export const FURNITURE = [
       const topT = t * layers;
       if (v.estilo === 'patas') {
         const o = tableFrame(p, {
-          W, D, H, mat, layers, leg: legOf(v), oh: 30,
+          W, D, H, mat, layers, leg: legOf(v), casters: casterOf(v), oh: 30,
           shelf: v.repisaInferior ? { y: 150 } : null,
         });
         if (v.panelFrontal) {
@@ -308,9 +326,9 @@ export const FURNITURE = [
       ...HANDLES((v) => v.puertas),
       sel('base', 'Base', 'patas', BASE_OPTS),
       num('altoBase', 'Alto de la base', 12, 3, 25, 1, 'cm', { visibleIf: showBaseH }),
+      ...CARCASS_LEGS('fino'),
       sel('trasera', 'Parte trasera', 'rails', BACK_OPTS),
       MAT,
-      ...LEGS('fino', { visibleIf: isLegs }),
     ],
     presets: [
       { name: 'Para TV de 55"', values: {} },
@@ -345,9 +363,9 @@ export const FURNITURE = [
       num('alturaCelda', 'Alto de cada fila de vinilos', 34, 32, 38),
       sel('base', 'Base', 'patas', BASE_OPTS),
       num('altoBase', 'Alto de la base', 15, 3, 30, 1, 'cm', { visibleIf: showBaseH }),
+      ...CARCASS_LEGS('fino'),
       sel('trasera', 'Parte trasera', 'rails', BACK_OPTS),
       MAT,
-      ...LEGS('fino', { visibleIf: isLegs }),
     ],
     presets: [
       { name: 'Deck con equipo y 2 filas', values: {} },
@@ -389,9 +407,9 @@ export const FURNITURE = [
       num('fondo', 'Fondo', 36, 33, 45),
       sel('base', 'Base', 'patas', BASE_OPTS, { section: 'Estructura' }),
       num('altoBase', 'Alto de la base', 8, 3, 20, 1, 'cm', { visibleIf: showBaseH }),
+      ...CARCASS_LEGS('grueso'),
       sel('trasera', 'Parte trasera', 'hdf', BACK_OPTS),
       MAT,
-      ...LEGS('grueso', { visibleIf: isLegs }),
     ],
     presets: [
       { name: '4 × 4 (≈1.000 LPs)', values: {} },
@@ -430,11 +448,26 @@ export const getType = (id) => FURNITURE.find((f) => f.id === id) || FURNITURE[0
 export const defaultsFor = (type) =>
   Object.fromEntries(type.params.map((p) => [p.key, p.def]));
 
+/**
+ * Ajusta valores guardados por versiones anteriores:
+ * tamaño de pata 'pino41'/'pino70' → 'fino'/'grueso', y las ruedas, que antes eran un "estilo de pata",
+ * pasan a ser una base propia.
+ */
+export function normalizeValues(values) {
+  const v = { ...values };
+  if (v.pata) v.pata = normSize(v.pata);
+  if (v.base === 'patas' && v.pataEstilo === 'ruedas') {
+    v.base = 'ruedas';
+    v.ruedaTam = v.pata || 'fino';
+    v.pataEstilo = 'cuadrada';
+  }
+  return v;
+}
+
 /** Construye el mueble a partir de valores (completados con los valores por defecto). */
 export function buildFurniture(typeId, values) {
   const type = getType(typeId);
-  const v = { ...defaultsFor(type), ...values };
-  if (v.pata) v.pata = normSize(v.pata);
+  const v = normalizeValues({ ...defaultsFor(type), ...values });
   try {
     return { fixtures: [], ...type.build(v), error: null };
   } catch (e) {

@@ -1,12 +1,12 @@
 import { LINEARS } from './materials.js';
 
+// Las ruedas no son un estilo de pata: se eligen en "Base" (Ruedas giratorias).
 export const LEG_STYLES_ALL = [
   ['cuadrada', 'Cuadrada'],
   ['afinada', 'Cuadrada afinada'],
   ['redonda', 'Redonda'],
   ['redondaAfinada', 'Redonda afinada'],
   ['metalica', 'Metálica (tubo cuadrado)'],
-  ['ruedas', 'Ruedas giratorias'],
 ];
 export const LEG_STYLES_WOOD = LEG_STYLES_ALL.slice(0, 4);
 export const LEG_STYLES_CHAIR = LEG_STYLES_ALL.slice(0, 2);

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
-import { FURNITURE, getType, defaultsFor, buildFurniture } from './lib/types.js';
+import { FURNITURE, getType, defaultsFor, buildFurniture, normalizeValues } from './lib/types.js';
 import { packAll } from './lib/packing.js';
 import { buildShopping, shoppingText } from './lib/shopping.js';
 import { materialOf, sectionLabel } from './lib/materials.js';
@@ -65,7 +65,7 @@ export default function App() {
   const [scrollTo, setScrollTo] = useState(null);
 
   const type = getType(typeId);
-  const values = useMemo(() => ({ ...defaultsFor(type), ...store[type.id] }), [type, store]);
+  const values = useMemo(() => normalizeValues({ ...defaultsFor(type), ...store[type.id] }), [type, store]);
 
   useEffect(() => {
     try { localStorage.setItem(STORE, JSON.stringify({ typeId, values: store, settings, looks: looksStore })); } catch { /* sin almacenamiento */ }

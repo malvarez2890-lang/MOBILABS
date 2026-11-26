@@ -15,7 +15,7 @@ export function carcass(p, o) {
   const m = SHEETS[o.mat];
   const t = m.t;
   const { W, D } = o;
-  const base = o.base || 'none';
+  const base = o.base === 'ruedas' ? 'patas' : o.base || 'none'; // "ruedas" = patas que son ruedas (las trae o.leg)
   const back = o.back || 'none';
   // patas: si el fondo no alcanza para las gruesas, se usan las delgadas (se decide antes de calcular la altura de la base)
   let legSp = o.leg || legSpec('cuadrada', 'fino');

@@ -1,5 +1,5 @@
 import { SHEETS } from './materials.js';
-import { legSpec, placeLeg } from './legs.js';
+import { legSpec, placeLeg, legHardware } from './legs.js';
 
 /** Apila `layers` tableros formando una tapa más gruesa. yTop = cara superior. */
 export function stackTop(p, mat, layers, x, yTop, z, w, d, edge) {
@@ -9,7 +9,7 @@ export function stackTop(p, mat, layers, x, yTop, z, w, d, edge) {
 
 /**
  * Mesa con patas de pino, faldones y tapa de tablero.
- * o = { W, D, H, mat, layers, leg (legSpec de madera), oh (voladizo), shelf:{y}|null }
+ * o = { W, D, H, mat, layers, leg (legSpec de madera), casters (legSpec 'ruedas' | null), oh (voladizo), shelf:{y}|null }
  */
 export function tableFrame(p, o) {
   const { W, D, H, mat } = o;
@@ -27,10 +27,18 @@ export function tableFrame(p, o) {
     p.hardware('Tornillo 4×30 mm (unir capas de la tapa)', Math.ceil((W * D) / 40000), 'Además de cola');
   }
 
-  const legLen = H - topT;
+  // con ruedas, las patas se acortan: cada una apoya sobre una rueda y la altura total no cambia
+  const caster = o.casters && o.casters.kind === 'caster' ? o.casters : null;
+  const cH = caster ? caster.h : 0;
+  const legLen = H - topT - cH;
+  const cs = caster ? Math.min(caster.s, s) : 0; // la placa de la rueda no sobresale de la pata
   for (const x of [oh, W - oh - s]) {
-    for (const z of [oh, D - oh - s]) placeLeg(p, spec, x, 0, z, legLen, { head: aH + 10 });
+    for (const z of [oh, D - oh - s]) {
+      placeLeg(p, spec, x, cH, z, legLen, { head: aH + 10 });
+      if (caster) p.fixture({ kind: 'caster', min: [x + (s - cs) / 2, 0, z + (s - cs) / 2], size: [cs, cH, cs], wheelD: caster.wheelD });
+    }
   }
+  if (caster) legHardware(p, caster, 4, cH);
 
   const yA = H - topT - aH;
   const innerX = W - 2 * oh - 2 * s;
@@ -49,8 +57,8 @@ export function tableFrame(p, o) {
 
   // repisa inferior apoyada en soportes
   if (o.shelf) {
-    const maxY = legLen - aH - t - 60;
-    const y = Math.max(60, Math.min(o.shelf.y, maxY));
+    const maxY = H - topT - aH - t - 60; // la repisa queda por debajo de los faldones
+    const y = Math.max(cH + 60, Math.min(o.shelf.y, maxY));
     const sx = oh + s;
     const sz = oh + s;
     p.H('Repisa inferior', mat, sx, y, sz, innerX, innerZ, 'f');
