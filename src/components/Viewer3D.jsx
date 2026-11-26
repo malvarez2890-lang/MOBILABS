@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { materialOf } from '../lib/materials.js';
 import { partGeometry, fixtureGeometry } from './geometry.js';
+import CURSOR_MOVE from '../assets/cursor-move.png';
+import CURSOR_ROTATE from '../assets/cursor-rotate.png';
 
 const VIEWS = {
   iso: [0.62, 0.42, 0.85],
@@ -83,22 +85,38 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
       const u = hit.object.userData;
       return u.pickId !== undefined ? u.pickId : u.id; // un tirador cuenta como su puerta; patas compradas no se seleccionan
     };
+    // Cursor: siempre la flecha normal. Solo mientras se arrastra aparece el ícono de girar o de desplazar.
+    const canvas = renderer.domElement;
+    const setCursor = (mode) => {
+      canvas.style.cursor = mode === 'rotate' ? `url("${CURSOR_ROTATE}") 16 16, grabbing`
+        : mode === 'pan' ? `url("${CURSOR_MOVE}") 16 16, move` : 'default';
+    };
+    setCursor(null);
     let down = null;
-    const onDown = (e) => { down = { x: e.clientX, y: e.clientY }; };
+    const onDown = (e) => {
+      // igual que OrbitControls: botón derecho (o Ctrl/Mayús/⌘ + izquierdo) desplaza; izquierdo gira; rueda = zoom
+      const pan = e.pointerType === 'mouse' && (e.button === 2 || e.ctrlKey || e.metaKey || e.shiftKey);
+      down = { x: e.clientX, y: e.clientY, pan, mouse: e.pointerType === 'mouse', button: e.button, dragging: false };
+    };
+    const onMove = (e) => {
+      if (!down || !down.mouse || down.button === 1 || down.dragging) return;
+      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) {
+        down.dragging = true; // ya es un arrastre (no un clic de selección)
+        setCursor(down.pan ? 'pan' : 'rotate');
+      }
+    };
     const onUp = (e) => {
       if (!down) return;
       const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
       down = null;
+      setCursor(null);
       if (moved < 5) latest.current.onPick?.(pick(e));
     };
-    const onMove = (e) => {
-      if (down || e.pointerType === 'touch') return;
-      renderer.domElement.style.cursor = pick(e) ? 'pointer' : 'grab';
-    };
-    renderer.domElement.style.cursor = 'grab';
-    renderer.domElement.addEventListener('pointerdown', onDown);
-    renderer.domElement.addEventListener('pointerup', onUp);
-    renderer.domElement.addEventListener('pointermove', onMove);
+    const onCancel = () => { down = null; setCursor(null); };
+    canvas.addEventListener('pointerdown', onDown);
+    canvas.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointerup', onUp);
+    canvas.addEventListener('pointercancel', onCancel);
 
     let needRender = true; // se dibuja solo si algo cambió: ahorra batería en el teléfono
     const invalidate = () => { needRender = true; };
@@ -142,9 +160,10 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(S.current.fitT);
-      renderer.domElement.removeEventListener('pointerdown', onDown);
-      renderer.domElement.removeEventListener('pointerup', onUp);
-      renderer.domElement.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerdown', onDown);
+      canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerup', onUp);
+      canvas.removeEventListener('pointercancel', onCancel);
       ro.disconnect();
       controls.dispose();
       root.children.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
