@@ -64,10 +64,11 @@ export function CutList({ plans, onHover, selectedKey, onSelect, scrollTo }) {
 /* ------------------------------------------------------------------ PLANOS DE CORTE */
 function SheetSvg({ plan, sheet, index }) {
   const { W, H } = plan;
-  const fs = Math.max(26, Math.min(W, H) / 26);
+  const fs = Math.max(30, Math.min(W, H) / 22);
   return (
     <figure className="sheet-fig">
       <figcaption>Plancha {index + 1} · {sheet.placements.length} piezas</figcaption>
+      <div className="sheet-scroll">
       <svg viewBox={`-4 -4 ${W + 8} ${H + 8}`} role="img" aria-label={`Plano de corte de la plancha ${index + 1}`}>
         <rect x="0" y="0" width={W} height={H} className="sheet-bg" />
         {sheet.placements.map((p, i) => (
@@ -86,6 +87,7 @@ function SheetSvg({ plan, sheet, index }) {
           </g>
         ))}
       </svg>
+      </div>
     </figure>
   );
 }

@@ -324,6 +324,7 @@ select { width: 100%; padding: 3px 6px; }
   font-size: 11px;
 }
 .explode input { width: 120px; }
+.explode-ico { display: none; flex: 0 0 auto; }
 .notices { display: grid; gap: 4px; padding-top: 5px; background: #d8dde3; }
 .notice { padding: 6px 9px; border: 1px solid; border-radius: 0; font-size: 11px; }
 .notice.warn { border-color: #b8954d; background: #fff2d2; color: #674800; }
@@ -425,25 +426,115 @@ td.mat { color: #bbc4cf; font-size: 10.5px; }
   .center .viewer { min-height: 460px; }
 }
 
-/* Interfaz compacta: se conserva el visor fijo durante la edición */
+/* ---------- Pantallas táctiles: controles cómodos para el dedo ---------- */
+@media (pointer: coarse) {
+  button, select, summary, label, tr { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  /* 16 px evita que iPhone acerque la pantalla solo al tocar un campo */
+  select, .numbox input, .settings input[type="number"] { font-size: 16px; }
+  select, .numbox { min-height: 44px; }
+  select { padding: 6px 10px; }
+  .numbox { width: 92px; padding: 4px 8px; }
+  .numbox em { font-size: 12px; }
+  .field { margin: 10px 0; gap: 5px; }
+  .field-label { font-size: 13px; }
+  .field-bool { min-height: 44px; }
+  input[type="checkbox"] { width: 26px; height: 26px; }
+  input[type="range"] { height: 36px; background: transparent; -webkit-appearance: none; appearance: none; }
+  input[type="range"]::-webkit-slider-runnable-track { height: 6px; border: 1px solid #55627a; border-radius: 3px; background: #1f2835; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -11px; border: 2px solid #fff; border-radius: 50%; background: var(--accent-strong); box-shadow: 0 1px 3px rgb(0 0 0 / .5); }
+  input[type="range"]::-moz-range-track { height: 6px; border: 1px solid #55627a; border-radius: 3px; background: #1f2835; }
+  input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; border: 2px solid #fff; border-radius: 50%; background: var(--accent-strong); }
+  .type { min-height: 66px; font-size: 11.5px; }
+  .pill { padding: 8px 12px; font-size: 12.5px; }
+  .settings summary { padding: 11px 0; font-size: 13px; }
+  .reset { min-height: 44px; }
+  .btn, .btn.small { min-height: 40px; }
+  .pill { min-height: 40px; }
+  .numbox { padding: 0 8px; }
+  .numbox input { min-height: 42px; }
+  .seg button { min-height: 38px; padding: 6px 12px; font-size: 12px; }
+  .explode { min-height: 38px; padding: 4px 10px; }
+  .explode input { width: 100px; }
+  .sel-x { min-width: 38px; min-height: 38px; font-size: 16px; }
+  table.cut { font-size: 12.5px; }
+  table.cut td { padding: 10px 6px; }
+  .buy li { padding: 10px 8px; }
+  .notice { padding: 9px 10px; font-size: 12.5px; }
+}
+
+/* ---------- Teléfono: pestañas abajo y una sección a la vez ---------- */
+.mnav { display: none; }
+@media (max-width: 760px), (max-width: 950px) and (max-height: 520px) and (orientation: landscape) {
+  .mnav {
+    position: fixed;
+    z-index: 9;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-top: 1px solid #17202b;
+    background: var(--panel-deep);
+    box-shadow: 0 -2px 8px rgb(0 0 0 / .3);
+  }
+  .mnav button {
+    display: grid;
+    min-height: 56px;
+    justify-items: center;
+    align-content: center;
+    gap: 2px;
+    padding: 6px 2px 5px;
+    border: 0;
+    border-top: 2px solid transparent;
+    background: transparent;
+    color: #aab4c1;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .mnav button.on { border-top-color: #42a9e9; background: #2c3746; color: #fff; }
+  .tabs { display: none; }
+  .app[data-mview="diseno"] .right { display: none; }
+  .app[data-mview="resultados"] .left,
+  .app[data-mview="resultados"] .notices { display: none; }
+  .sheet-fig svg { min-width: 560px; }
+  .sheet-scroll { overflow-x: auto; }
+  /* nada del contenido puede ensanchar la página: lo ancho se desplaza dentro de su propio recuadro */
+  .app > *, .tab-body, .tab-body > section, .plan-block, .sheet-grid > *, .sheet-fig, .table-wrap, .buy li > * { min-width: 0; max-width: 100%; }
+  table.cut th:nth-child(6), table.cut td:nth-child(6) { display: none; }
+}
+.sheet-scroll { overflow-x: auto; }
+
+/* Teléfono vertical: visor fijo arriba y contenido debajo */
 @media (max-width: 760px) {
-  .app { display: flex; min-height: 100%; flex-direction: column; }
-  .top { order: 0; position: sticky; top: 0; min-height: 48px; padding: 5px 8px; }
-  .brand { min-width: 0; padding-right: 7px; border-right: 0; font-size: 12px; }
+  body { -webkit-text-size-adjust: 100%; }
+  .app { display: flex; min-height: 100%; flex-direction: column; padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px)); }
+  .top {
+    order: 0;
+    position: sticky;
+    top: 0;
+    height: calc(48px + env(safe-area-inset-top, 0px));
+    min-height: 0;
+    padding: env(safe-area-inset-top, 0px) 8px 0;
+    gap: 6px;
+  }
+  .brand { min-width: 0; padding-right: 4px; border-right: 0; font-size: 14px; }
   .brand small { display: none; }
-  .logo { width: 30px; height: 30px; }
-  .top-actions { gap: 3px; }
-  .top-actions .btn { min-height: 26px; padding: 4px 7px; font-size: 10.5px; white-space: nowrap; }
+  .logo { width: 32px; height: 32px; }
+  .top-actions { gap: 5px; }
+  .top-actions .btn { min-height: 38px; padding: 4px 11px; font-size: 12px; white-space: nowrap; }
+  .btn .long { display: none; }
   .center { display: contents; }
   .center::before { content: none; }
   .app .center .viewer {
     order: 1;
     position: sticky;
-    top: 48px;
+    top: calc(48px + env(safe-area-inset-top, 0px));
     z-index: 5;
     flex: none;
     width: calc(100% - 12px);
-    height: clamp(180px, 38dvh, 250px);
+    height: clamp(190px, 36dvh, 320px);
     min-height: 0;
     margin: 6px;
     box-shadow: 0 5px 14px rgb(0 0 0 / .28);
@@ -452,14 +543,49 @@ td.mat { color: #bbc4cf; font-size: 10.5px; }
   .notices { order: 3; padding: 6px; }
   .right { order: 4; overflow: visible; border-left: 0; }
   .viewbar { right: 5px; bottom: 5px; left: 5px; gap: 4px; }
-  .seg button { padding: 4px 6px; font-size: 10px; }
-  .explode { padding: 3px 6px; font-size: 10px; }
   .explode span { display: none; }
-  .explode input { width: 74px; }
+  .explode-ico { display: block; }
+  .explode input { width: 84px; }
+  .seg button { padding: 6px 9px; }
+  .hud { top: 6px; right: 6px; left: 6px; }
+  .dims { padding: 3px 7px; font-size: 11px; }
+  .dims b { font-size: 12px; }
+  .dims small { display: none; }
+  .tab-body { padding: 10px 10px 16px; }
+}
+
+/* Teléfono horizontal: visor a la izquierda y la sección activa a la derecha */
+@media (max-width: 950px) and (max-height: 520px) and (orientation: landscape) {
+  body { overflow: hidden; }
+  .app {
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: 44px minmax(0, 1fr);
+    grid-template-areas: "top top" "center side";
+    padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+  }
+  .top { position: relative; height: 44px; min-height: 0; padding: 3px 8px; gap: 6px; }
+  .brand { min-width: 0; padding-right: 4px; border-right: 0; font-size: 13px; }
+  .brand small { display: none; }
+  .logo { width: 30px; height: 30px; }
+  .top-actions .btn { min-height: 34px; padding: 3px 10px; font-size: 12px; }
+  .btn .long { display: none; }
+  .center { display: flex; grid-area: center; padding: 6px; }
+  .center::before { content: none; }
+  .app .center .viewer { position: relative; top: auto; order: 0; flex: 1 1 auto; width: auto; height: auto; min-height: 0; margin: 0; }
+  .notices { order: 0; max-height: 64px; padding-top: 4px; overflow-y: auto; }
+  .left, .right { grid-area: side; overflow-y: auto; padding-bottom: 66px; }
+  .right { border-top: 0; }
+  .mnav { left: 50%; padding-right: env(safe-area-inset-right, 0px); }
+  .explode span { display: none; }
+  .explode-ico { display: block; }
+  .explode input { width: 84px; }
+  .seg button { padding: 6px 9px; }
+  .dims small { display: none; }
   .hud { top: 6px; right: 6px; left: 6px; }
   .dims { padding: 3px 6px; font-size: 10.5px; }
-  .dims b { font-size: 11.5px; }
-  .tab-body { padding: 8px; }
 }
 
 /* Impresión técnica en fondo blanco */

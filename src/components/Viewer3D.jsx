@@ -49,7 +49,8 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     const sun = new THREE.DirectionalLight(0xffffff, 1.5);
     sun.position.set(180, 380, 260);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    const smallScreen = Math.min(window.innerWidth, window.innerHeight) < 700;
+    sun.shadow.mapSize.set(smallScreen ? 1024 : 2048, smallScreen ? 1024 : 2048); // más liviano en teléfonos
     Object.assign(sun.shadow.camera, { left: -350, right: 350, top: 350, bottom: -350, near: 10, far: 1200 });
     sun.shadow.bias = -0.0004;
     scene.add(sun);
@@ -99,12 +100,16 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     renderer.domElement.addEventListener('pointerup', onUp);
     renderer.domElement.addEventListener('pointermove', onMove);
 
+    let needRender = true; // se dibuja solo si algo cambió: ahorra batería en el teléfono
+    const invalidate = () => { needRender = true; };
+
     const resize = () => {
       const w = el.clientWidth || 1;
       const h = el.clientHeight || 1;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      needRender = true;
     };
     const ro = new ResizeObserver(resize);
     ro.observe(el);
@@ -112,13 +117,16 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
 
     let raf = 0;
     const loop = () => {
-      controls.update();
-      renderer.render(scene, camera);
       raf = requestAnimationFrame(loop);
+      const moved = controls.update(); // true mientras la cámara se mueve (incluye la inercia)
+      if (moved || needRender) {
+        needRender = false;
+        renderer.render(scene, camera);
+      }
     };
     loop();
 
-    S.current = { renderer, scene, camera, controls, root, lastSize: 0 };
+    S.current = { renderer, scene, camera, controls, root, lastSize: 0, invalidate };
     return () => {
       cancelAnimationFrame(raf);
       renderer.domElement.removeEventListener('pointerdown', onDown);
@@ -151,6 +159,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     controls.target.copy(target);
     controls.update();
     S.current.lastSize = size;
+    S.current.invalidate?.();
   };
 
   // ---- (re)construcción de piezas ----
@@ -211,6 +220,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
   const applyState = () => {
     const { root } = S.current;
     if (!root) return;
+    S.current.invalidate?.();
     const { bbox: bb, explode: ex, highlight: hl } = latest.current;
     const cx = 0;
     const cy = bb.dims[1] / 20;

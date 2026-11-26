@@ -4,13 +4,26 @@ import { packAll } from './lib/packing.js';
 import { buildShopping, shoppingText } from './lib/shopping.js';
 import { materialOf, sectionLabel } from './lib/materials.js';
 import { cm, fmt } from './lib/util.js';
-import { Icon } from './components/Icons.jsx';
+import { Icon, NavIcon } from './components/Icons.jsx';
 import logoUrl from './assets/logo.png';
 import ParamsForm from './components/ParamsForm.jsx';
 import Viewer3D from './components/Viewer3D.jsx';
 import { CutList, SheetPlans, Shopping, labelColor, labelStroke } from './components/Lists.jsx';
 
 const STORE = 'mueblelab-v1';
+// Teléfono en vertical, o en horizontal (pantalla baja): se usa navegación inferior por secciones
+const PHONE_QUERY = '(max-width: 760px), (max-width: 950px) and (max-height: 520px) and (orientation: landscape)';
+function useMedia(query) {
+  const [matches, setMatches] = useState(() => (typeof window !== 'undefined' ? window.matchMedia(query).matches : false));
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setMatches(mq.matches);
+    mq.addEventListener('change', on);
+    on();
+    return () => mq.removeEventListener('change', on);
+  }, [query]);
+  return matches;
+}
 // En la página publicada no funcionan las descargas ni window.print(): se reemplazan por copiar al portapapeles.
 const PUBLISHED = Boolean(import.meta.env.VITE_ARTIFACT);
 const load = () => {
@@ -37,6 +50,8 @@ export default function App() {
   const [viewCmd, setViewCmd] = useState(null);
   const [copied, setCopied] = useState(false);
   const [selKey, setSelKey] = useState(null);
+  const [mview, setMview] = useState('diseno'); // en teléfono: 'diseno' | 'resultados'
+  const isPhone = useMedia(PHONE_QUERY);
   const [scrollTo, setScrollTo] = useState(null);
 
   const type = getType(typeId);
@@ -66,8 +81,11 @@ export default function App() {
   const pickFromModel = useCallback((id) => {
     const g = id ? idToGroup.get(id) : null;
     setSelKey(g ? g.key : null);
-    if (g) { setTab('piezas'); setScrollTo({ key: g.key, n: Date.now() }); }
-  }, [idToGroup]);
+    if (g) {
+      if (!isPhone) setTab('piezas'); // en el teléfono no se cambia de sección: la tarjeta del visor ya muestra la pieza
+      setScrollTo({ key: g.key, n: Date.now() });
+    }
+  }, [idToGroup, isPhone]);
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && setSelKey(null);
     window.addEventListener('keydown', onKey);
@@ -122,18 +140,18 @@ export default function App() {
   const tips = notes.filter((n) => n.level === 'info');
 
   return (
-    <div className="app">
+    <div className="app" data-mview={mview}>
       <header className="top">
         <div className="brand"><img className="logo" src={logoUrl} alt="" width="36" height="36" /> MOBILABs <small>diseña · cubica · compra</small></div>
         <div className="top-actions">
           {PUBLISHED ? (
             <button className="btn primary" onClick={copyCuts} title="Copia el despiece y las compras para pegar en Excel, Sheets o un mensaje">
-              {copiedCuts ? '¡Copiado!' : 'Copiar despiece'}
+              {copiedCuts ? '¡Copiado!' : <>Copiar<span className="long"> despiece</span></>}
             </button>
           ) : (
             <>
-              <button className="btn" onClick={exportCsv}>Descargar CSV</button>
-              <button className="btn primary" onClick={() => window.print()}>Imprimir / PDF</button>
+              <button className="btn" onClick={exportCsv}><span className="long">Descargar </span>CSV</button>
+              <button className="btn primary" onClick={() => window.print()}>Imprimir<span className="long"> / PDF</span></button>
             </>
           )}
         </div>
@@ -201,11 +219,12 @@ export default function App() {
           </div>
           <div className="viewbar">
             <div className="seg" role="group" aria-label="Vista">
-              {[['iso', 'Isométrica'], ['front', 'Frente'], ['side', 'Lado'], ['top', 'Arriba']].map(([n, l]) => (
-                <button key={n} onClick={() => setViewCmd({ name: n, t: Date.now() })}>{l}</button>
+              {[['iso', 'Isométrica', 'Iso'], ['front', 'Frente', 'Frente'], ['side', 'Lado', 'Lado'], ['top', 'Arriba', 'Arriba']].map(([n, l, short]) => (
+                <button key={n} title={l} onClick={() => setViewCmd({ name: n, t: Date.now() })}>{isPhone ? short : l}</button>
               ))}
             </div>
-            <label className="explode" title="Separa las piezas para ver cómo se arma">
+            <label className="explode" title="Vista explosionada: separa las piezas para ver cómo se arma">
+              <svg className="explode-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 3v5M12 16v5M3 12h5M16 12h5" /></svg>
               <span>Vista explosionada</span>
               <input type="range" min="0" max="1" step="0.01" value={explode} onChange={(e) => setExplode(Number(e.target.value))} />
             </label>
@@ -241,6 +260,27 @@ export default function App() {
         <div className={`tab-body ${tab === 'cortes' ? 'show' : ''}`}><SheetPlans plans={plans} /></div>
         <div className={`tab-body ${tab === 'compras' ? 'show' : ''}`}><Shopping shop={shop} onCopy={copy} copied={copied} /></div>
       </aside>
+
+      <nav className="mnav" aria-label="Secciones">
+        {[['diseno', 'Diseño'], ['piezas', 'Piezas'], ['cortes', 'Cortes'], ['compras', 'Compras']].map(([id, label]) => {
+          const active = id === 'diseno' ? mview === 'diseno' : mview === 'resultados' && tab === id;
+          return (
+            <button
+              key={id}
+              className={active ? 'on' : ''}
+              aria-current={active ? 'page' : undefined}
+              onClick={() => {
+                if (id === 'diseno') setMview('diseno');
+                else { setMview('resultados'); setTab(id); }
+                window.scrollTo({ top: 0 });
+              }}
+            >
+              <NavIcon id={id} />
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }
