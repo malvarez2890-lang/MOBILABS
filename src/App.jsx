@@ -5,6 +5,7 @@ import { buildShopping, shoppingText } from './lib/shopping.js';
 import { materialOf, sectionLabel } from './lib/materials.js';
 import { cm, fmt } from './lib/util.js';
 import { Icon } from './components/Icons.jsx';
+import logoUrl from './assets/logo.png';
 import ParamsForm from './components/ParamsForm.jsx';
 import Viewer3D from './components/Viewer3D.jsx';
 import { CutList, SheetPlans, Shopping, labelColor, labelStroke } from './components/Lists.jsx';
@@ -123,7 +124,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="top">
-        <div className="brand"><span className="logo" aria-hidden="true">▤</span> MOBILABs <small>diseña · cubica · compra</small></div>
+        <div className="brand"><img className="logo" src={logoUrl} alt="" width="36" height="36" /> MOBILABs <small>diseña · cubica · compra</small></div>
         <div className="top-actions">
           {PUBLISHED ? (
             <button className="btn primary" onClick={copyCuts} title="Copia el despiece y las compras para pegar en Excel, Sheets o un mensaje">
