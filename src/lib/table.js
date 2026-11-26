@@ -20,7 +20,9 @@ export function tableFrame(p, o) {
   const round = !!o.round;
   const steelFrame = spec.kind === 'metalFrame';
   const splay = !!spec.splay;
-  const layers = o.layers || 1;
+  let layers = o.layers || 1;
+  const bigTop = W * D > (spec.kind === 'product' ? 1000000 : 1400000); // tapa grande: un solo tablero flecta
+  if (layers === 1 && bigTop) { layers = 2; p.tip('La tapa es grande: se usó tapa doble automáticamente (dos tableros pegados) para que no flecte.'); }
   const t = SHEETS[mat].t;
   const topT = t * layers;
   const product = spec.kind === 'product'; // patas listas: alto fijo; la altura total = pata + tapa
@@ -54,7 +56,7 @@ export function tableFrame(p, o) {
     p.tip(`Las patas son un producto listo de ${spec.h / 10} cm: el alto total de la mesa queda en ${Math.round(H) / 10} cm (pata + tapa) y no se puede regular.`);
     if (o.shelf) p.tip('Con patas listas no se agrega repisa inferior: no hay marco donde atornillarla.');
     if (o.casters) p.tip('Las ruedas no se combinan con patas listas.');
-    if (W * D > 1000000) p.warn('Una tapa grande sobre 4 patas atornilladas por una placa queda poco rígida: considera patas gruesas, tapa doble o el estilo con faldones.');
+    if (W * D > 1000000) p.tip('Una tapa grande sobre 4 patas con placa queda menos rígida que con faldones: prefiere patas gruesas o fija bien las placas.');
     return { oh, ohx: oh, ohz: oh, s, topT, legLen: spec.h, yA: spec.h, nCross: 0 };
   }
 
@@ -96,7 +98,6 @@ export function tableFrame(p, o) {
     p.hardware('Placa o escuadra para fijar la tapa al marco', 6, 'Con tornillos');
     p.hardware('Tornillo 4×16 mm', 12, 'Fijación de tapa');
     p.tip('El marco de acero se manda a hacer a un taller con las medidas indicadas; la tapa se atornilla a los rieles superiores.');
-    if (layers === 1 && W * D > 1400000) p.warn('La tapa de un solo tablero es muy grande y puede flectar: usa tapa doble o un tablero más grueso.');
     return { oh: ohx, ohx, ohz, s, topT, legLen: legTop, yA: legTop - tt, nCross: 0 };
   }
 
@@ -152,8 +153,5 @@ export function tableFrame(p, o) {
   p.hardware('Escuadra metálica de fijación de tapa', esc, 'Une la tapa a los faldones');
   p.hardware('Tornillo 4×16 mm', esc * 2, 'Fijación de tapa');
 
-  if (layers === 1 && W * D > 1400000) {
-    p.warn('La tapa de un solo tablero es muy grande y puede flectar: usa tapa doble o un tablero más grueso.');
-  }
   return { oh: ohx, ohx, ohz, s, topT, legLen, yA, nCross };
 }

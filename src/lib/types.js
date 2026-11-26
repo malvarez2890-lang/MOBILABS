@@ -254,8 +254,8 @@ export const FURNITURE = [
       const W = v.ancho * 10;
       const D = v.fondo * 10;
       const H = v.alto * 10;
-      const layers = v.tapa === 'doble' ? 2 : 1;
-      const topT = t * layers;
+      let layers = v.tapa === 'doble' ? 2 : 1;
+      let topT = t * layers;
       if (v.estilo === 'patas') {
         const o = tableFrame(p, {
           W, D, H, mat, layers, leg: legOf(v), casters: casterOf(v), oh: 30,
@@ -271,7 +271,6 @@ export const FURNITURE = [
       } else {
         const ox = 20; // la tapa sobresale de los laterales
         const oz = 30;
-        stackTop(p, mat, layers, 0, H, 0, W, D, 'frbl');
         // espacio mínimo: 40 cm libres para las piernas y 30 cm por cajonera; si no alcanza, se ajusta o se omite
         let mode = v.cajonera;
         const free = W - 2 * ox - 400;
@@ -280,6 +279,10 @@ export const FURNITURE = [
         const wc = Math.max(300, Math.min(v.anchoCajonera * 10, mode === 'ambos' ? free / 2 : free));
         const leftC = mode === 'izq' || mode === 'ambos';
         const rightC = mode === 'der' || mode === 'ambos';
+        // entre laterales de más de 120 cm la tapa de un tablero flecta: se pasa sola a tapa doble
+        const ivEst = (W - ox - (rightC ? wc : t)) - (ox + (leftC ? wc : t));
+        if (layers === 1 && ivEst > 1200) { layers = 2; topT = t * 2; p.tip(`Entre laterales hay ${cm(ivEst)} cm: se usó tapa doble automáticamente para que no flecte.`); }
+        stackTop(p, mat, layers, 0, H, 0, W, D, 'frbl');
         const hspec = handleFromValues(v);
         const fronts = [];
         const fxs = [];
@@ -309,7 +312,6 @@ export const FURNITURE = [
           p.joint(D - 2 * oz, 2);
         }
         if (layers > 1) p.hardware('Tornillo 4×30 mm (unir capas de la tapa)', Math.ceil((W * D) / 40000), 'Además de cola');
-        if (iw > 1200 && layers === 1) p.warn('Entre laterales hay más de 120 cm con tapa de un tablero: puede flectar. Usa tapa doble.');
         if (plainSides) p.hardware('Nivelador de patas regulable', plainSides * 2, 'Bajo los laterales');
       }
       return p.result();

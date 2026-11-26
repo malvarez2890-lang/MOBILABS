@@ -38,6 +38,15 @@ export function carcass(p, o) {
   const baseH = base === 'none' ? 0 : isCaster || isProduct ? legSp.h : o.baseH; // con ruedas o patas listas, la altura la define el producto
   const rows = o.rows.map((r) => ({ cols: 1, ...r }));
   const n = rows.length;
+  // vanos demasiado anchos para el tablero: se agregan divisores solos hasta que cada vano aguante la carga
+  const autoAdded = [];
+  rows.forEach((r, i) => {
+    if (r.doorCells || r.load !== undefined || !(m.maxSpan > 0)) return;
+    const limit = m.maxSpan * (o.loadFactor ?? 1) * 0.98;
+    const innerWEst = W - 2 * t;
+    const need = Math.ceil((innerWEst + t) / (limit + t));
+    if (need > r.cols && need <= 8) { autoAdded.push({ i: i + 1, from: r.cols, to: need }); r.cols = need; }
+  });
 
   // --- alturas de fila ---
   const fixed = rows.reduce((a, r) => a + (r.h || 0), 0);
@@ -162,6 +171,12 @@ export function carcass(p, o) {
   if (doorCount) {
     p.hardware('Bisagra de cazoleta 35 mm', hinges, 'Con base y tornillos');
     handleSummary(p, hspec, doorInfo, handleFx);
+  }
+
+  if (autoAdded.length) {
+    const lv = autoAdded.map((a) => a.i);
+    const where = lv.length === rows.length && rows.length > 1 ? 'en todos los niveles' : `en ${lv.length === 1 ? 'el nivel' : 'los niveles'} ${lv.join(', ')}`;
+    p.tip(`Se agregaron divisores automáticos ${where} para que las repisas no se combe con ${m.name.toLowerCase()}: los vanos quedan de hasta ${cm(Math.max(...rows.map((r) => r.cw)))} cm.`);
   }
 
   // --- avisos estructurales ---
