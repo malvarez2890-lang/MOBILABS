@@ -11,10 +11,32 @@
     <link rel="icon" type="image/png" href="/src/assets/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="description" content="MOBILABs es una herramienta gratuita para diseñar muebles a medida (estantes, libreros, mesas, escritorios, sillas, racks de TV y muebles para vinilos), verlos en 3D y obtener el despiece, el plan de corte por plancha y la lista de materiales para comprar." />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="MOBILABs" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="MOBILABs" />
+    <meta property="og:locale" content="es_CL" />
+    <meta property="og:title" content="MOBILABs · Diseña, cubica y compra" />
+    <meta property="og:description" content="MOBILABs es una herramienta gratuita para diseñar muebles a medida (estantes, libreros, mesas, escritorios, sillas, racks de TV y muebles para vinilos), verlos en 3D y obtener el despiece, el plan de corte por plancha y la lista de materiales para comprar." />
+    <style>html,body{margin:0;background:#252e3b}</style>
     <title>MOBILABs · Diseña, cubica y compra</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Presentación estática: la ven los buscadores y los clasificadores web que no ejecutan JavaScript; React la reemplaza al cargar. -->
+      <main style="font:15px/1.55 system-ui,-apple-system,'Segoe UI',sans-serif;max-width:660px;margin:12vh auto 0;padding:0 20px;color:#e7ebf0">
+        <h1 style="font-size:26px;margin:0 0 10px">MOBILABs</h1>
+        <p>Herramienta gratuita para <b>diseñar muebles a medida</b>: eliges el tipo de mueble, ajustas las medidas y lo ves en 3D. La aplicación calcula el despiece, el plan de corte sobre planchas estándar y la lista de materiales y herrajes que necesitas comprar.</p>
+        <ul>
+          <li>Estantes, libreros, mesas, mesas de arrimo, escritorios y sillas</li>
+          <li>Racks para TV, decks para tocadiscos y muebles para vinilos</li>
+          <li>Despiece, cubicación de tableros y lista de compras</li>
+        </ul>
+        <p style="color:#aeb8c5">Cargando la aplicación…</p>
+        <noscript><p>Esta aplicación necesita JavaScript activado para mostrar el diseñador 3D.</p></noscript>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
