@@ -317,7 +317,30 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
           m.position.copy(u.base); // sin vista explosionada
         });
       }
+      // letras del despiece sobre las piezas nuevas de la etapa
+      const sprites = [];
+      if (opts.labels && opts.labels.length) {
+        const byId = new Map(root.children.map((m) => [m.userData.id, m]));
+        opts.labels.forEach(([id, letter]) => {
+          const m = byId.get(id);
+          if (!m) return;
+          const c = document.createElement('canvas');
+          c.width = c.height = 96;
+          const g = c.getContext('2d');
+          g.fillStyle = '#ffffff'; g.strokeStyle = '#1b1f24'; g.lineWidth = 6;
+          g.beginPath(); g.arc(48, 48, 40, 0, Math.PI * 2); g.fill(); g.stroke();
+          g.fillStyle = '#1b1f24'; g.font = 'bold 54px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillText(letter, 48, 52);
+          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
+          sp.position.copy(m.position);
+          sp.scale.setScalar(cam.position.distanceTo(target) * 0.07);
+          sp.renderOrder = 10;
+          scene.add(sp);
+          sprites.push(sp);
+        });
+      }
       renderer.render(scene, cam);
+      sprites.forEach((sp) => { scene.remove(sp); sp.material.map.dispose(); sp.material.dispose(); });
       const url = renderer.domElement.toDataURL('image/jpeg', 0.9);
       saved.forEach(([m, vis, em, ei, pos]) => { m.visible = vis; m.material.emissive.setHex(em); m.material.emissiveIntensity = ei; m.position.copy(pos); });
       renderer.setClearColor(prevColor, prevAlpha);

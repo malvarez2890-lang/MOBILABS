@@ -538,7 +538,7 @@ export default function App() {
         <div className={`tab-body ${tab === 'piezas' ? 'show' : ''}`}><CutList plans={plans} onHover={setHover} selectedKeys={fullKeys} partialKeys={partialKeys} onSelect={(g, add) => onPick(g.ids[0], { add })} scrollTo={scrollTo} /></div>
         <div className={`tab-body ${tab === 'cortes' ? 'show' : ''}`}><SheetPlans plans={plans} choice={settings.sheetChoice || {}} onChoice={(mat, c) => setSettings((s) => ({ ...s, sheetChoice: { ...(s.sheetChoice || {}), [mat]: c }, sheetCustom: { ...(s.sheetCustom || {}), [mat]: (s.sheetCustom || {})[mat] || { w: 122, l: 244 } } }))} custom={settings.sheetCustom || {}} onCustom={(mat, v) => setSettings((s) => ({ ...s, sheetCustom: { ...(s.sheetCustom || {}), [mat]: v } }))} /></div>
         <div className={`tab-body ${tab === 'planos' ? 'show' : ''}`}>{tab === 'planos' && <Planos drawing={drawing} spec={techSpec(model, plans, shop, type, values)} title={type.name} subtitle={`${cm(bw)} × ${cm(bh)} × ${cm(bd)} cm (ancho × alto × fondo)`} />}</div>
-        <div className={`tab-body ${tab === 'manual' ? 'show' : ''}`}>{tab === 'manual' && <Manual manual={manual} title={type.name} images={stepImgs} />}</div>
+        <div className={`tab-body ${tab === 'manual' ? 'show' : ''}`}>{tab === 'manual' && <Manual manual={manual} title={type.name} images={stepImgs} groups={plans.groups} />}</div>
         <div className={`tab-body ${tab === 'compras' ? 'show' : ''}`}><Shopping shop={shop} priced={priced} onCopy={copy} copied={copied} onPrice={setPrice} onResetPrices={() => setPrices({})} onImportPrices={importPrices} onExportPrices={PUBLISHED ? null : () => download('precios-mobilabs.csv', pricesToCsv(priced))} /></div>
       </aside>
 

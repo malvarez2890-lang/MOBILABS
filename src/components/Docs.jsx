@@ -1,5 +1,7 @@
 import React from 'react';
 import { cm } from '../lib/util.js';
+import { materialOf } from '../lib/materials.js';
+import { labelColor, labelStroke } from './Lists.jsx';
 
 /* ------------------------------------------------------------------ PLANIMETRÍA */
 const INK = '#1b1f24';
@@ -75,6 +77,7 @@ export function printHtml(title, html, landscape = false) {
     table.spec td { padding: 4px 0; border-bottom: 1px solid #ccc; }
     tr, li { break-inside: avoid; } ol { padding-left: 22px; margin: 0 0 6px; } li { margin: 0 0 6px; }
     .page-break { break-before: page; }
+    .chip-l { display: inline-block; min-width: 22px; padding: 1px 5px; text-align: center; border: 1px solid #555; border-radius: 3px; font-weight: 700; }
     .step-img { display: block; width: 62%; max-width: 420px; margin: 6px 0 4px; border: 1px solid #bbb; }
   </style></head><body><h1>${title}</h1>${html}<p class="muted" style="margin-top:14px">Hecho con MOBILABs · ${SITE_URL}</p></body></html>`);
   d.close();
@@ -172,7 +175,7 @@ export function Planos({ drawing, spec, title, subtitle }) {
 }
 
 /* ------------------------------------------------------------------ MANUAL */
-export function Manual({ manual, title, images = {} }) {
+export function Manual({ manual, title, images = {}, groups = [] }) {
   const ref = React.useRef(null);
   return (
     <section className="docs manual">
@@ -181,6 +184,24 @@ export function Manual({ manual, title, images = {} }) {
         <h3>Manual de armado</h3>
         <span className="muted">{title} · {manual.stepCount} pasos</span>
       </div>
+      {groups.length > 0 && (
+        <div className="man-sec legend">
+          <h4 className="doc-h">Piezas y sus letras</h4>
+          <p className="muted small">Cada pieza lleva su letra del despiece; en las imágenes, las piezas nuevas de cada paso se marcan con su letra.</p>
+          <table className="spec letters">
+            <tbody>
+              {groups.map((g) => (
+                <tr key={g.key}>
+                  <th style={{ width: 34 }}><span className="chip-l" style={{ background: labelColor(g.label), borderColor: labelStroke(g.label) }}>{g.label}</span></th>
+                  <td>{g.name} · {g.qty} {g.qty === 1 ? 'pieza' : 'piezas'}</td>
+                  <td>{g.kind === 'sheet' ? `${Math.round(g.l)} × ${Math.round(g.w)} mm` : `${Math.round(g.l)} mm`}</td>
+                  <td>{materialOf(g.mat).short}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {manual.sections.map((sec) => (
         <div key={sec.title} className="man-sec">
           <h4 className="doc-h">{sec.title}</h4>

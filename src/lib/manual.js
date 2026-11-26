@@ -49,6 +49,8 @@ export function buildManual(model, plans, shop) {
   // ---- imágenes de cada paso: se arma el mueble por etapas (las piezas nuevas se resaltan) ----
   const idsByName = new Map();
   model.parts.forEach((q) => { if (!idsByName.has(q.name)) idsByName.set(q.name, []); idsByName.get(q.name).push(q.id); });
+  const labelOfId = new Map();
+  groups.forEach((g) => g.ids.forEach((id) => labelOfId.set(id, g.label)));
   const used = new Set();
   let fxMode = 'none';
   const nameTest = (sel) => (sel instanceof RegExp ? (nm) => sel.test(nm) : (nm) => nm === sel);
@@ -62,7 +64,7 @@ export function buildManual(model, plans, shop) {
     }
     if (fx) fxMode = fx;
     if (!hl.length && !fx) return { t: text };
-    return { t: text, stage: { show: [...used], hl, fx: fxMode } };
+    return { t: text, stage: { show: [...used], hl, fx: fxMode, labels: hl.map((id) => [id, labelOfId.get(id)]).filter((x) => x[1]) } };
   };
   const S = []; // secciones
   const add = (title, steps) => {
@@ -179,7 +181,7 @@ export function buildManual(model, plans, shop) {
 
   // ---- 7. cierre ----
   const fin = [
-    { t: `Pon el mueble en su lugar, nivela con un nivel de burbuja y ajusta los niveladores o calza la pata más corta. Revisa que ninguna puerta o cajón roce.`, stage: { show: model.parts.map((q) => q.id), hl: [], fx: 'all' } },
+    { t: `Pon el mueble en su lugar, nivela con un nivel de burbuja y ajusta los niveladores o calza la pata más corta. Revisa que ninguna puerta o cajón roce.`, stage: { show: model.parts.map((q) => q.id), hl: [], fx: 'all', labels: [] } },
     antiTip ? `Fija el mueble a la muralla con el kit anti-vuelco (escuadra + tarugo): es alto y angosto, y es obligatorio si hay niños en casa.` : null,
     productLegs && has('Tapa') && !carcass ? `Prueba la estabilidad empujando suavemente por un costado: si oscila, aprieta las placas o refuerza con otra pata/placa intermedia.` : null,
     `Limpia el polvo y los restos de cola con un paño húmedo. Las superficies de melamina se limpian con paño suave; evita solventes en los cantos.`,
