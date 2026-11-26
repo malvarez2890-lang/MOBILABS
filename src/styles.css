@@ -760,3 +760,7 @@ table.spec td { padding: 5px 0; border-bottom: 1px solid #2c3541; color: #dfe5ec
 .viewer.in-tile { position: absolute; z-index: 11; flex: none; min-height: 0; }
 .vpane.tile { grid-auto-rows: minmax(240px, 1fr); }
 .vpane-cell.slot3d { background: transparent; pointer-events: none; }
+
+/* sin gesto de "atrás/adelante" al deslizar en los bordes */
+html, body { overscroll-behavior: none; }
+.center canvas { touch-action: none; }
