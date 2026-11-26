@@ -780,3 +780,6 @@ html, body { overscroll-behavior: none; }
 .preset-item { text-align: left; padding: 9px 12px; border: 0; border-bottom: 1px solid #3c485a; background: transparent; color: #e1e6ec; font-size: 13px; cursor: pointer; }
 .preset-item:last-child { border-bottom: 0; }
 .preset-item:hover { background: #285f82; color: #fff; }
+
+.step-img { display: block; width: 100%; max-width: 420px; margin: 8px 0 4px; border: 1px solid #55657a; background: #fff; }
+.size-pick.custom input { width: 72px; padding: 5px 6px; font-size: 13px; border: 1px solid #647187; background: #3c485a; color: #fff; }

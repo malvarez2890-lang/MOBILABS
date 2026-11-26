@@ -93,7 +93,7 @@ function SheetSvg({ plan, sheet, index }) {
   );
 }
 
-export function SheetPlans({ plans, choice = {}, onChoice }) {
+export function SheetPlans({ plans, choice = {}, onChoice, custom = {}, onCustom }) {
   const { sheetPlans, barPlans } = plans;
   return (
     <section>
@@ -114,6 +114,14 @@ export function SheetPlans({ plans, choice = {}, onChoice }) {
                 {sizeOptions(sp.mat).map(([c, l]) => <option key={c} value={c}>{l}</option>)}
               </select>
             </label>
+          )}
+          {sp.choice === 'custom' && (
+            <div className="size-pick custom">
+              <span>Ancho × largo (cm)</span>
+              <input type="number" min="30" max="400" step="1" value={custom[sp.mat]?.w ?? 122} onChange={(e) => onCustom(sp.mat, { l: custom[sp.mat]?.l ?? 244, w: Number(e.target.value) || 0 })} />
+              <em>×</em>
+              <input type="number" min="30" max="400" step="1" value={custom[sp.mat]?.l ?? 244} onChange={(e) => onCustom(sp.mat, { w: custom[sp.mat]?.w ?? 122, l: Number(e.target.value) || 0 })} />
+            </div>
           )}
           {sp.fellBack && <p className="tip-line">Algunas piezas no caben en la plancha de 122 × 244 cm: se usó la medida más usada.</p>}
           <p className="muted small">Aprovechamiento {sp.usedPct.toFixed(0)} % · mínimo teórico {sp.minSheets}</p>

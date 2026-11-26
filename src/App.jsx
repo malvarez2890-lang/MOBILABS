@@ -86,6 +86,7 @@ export default function App() {
   const plans = useMemo(() => packAll(model.parts, settings), [model, settings]);
   const shop = useMemo(() => buildShopping(model, plans), [model, plans]);
   const priced = useMemo(() => priceShop(shop, prices), [shop, prices]);
+  const [stepImgs, setStepImgs] = useState({}); // imágenes del manual: paso → imagen
   const [isoImg, setIsoImg] = useState(null); // render isométrico (imagen) tomado del visor 3D
   const drawingBase = useMemo(() => buildDrawing(model), [model]);
   const drawing = useMemo(() => ({ ...drawingBase, isoImage: isoImg }), [drawingBase, isoImg]);
@@ -216,6 +217,23 @@ export default function App() {
     copyDims: () => copyText((selKeys.size ? selGroups : plans.groups)
       .map((g) => `${g.name} ×${g.qty} — ${g.kind === 'sheet' ? `${fmt(g.l)} × ${fmt(g.w)} × ${g.t} mm` : `${fmt(g.l)} mm`} (${materialOf(g.mat).short})`).join('\n')),
   };
+  // imágenes del manual (una por etapa de armado), solo cuando se abre el manual
+  useEffect(() => {
+    if (tab !== 'manual') return undefined;
+    const id = setTimeout(() => {
+      const api = viewerApi.current;
+      if (!api) return;
+      const out = {};
+      try {
+        manual.sections.forEach((sec) => sec.steps.forEach((q) => {
+          if (q.stage) out[q.id] = api.snapshot(720, 520, q.stage);
+        }));
+      } catch { /* sin WebGL: el manual queda sin imágenes */ }
+      setStepImgs(out);
+    }, 500);
+    return () => clearTimeout(id);
+  }, [tab, manual, looks]);
+
   // render isométrico para los planos: se toma del visor (con sus texturas) poco después de cada cambio
   useEffect(() => {
     const id = setTimeout(() => {
@@ -518,9 +536,9 @@ export default function App() {
         </div>
 
         <div className={`tab-body ${tab === 'piezas' ? 'show' : ''}`}><CutList plans={plans} onHover={setHover} selectedKeys={fullKeys} partialKeys={partialKeys} onSelect={(g, add) => onPick(g.ids[0], { add })} scrollTo={scrollTo} /></div>
-        <div className={`tab-body ${tab === 'cortes' ? 'show' : ''}`}><SheetPlans plans={plans} choice={settings.sheetChoice || {}} onChoice={(mat, c) => setSettings((s) => ({ ...s, sheetChoice: { ...(s.sheetChoice || {}), [mat]: c } }))} /></div>
+        <div className={`tab-body ${tab === 'cortes' ? 'show' : ''}`}><SheetPlans plans={plans} choice={settings.sheetChoice || {}} onChoice={(mat, c) => setSettings((s) => ({ ...s, sheetChoice: { ...(s.sheetChoice || {}), [mat]: c }, sheetCustom: { ...(s.sheetCustom || {}), [mat]: (s.sheetCustom || {})[mat] || { w: 122, l: 244 } } }))} custom={settings.sheetCustom || {}} onCustom={(mat, v) => setSettings((s) => ({ ...s, sheetCustom: { ...(s.sheetCustom || {}), [mat]: v } }))} /></div>
         <div className={`tab-body ${tab === 'planos' ? 'show' : ''}`}>{tab === 'planos' && <Planos drawing={drawing} spec={techSpec(model, plans, shop, type, values)} title={type.name} subtitle={`${cm(bw)} × ${cm(bh)} × ${cm(bd)} cm (ancho × alto × fondo)`} />}</div>
-        <div className={`tab-body ${tab === 'manual' ? 'show' : ''}`}>{tab === 'manual' && <Manual manual={manual} title={type.name} />}</div>
+        <div className={`tab-body ${tab === 'manual' ? 'show' : ''}`}>{tab === 'manual' && <Manual manual={manual} title={type.name} images={stepImgs} />}</div>
         <div className={`tab-body ${tab === 'compras' ? 'show' : ''}`}><Shopping shop={shop} priced={priced} onCopy={copy} copied={copied} onPrice={setPrice} onResetPrices={() => setPrices({})} onImportPrices={importPrices} onExportPrices={PUBLISHED ? null : () => download('precios-mobilabs.csv', pricesToCsv(priced))} /></div>
       </aside>
 

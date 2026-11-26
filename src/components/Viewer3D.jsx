@@ -271,7 +271,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     loop();
 
     // Imagen tipo "render" de la vista isométrica (con las mismas texturas y sombras que el visor), para los planos
-    const snapshot = (w, h) => {
+    const snapshot = (w, h, opts = {}) => {
       const bb = latest.current.bbox;
       const [bw, bh, bd] = bb.dims.map((n) => n / 10);
       const fov = 22;
@@ -302,8 +302,24 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
       renderer.setPixelRatio(1);
       renderer.setSize(w, h, false);
       renderer.setClearColor(0xffffff, 1);
+      // etapa de armado: solo se ven las piezas indicadas (y los elementos comprados según `fx`); las nuevas se resaltan
+      const saved = [];
+      if (opts.show) {
+        const show = new Set(opts.show);
+        const hl = new Set(opts.hl || []);
+        root.children.forEach((m) => {
+          const u = m.userData;
+          saved.push([m, m.visible, m.material.emissive.getHex(), m.material.emissiveIntensity, m.position.clone()]);
+          m.visible = u.fixture ? (opts.fx === 'all' || (opts.fx === 'legs' && !u.parent)) && !(u.parent && !show.has(u.parent)) : show.has(u.id);
+          const lit = !u.fixture && hl.has(u.id);
+          m.material.emissive.setHex(lit ? 0xb85a10 : 0x000000);
+          m.material.emissiveIntensity = lit ? 0.6 : 0;
+          m.position.copy(u.base); // sin vista explosionada
+        });
+      }
       renderer.render(scene, cam);
-      const url = renderer.domElement.toDataURL('image/jpeg', 0.92);
+      const url = renderer.domElement.toDataURL('image/jpeg', 0.9);
+      saved.forEach(([m, vis, em, ei, pos]) => { m.visible = vis; m.material.emissive.setHex(em); m.material.emissiveIntensity = ei; m.position.copy(pos); });
       renderer.setClearColor(prevColor, prevAlpha);
       renderer.setPixelRatio(pr);
       renderer.setSize(size.x, size.y, false);

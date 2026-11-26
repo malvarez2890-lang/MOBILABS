@@ -23,9 +23,19 @@ export const SHEET_SIZES = {
   mel18: ['std', 'alt'], mel15: ['std', 'alt'], mdf18: ['std', 'alt'], mdf15: ['std', 'alt'],
 };
 /** [largo, ancho] de la plancha de `id` según la elección ('std' | 'alt'). */
-export const sheetSize = (id, choice) => (choice === 'alt' && SHEET_SIZES[id] ? ALT : SHEETS[id].size);
+export const sheetSize = (id, choice, custom) => {
+  if (choice === 'custom' && custom && custom.w > 0 && custom.l > 0 && SHEETS[id].t > 3) {
+    return [Math.max(custom.l, custom.w) * 10, Math.min(custom.l, custom.w) * 10]; // cm → mm; [largo, ancho]
+  }
+  return choice === 'alt' && SHEET_SIZES[id] ? ALT : SHEETS[id].size;
+};
 export const sizeLabel = (size) => `${Math.round(size[1] / 10)} × ${Math.round(size[0] / 10)} cm`;
-export const sizeOptions = (id) => (SHEET_SIZES[id] || []).map((c) => [c, `${sizeLabel(sheetSize(id, c))}${c === 'std' ? ' (la más usada)' : ''}`]);
+/** Opciones de medida de plancha para el material `id` (la última permite escribir una medida propia). */
+export const sizeOptions = (id) => {
+  if (!MAIN_SHEETS.includes(id)) return [];
+  const base = (SHEET_SIZES[id] || ['std']).map((c) => [c, `${sizeLabel(sheetSize(id, c))}${c === 'std' ? ' (la más usada)' : ''}`]);
+  return [...base, ['custom', 'Personalizada…']];
+};
 
 /** Maderas en listón. section = [delgado, ancho] ; stock = largo comercial */
 export const LINEARS = {

@@ -109,11 +109,12 @@ export function packAll(parts, opts = {}) {
   for (const mat of mats) {
     const gs = groups.filter((g) => g.mat === mat);
     if (mat in SHEETS) {
-      let choice = opts.sheetChoice?.[mat] === 'alt' && SHEET_SIZES[mat] ? 'alt' : 'std';
+      const custom = opts.sheetCustom?.[mat];
+      let choice = opts.sheetChoice?.[mat] === 'custom' && custom && custom.w > 0 && custom.l > 0 && SHEETS[mat].t > 3 ? 'custom' : opts.sheetChoice?.[mat] === 'alt' && SHEET_SIZES[mat] ? 'alt' : 'std';
       const items = gs
         .flatMap((g) => Array.from({ length: g.qty }, () => ({ label: g.label, name: g.name, l: g.l, w: g.w })))
         .sort((a, b) => b.l * b.w - a.l * a.w || b.l - a.l);
-      let size = sheetSize(mat, choice);
+      let size = sheetSize(mat, choice, custom);
       let packed = packRects(items, size[0], size[1], kerf, rotate);
       let fellBack = false;
       if (choice === 'alt' && packed.unplaced.length) { // hay piezas que no caben en la plancha chica: se vuelve a la medida más usada

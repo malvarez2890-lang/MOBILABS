@@ -75,6 +75,7 @@ export function printHtml(title, html, landscape = false) {
     table.spec td { padding: 4px 0; border-bottom: 1px solid #ccc; }
     tr, li { break-inside: avoid; } ol { padding-left: 22px; margin: 0 0 6px; } li { margin: 0 0 6px; }
     .page-break { break-before: page; }
+    .step-img { display: block; width: 62%; max-width: 420px; margin: 6px 0 4px; border: 1px solid #bbb; }
   </style></head><body><h1>${title}</h1>${html}<p class="muted" style="margin-top:14px">Hecho con MOBILABs · ${SITE_URL}</p></body></html>`);
   d.close();
   const go = () => { try { f.contentWindow.focus(); f.contentWindow.print(); } finally { setTimeout(() => f.remove(), 2000); } };
@@ -171,7 +172,7 @@ export function Planos({ drawing, spec, title, subtitle }) {
 }
 
 /* ------------------------------------------------------------------ MANUAL */
-export function Manual({ manual, title }) {
+export function Manual({ manual, title, images = {} }) {
   const ref = React.useRef(null);
   return (
     <section className="docs manual">
@@ -184,7 +185,12 @@ export function Manual({ manual, title }) {
         <div key={sec.title} className="man-sec">
           <h4 className="doc-h">{sec.title}</h4>
           <ol start={sec.start}>
-            {sec.steps.map((st, i) => <li key={i}>{st}</li>)}
+            {sec.steps.map((st, i) => (
+              <li key={i}>
+                {st.t}
+                {st.stage && images[st.id] && <img className="step-img" src={images[st.id]} alt="" />}
+              </li>
+            ))}
           </ol>
         </div>
       ))}
