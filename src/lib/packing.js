@@ -1,4 +1,4 @@
-import { SHEETS, LINEARS } from './materials.js';
+import { SHEETS, LINEARS, SHEET_SIZES, sheetSize } from './materials.js';
 import { labelFor } from './util.js';
 
 /** Agrupa piezas iguales (mismo nombre, material y medidas) y les asigna una letra. */
@@ -109,15 +109,23 @@ export function packAll(parts, opts = {}) {
   for (const mat of mats) {
     const gs = groups.filter((g) => g.mat === mat);
     if (mat in SHEETS) {
-      const m = SHEETS[mat];
+      let choice = opts.sheetChoice?.[mat] === 'alt' && SHEET_SIZES[mat] ? 'alt' : 'std';
       const items = gs
         .flatMap((g) => Array.from({ length: g.qty }, () => ({ label: g.label, name: g.name, l: g.l, w: g.w })))
         .sort((a, b) => b.l * b.w - a.l * a.w || b.l - a.l);
-      const { sheets, unplaced } = packRects(items, m.size[0], m.size[1], kerf, rotate);
+      let size = sheetSize(mat, choice);
+      let packed = packRects(items, size[0], size[1], kerf, rotate);
+      let fellBack = false;
+      if (choice === 'alt' && packed.unplaced.length) { // hay piezas que no caben en la plancha chica: se vuelve a la medida más usada
+        choice = 'std'; fellBack = true; size = sheetSize(mat, 'std');
+        packed = packRects(items, size[0], size[1], kerf, rotate);
+      }
+      const m = { ...SHEETS[mat], size };
+      const { sheets, unplaced } = packed;
       const pieceArea = items.reduce((a, it) => a + it.l * it.w, 0);
       const sheetArea = m.size[0] * m.size[1];
       sheetPlans.push({
-        mat, sheet: m, W: m.size[0], H: m.size[1], sheets, unplaced,
+        mat, choice, fellBack, sheet: m, W: m.size[0], H: m.size[1], sheets, unplaced,
         pieceArea, usedPct: sheets.length ? (pieceArea / (sheets.length * sheetArea)) * 100 : 0,
         minSheets: Math.ceil(pieceArea / sheetArea),
       });

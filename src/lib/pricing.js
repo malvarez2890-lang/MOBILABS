@@ -1,3 +1,4 @@
+import { SHEETS } from './materials.js';
 /**
  * Costo aproximado de la lista de compras.
  * Los precios por defecto son VALORES DE EJEMPLO en pesos chilenos (CLP), solo para tener un orden de magnitud:
@@ -6,7 +7,7 @@
 export const PRICE_NOTE =
   'Precios de ejemplo en pesos chilenos (CLP), solo para tener un orden de magnitud: no vienen de ninguna tienda. Edita cada precio con el de tu proveedor; se guardan en este navegador.';
 
-const SHEET_DEFAULT = { mel18: 42000, mel15: 33000, mdf18: 36000, ter18: 52000, ter15: 42000, hdf3: 11000 }; // por plancha
+const SHEET_DEFAULT = { mel18: 42000, mel15: 33000, mdf18: 36000, mdf15: 30000, ter18: 52000, ter15: 42000, hdf3: 11000 }; // por plancha de la medida más usada
 const BAR_DEFAULT = { pino41: 6500, pino70: 15000, pino19x90: 7000, pino19x42: 3800, redonda45: 9500, redonda70: 17000 }; // por listón
 const EDGE_PER_M = 450; // tapacanto, por metro
 
@@ -23,7 +24,7 @@ const HW_RULES = [
   [/^barniz|^sellador/i, 9000], [/^lija/i, 1500],
 ];
 
-export const keyOfSheet = (id) => `sheet:${id}`;
+export const keyOfSheet = (id, choice) => (choice === 'alt' ? `sheet:${id}:alt` : `sheet:${id}`);
 export const keyOfBar = (id) => `bar:${id}`;
 export const keyOfEdge = (width) => `edge:${width}`;
 export const keyOfHardware = (name) => `hw:${name.trim().toLowerCase()}`;
@@ -49,7 +50,7 @@ export function priceShop(shop, prices = {}) {
   const groups = [
     {
       id: 'tableros', title: 'Tableros',
-      rows: shop.sheets.map((s) => row(keyOfSheet(s.id), s.name, `plancha ${s.size}`, s.count, 'plancha', SHEET_DEFAULT[s.id] ?? null, `Aprovechamiento ${s.usedPct.toFixed(0)} %`)),
+      rows: shop.sheets.map((s) => row(keyOfSheet(s.id, s.choice), s.name, `plancha ${s.size}`, s.count, 'plancha', SHEET_DEFAULT[s.id] != null ? Math.round((SHEET_DEFAULT[s.id] * s.area) / (SHEETS[s.id].size[0] * SHEETS[s.id].size[1]) / 100) * 100 : null, `Aprovechamiento ${s.usedPct.toFixed(0)} %`)),
     },
     {
       id: 'madera', title: 'Madera en listón',
@@ -79,8 +80,8 @@ export const fmtCLP = (n) => `$ ${Math.round(n).toLocaleString('es-CL')}`;
 
 // Nombres como se venden en Chile (para buscar en tiendas); el rótulo de la app es descriptivo y no sirve de búsqueda textual.
 const SHEET_TERM = {
-  mel18: 'melamina 18 mm 1,83 x 2,44', mel15: 'melamina 15 mm 1,83 x 2,44', mdf18: 'mdf crudo 18 mm 1,52 x 2,44',
-  ter18: 'terciado estructural 18 mm 1,22 x 2,44', ter15: 'terciado 15 mm 1,22 x 2,44', hdf3: 'mdf 3 mm 1,22 x 2,44',
+  mel18: 'melamina 18 mm', mel15: 'melamina 15 mm', mdf18: 'mdf crudo 18 mm', mdf15: 'mdf crudo 15 mm',
+  ter18: 'terciado estructural 18 mm', ter15: 'terciado 15 mm', hdf3: 'mdf 3 mm',
 };
 const BAR_TERM = {
   pino41: 'pino cepillado 2x2 41x41 mm', pino70: 'pino cepillado 3x3 70x70 mm', pino19x90: 'pino cepillado 1x4 19x90 mm',
@@ -100,8 +101,12 @@ const HW_TERMS = [
   [/^kit anti-vuelco|^anti-vuelco/i, 'kit antivuelco muebles'], [/^barniz/i, 'barniz poliuretano interior'], [/^sellador/i, 'sellador madera'], [/^lija/i, 'lija madera grano 120'],
 ];
 /** Nombre comercial chileno para buscar un ítem de la lista de compras (a partir de la clave de precio y el rótulo). */
-export function searchTerm(key = '', label = '') {
-  if (key.startsWith('sheet:')) return SHEET_TERM[key.slice(6)] || label;
+export function searchTerm(key = '', label = '', detail = '') {
+  if (key.startsWith('sheet:')) {
+    const nums = (/(\d+) × (\d+)/.exec(detail) || []).slice(1).map(Number); // "plancha 2500 × 1830 mm"
+    const dim = nums.length ? ` ${(nums[1] / 1000).toFixed(2).replace('.', ',')} x ${(nums[0] / 1000).toFixed(2).replace('.', ',')}` : '';
+    return (SHEET_TERM[key.split(':')[1]] || label) + dim;
+  }
   if (key.startsWith('bar:')) return BAR_TERM[key.slice(4)] || label;
   if (key.startsWith('edge:')) return `tapacanto melamina ${key.slice(5)} mm`;
   for (const [re, t] of HW_TERMS) {

@@ -13,7 +13,7 @@ const num = (key, label, def, min, max, step = 1, unit = 'cm', extra = {}) => ({
 const sel = (key, label, def, options, extra = {}) => ({ type: 'sel', key, label, def, options, ...extra });
 const bool = (key, label, def, extra = {}) => ({ type: 'bool', key, label, def, ...extra });
 
-const MAT = sel('mat', 'Tablero principal', 'mel18', MAIN_SHEETS.map((id) => [id, SHEETS[id].name]), { section: 'Materiales' });
+const MAT = sel('mat', 'Material estructural', 'mel18', MAIN_SHEETS.map((id) => [id, SHEETS[id].name]), { section: 'Materiales' });
 /** Estilo y tamaño de patas (dos parámetros). styles: 'all' | 'wood' | 'chair' */
 const productH = (list) => list.map((h) => [String(h), `${h} cm`]);
 const LEGS = (size = 'grueso', extra = {}, styles = 'all', table = true) => [

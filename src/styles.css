@@ -764,3 +764,8 @@ table.spec td { padding: 5px 0; border-bottom: 1px solid #2c3541; color: #dfe5ec
 /* sin gesto de "atrás/adelante" al deslizar en los bordes */
 html, body { overscroll-behavior: none; }
 .center canvas { touch-action: none; }
+
+.size-pick { display: flex; align-items: center; gap: 8px; margin: 6px 0 8px; font-size: 13px; color: #e3e8ee; }
+.size-pick select { padding: 5px 8px; font-size: 13px; border: 1px solid #647187; background: #3c485a; color: #fff; }
+@media print { .size-pick select { border: 0; background: none; color: #111; appearance: none; } }
+.tip-line { margin: 4px 0; padding: 5px 8px; border-left: 3px solid #42a9e9; background: #223244; color: #dbe8f5; font-size: 12px; }

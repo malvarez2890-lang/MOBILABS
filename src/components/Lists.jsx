@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { materialOf, SHEETS, sectionLabel } from '../lib/materials.js';
+import { materialOf, SHEETS, sectionLabel, sizeOptions } from '../lib/materials.js';
 import { fmt, cm } from '../lib/util.js';
 import { fmtCLP, searchTerm, storeLinks, PRICE_NOTE } from '../lib/pricing.js';
 
@@ -93,7 +93,7 @@ function SheetSvg({ plan, sheet, index }) {
   );
 }
 
-export function SheetPlans({ plans }) {
+export function SheetPlans({ plans, choice = {}, onChoice }) {
   const { sheetPlans, barPlans } = plans;
   return (
     <section>
@@ -107,6 +107,15 @@ export function SheetPlans({ plans }) {
             {sp.sheet.name} <span className="muted">· plancha {sp.W} × {sp.H} mm</span>
             <span className="badge">{sp.sheets.length} {sp.sheets.length === 1 ? 'plancha' : 'planchas'}</span>
           </h4>
+          {sizeOptions(sp.mat).length > 0 && (
+            <label className="size-pick">
+              <span>Medida de la plancha</span>
+              <select value={sp.choice} onChange={(e) => onChoice(sp.mat, e.target.value)}>
+                {sizeOptions(sp.mat).map(([c, l]) => <option key={c} value={c}>{l}</option>)}
+              </select>
+            </label>
+          )}
+          {sp.fellBack && <p className="tip-line">Algunas piezas no caben en la plancha de 122 × 244 cm: se usó la medida más usada.</p>}
           <p className="muted small">Aprovechamiento {sp.usedPct.toFixed(0)} % · mínimo teórico {sp.minSheets}</p>
           {sp.unplaced.length > 0 && (
             <p className="alert">No caben: {sp.unplaced.map((u) => `${u.name} ${fmt(u.l)}×${fmt(u.w)}`).join(', ')}</p>
@@ -219,8 +228,8 @@ export function Shopping({ shop, priced, onCopy, copied, onPrice, onResetPrices,
                 <div className="buy-price">
                   <PriceField row={r} onPrice={onPrice} />
                   <b className="sub">{r.missing ? '—' : fmtCLP(r.subtotal)}</b>
-                  <span className="finds" title={`Buscar «${searchTerm(r.key, r.label)}»`}>
-                    {storeLinks(searchTerm(r.key, r.label)).map((s) => (
+                  <span className="finds" title={`Buscar «${searchTerm(r.key, r.label, r.detail)}»`}>
+                    {storeLinks(searchTerm(r.key, r.label, r.detail)).map((s) => (
                       <a key={s.name} className="find" href={s.url} target="_blank" rel="noopener noreferrer">{s.name} ↗</a>
                     ))}
                   </span>

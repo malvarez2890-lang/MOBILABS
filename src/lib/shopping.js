@@ -9,7 +9,7 @@ export function buildShopping(model, plans) {
     sp.unplaced.forEach((u) =>
       issues.push(`La pieza "${u.name}" (${fmt(u.l)} × ${fmt(u.w)} mm) no cabe en una plancha de ${sp.W} × ${sp.H} mm de ${sp.sheet.name}. Divídela o elige otro tablero.`));
     return {
-      id: sp.mat, name: sp.sheet.name, size: `${sp.W} × ${sp.H} mm`, count: sp.sheets.length,
+      id: sp.mat, choice: sp.choice, area: sp.W * sp.H, name: sp.sheet.name, size: `${sp.W} × ${sp.H} mm`, count: sp.sheets.length,
       usedPct: sp.usedPct, minSheets: sp.minSheets,
     };
   });

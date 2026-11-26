@@ -2,16 +2,30 @@
 
 /** Tableros en plancha. size = [largo, ancho] */
 export const SHEETS = {
-  mel18: { id: 'mel18', short: 'Melamina 18', name: 'Melamina 18 mm', t: 18, size: [2440, 1830], color: '#d9bd8f', edge: true, maxSpan: 800 },
-  mel15: { id: 'mel15', short: 'Melamina 15', name: 'Melamina 15 mm', t: 15, size: [2440, 1830], color: '#d9bd8f', edge: true, maxSpan: 650 },
-  mdf18: { id: 'mdf18', short: 'MDF 18', name: 'MDF 18 mm', t: 18, size: [2440, 1830], color: '#c8a571', edge: false, maxSpan: 750 },
+  mel18: { id: 'mel18', short: 'Melamina 18', name: 'Melamina 18 mm', t: 18, size: [2500, 1830], color: '#d9bd8f', edge: true, maxSpan: 800 },
+  mel15: { id: 'mel15', short: 'Melamina 15', name: 'Melamina 15 mm', t: 15, size: [2500, 1830], color: '#d9bd8f', edge: true, maxSpan: 650 },
+  mdf18: { id: 'mdf18', short: 'MDF 18', name: 'MDF 18 mm', t: 18, size: [2440, 1520], color: '#c8a571', edge: false, maxSpan: 750 },
+  mdf15: { id: 'mdf15', short: 'MDF 15', name: 'MDF 15 mm', t: 15, size: [2440, 1520], color: '#c8a571', edge: false, maxSpan: 620 },
   ter18: { id: 'ter18', short: 'Terciado 18', name: 'Terciado 18 mm', t: 18, size: [2440, 1220], color: '#dcb67c', edge: false, maxSpan: 900 },
   ter15: { id: 'ter15', short: 'Terciado 15', name: 'Terciado 15 mm', t: 15, size: [2440, 1220], color: '#dcb67c', edge: false, maxSpan: 750 },
   hdf3: { id: 'hdf3', short: 'MDF 3 mm', name: 'MDF 3 mm (trasera)', t: 3, size: [2440, 1220], color: '#9c7b58', edge: false, maxSpan: 0 },
 };
 
 /** Tableros que el usuario puede elegir como material principal */
-export const MAIN_SHEETS = ['mel18', 'mel15', 'mdf18', 'ter18', 'ter15'];
+export const MAIN_SHEETS = ['mel18', 'mel15', 'mdf18', 'mdf15', 'ter18', 'ter15'];
+
+/**
+ * Medidas de plancha que se venden en Chile: la primera (std) es la más usada y viene por defecto.
+ * Melamina: 183 × 250 cm (mueblería) o 122 × 244 cm. MDF: 152 × 244 cm o 122 × 244 cm.
+ */
+const ALT = [2440, 1220];
+export const SHEET_SIZES = {
+  mel18: ['std', 'alt'], mel15: ['std', 'alt'], mdf18: ['std', 'alt'], mdf15: ['std', 'alt'],
+};
+/** [largo, ancho] de la plancha de `id` según la elección ('std' | 'alt'). */
+export const sheetSize = (id, choice) => (choice === 'alt' && SHEET_SIZES[id] ? ALT : SHEETS[id].size);
+export const sizeLabel = (size) => `${Math.round(size[1] / 10)} × ${Math.round(size[0] / 10)} cm`;
+export const sizeOptions = (id) => (SHEET_SIZES[id] || []).map((c) => [c, `${sizeLabel(sheetSize(id, c))}${c === 'std' ? ' (la más usada)' : ''}`]);
 
 /** Maderas en listón. section = [delgado, ancho] ; stock = largo comercial */
 export const LINEARS = {
