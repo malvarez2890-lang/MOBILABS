@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ViewSvg } from './Docs.jsx';
 
 export const VIEW_LIST = [
@@ -36,7 +36,7 @@ function FloatWin({ vkey, drawing, pos, setPos, onClose, onDock, onFocus, z }) {
  * Área de vistas estilo Revit: pestañas (Vista 3D, Planta, Elevaciones…), mosaico y ventanas flotantes.
  * `active` = '3d' o la clave de una vista; la vista 3D vive debajo y no se desmonta.
  */
-export function ViewManager({ drawing }) {
+export function ViewManager({ drawing, onSlot }) {
   const [open, setOpen] = useState([]); // vistas abiertas como pestaña
   const [active, setActive] = useState('3d');
   const [tile, setTile] = useState(false);
@@ -71,6 +71,23 @@ export function ViewManager({ drawing }) {
     setOrder((o) => o.filter((x) => x !== k));
   };
   const showTile = tile && open.length > 0;
+  const slotRef = useRef(null);
+  // en el mosaico, la vista 3D ocupa su casilla: se mide y se avisa al área de dibujo para colocar el visor ahí
+  useLayoutEffect(() => {
+    if (!showTile) { onSlot(null); return undefined; }
+    const el = slotRef.current;
+    const report = () => {
+      const host = el.closest('.center');
+      const a = el.getBoundingClientRect();
+      const b = host.getBoundingClientRect();
+      onSlot({ left: a.left - b.left, top: a.top - b.top, width: a.width, height: a.height });
+    };
+    report();
+    const ro = new ResizeObserver(report);
+    ro.observe(el);
+    ro.observe(el.closest('.center'));
+    return () => { ro.disconnect(); onSlot(null); };
+  }, [showTile, open.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const showPane = showTile || active !== '3d';
   const avail = VIEW_LIST.filter(([k]) => !open.includes(k) && !floats[k]);
 
@@ -93,14 +110,15 @@ export function ViewManager({ drawing }) {
             </div>
           )}
         </span>
-        <button className={`vtab ${showTile ? 'on' : ''}`} title="Ver las pestañas abiertas en mosaico" disabled={!open.length} onClick={() => setTile((t) => !t)}>▦ Mosaico</button>
+        <button className={`vtab ${showTile ? 'on' : ''}`} title="Ver la vista 3D y las pestañas abiertas en mosaico" disabled={!open.length} onClick={() => setTile((t) => !t)}>▦ Mosaico</button>
       </div>
 
       {showPane && (
         <div className={`vpane ${showTile ? 'tile' : ''}`}>
+          {showTile && <div className="vpane-cell slot3d" ref={slotRef}><div className="vpane-title">VISTA 3D</div></div>}
           {(showTile ? open : [active]).map((k) => (
             <div key={k} className="vpane-cell">
-              {showTile && <div className="vpane-title">{nameOf(k)}</div>}
+              {showTile && <div className="vpane-title">{nameOf(k).toUpperCase()}</div>}
               <ViewSvg drawing={drawing} vkey={k} />
             </div>
           ))}

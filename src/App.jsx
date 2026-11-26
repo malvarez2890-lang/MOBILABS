@@ -65,6 +65,7 @@ export default function App() {
   const [menu, setMenu] = useState(null); // menú de clic derecho
   const [propsOpen, setPropsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [slot3d, setSlot3d] = useState(null); // casilla de la vista 3D en el mosaico
   const [multi, setMulti] = useState(false); // selección múltiple con toques (pantallas táctiles)
   const [mview, setMview] = useState('diseno'); // en teléfono: 'diseno' | 'resultados'
   const isPhone = useMedia(PHONE_QUERY);
@@ -389,8 +390,8 @@ export default function App() {
 
       {/* ---------------- visor ---------------- */}
       <main className="center">
-        <ViewManager drawing={drawing} />
-        <div className="viewer">
+        <ViewManager drawing={drawing} onSlot={setSlot3d} />
+        <div className={`viewer ${slot3d ? 'in-tile' : ''}`} style={slot3d ? { left: slot3d.left, top: slot3d.top + 22, width: slot3d.width, height: slot3d.height - 22 } : undefined}>
           <Viewer3D parts={model.parts} fixtures={model.fixtures} bbox={model.bbox} explode={explode} highlight={hover || (selIds.size ? selIds : null)} viewKey={typeId} viewCmd={viewCmd} looks={looks} hiddenIds={hiddenIds} multi={multi} onPick={onPick} onBox={onBox} onContext={onContext} />
           <div className="hud">
             <div className="dims">

@@ -750,3 +750,6 @@ table.spec td { padding: 5px 0; border-bottom: 1px solid #2c3541; color: #dfe5ec
 .plan-sheet.big .plan-svg { width: max(1100px, 100%); }
 .plan-close { position: sticky; top: 0; left: 0; z-index: 2; margin-bottom: 6px; }
 .sec-head .mini { margin-left: auto; padding: 3px 10px; font-size: 11px; }
+.viewer.in-tile { position: absolute; z-index: 11; flex: none; min-height: 0; }
+.vpane.tile { grid-auto-rows: minmax(240px, 1fr); }
+.vpane-cell.slot3d { background: transparent; pointer-events: none; }

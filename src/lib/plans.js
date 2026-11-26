@@ -46,8 +46,8 @@ const PROJ = {
   iso: { u: (x, y, z) => (x - z) * C30, v: (x, y, z) => (x + z) * 0.5 - y, d: (c) => c[0] + c[1] + c[2], dir: 1 },
 };
 const TITLES = {
-  front: 'Vista frontal', back: 'Vista trasera', left: 'Vista lateral izquierda', right: 'Vista lateral derecha',
-  plan: 'Planta (desde arriba)', iso: 'Vista isométrica',
+  front: 'VISTA FRONTAL', back: 'VISTA POSTERIOR', left: 'VISTA LATERAL IZQUIERDA', right: 'VISTA LATERAL DERECHA',
+  plan: 'PLANTA', iso: 'VISTA ISOMÉTRICA',
 };
 
 const mulM = (A, B) => A.map((r, i) => [0, 1, 2].map((j) => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j]));
@@ -120,14 +120,18 @@ export function buildDrawing(model) {
   const { min, max } = model.bbox;
   const W = max[0] - min[0], H = max[1] - min[1], D = max[2] - min[2];
   const V = Object.fromEntries(Object.keys(PROJ).map((k) => [k, buildView(model, k)]));
-  const padR = 150, padB = 150, padT = 70, sheetW = 2000;
+  const padR = 150, padB = 250, padT = 50, sheetW = 2000;
   const grid = [['front', 'left', 'right'], ['back', 'plan', 'iso']];
   const colMm = [0, 1, 2].map((c) => Math.max(...grid.map((r) => V[r[c]].w)));
   const rowMm = grid.map((r) => Math.max(...r.map((k) => V[k].h)));
   const s = Math.min((sheetW - 3 * padR) / colMm.reduce((a, b) => a + b, 0), 1500 / (rowMm[0] + rowMm[1]));
   const colX = [60, 60 + colMm[0] * s + padR, 60 + (colMm[0] + colMm[1]) * s + 2 * padR];
   const rowY = [40 + padT, 40 + padT + rowMm[0] * s + padB + padT];
-  const total = { w: Math.max(sheetW, colX[2] + colMm[2] * s + padR), h: rowY[1] + rowMm[1] * s + padB + 150 };
+  const total = { w: Math.max(sheetW, colX[2] + colMm[2] * s + padR), h: rowY[1] + rowMm[1] * s + padB + 170 };
+  // escala aproximada al imprimir en A4 apaisado (277 mm útiles de ancho)
+  const NICE = [1, 2, 2.5, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200];
+  const raw = 1 / ((s * 277) / total.w);
+  const scaleN = NICE.reduce((a, b) => (Math.abs(Math.log(b / raw)) < Math.abs(Math.log(a / raw)) ? b : a));
   const views = grid.flatMap((r, ri) => r.map((k, ci) => {
     const v = V[k];
     // cada vista se alinea arriba-izquierda de su celda
@@ -162,9 +166,9 @@ export function buildDrawing(model) {
       const cz = chainStops(model, 2);
       if (cz.length > 2) seg(cz).forEach(([a, b]) => vd(a, b, 44, b - a < 25 ? '' : cm(b - a)));
     }
-    return { key: k, title: v.title, x, y, w: v.w * s, h: v.h * s, polys, dims };
+    return { key: k, title: v.title, x, y, w: v.w * s, h: v.h * s, rowBottom: rowY[ri] + rowMm[ri] * s, polys, dims };
   }));
-  return { s, W, H, D, min, max, total, views };
+  return { s, W, H, D, min, max, total, views, scaleN };
 }
 
 // ---------- ficha técnica ----------

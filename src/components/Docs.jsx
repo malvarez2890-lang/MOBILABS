@@ -5,15 +5,17 @@ import { cm } from '../lib/util.js';
 const INK = '#1b1f24';
 export const SITE_URL = 'https://mobilabs.elbunkerservers.com/';
 
+const RED = '#e10000';
+const tick = (x, y) => `M${x - 4} ${y} L${x} ${y - 4} L${x + 4} ${y} L${x} ${y + 4} Z`;
 function HDim({ x1, x2, y, label, off = 0 }) {
   const yy = y + off;
   return (
     <g className="dim">
-      <line x1={x1} y1={y} x2={x1} y2={yy + 8} className="ext" />
-      <line x1={x2} y1={y} x2={x2} y2={yy + 8} className="ext" />
-      <line x1={x1} y1={yy} x2={x2} y2={yy} />
-      <path d={`M${x1 + 11} ${yy - 5} L${x1} ${yy} L${x1 + 11} ${yy + 5} M${x2 - 11} ${yy - 5} L${x2} ${yy} L${x2 - 11} ${yy + 5}`} fill="none" />
-      <text x={(x1 + x2) / 2} y={yy - 7} textAnchor="middle">{label}</text>
+      <line x1={x1} y1={y} x2={x1} y2={yy + 10} className="ext" />
+      <line x1={x2} y1={y} x2={x2} y2={yy + 10} className="ext" />
+      <line x1={x1 - 10} y1={yy} x2={x2 + 10} y2={yy} />
+      <path d={`${tick(x1, yy)} ${tick(x2, yy)}`} className="tk" />
+      <text x={(x1 + x2) / 2} y={yy - 9} textAnchor="middle">{label}</text>
     </g>
   );
 }
@@ -22,25 +24,35 @@ function VDim({ y1, y2, x, label, off = 0 }) {
   const mid = (y1 + y2) / 2;
   return (
     <g className="dim">
-      <line x1={x} y1={y1} x2={xx + 8} y2={y1} className="ext" />
-      <line x1={x} y1={y2} x2={xx + 8} y2={y2} className="ext" />
-      <line x1={xx} y1={y1} x2={xx} y2={y2} />
-      <path d={`M${xx - 5} ${y1 + 11} L${xx} ${y1} L${xx + 5} ${y1 + 11} M${xx - 5} ${y2 - 11} L${xx} ${y2} L${xx + 5} ${y2 - 11}`} fill="none" />
-      <text x={xx - 7} y={mid} textAnchor="middle" transform={`rotate(-90 ${xx - 7} ${mid})`}>{label}</text>
+      <line x1={x} y1={y1} x2={xx + 10} y2={y1} className="ext" />
+      <line x1={x} y1={y2} x2={xx + 10} y2={y2} className="ext" />
+      <line x1={xx} y1={y1 - 10} x2={xx} y2={y2 + 10} />
+      <path d={`${tick(xx, y1)} ${tick(xx, y2)}`} className="tk" />
+      <text x={xx - 9} y={mid} textAnchor="middle" transform={`rotate(-90 ${xx - 9} ${mid})`}>{label}</text>
+    </g>
+  );
+}
+/** Título de la vista bajo el dibujo, con subrayado y escala, como en un plano CAD. */
+function ViewTitle({ v, scaleN }) {
+  const y = v.rowBottom + 175;
+  return (
+    <g>
+      <text x={v.x + 20} y={y} className="vt">{v.title}</text>
+      <line x1={v.x} y1={y + 14} x2={v.x + Math.max(300, v.title.length * 15 + 50)} y2={y + 14} stroke={INK} strokeWidth="1.6" />
+      <text x={v.x + 40} y={y + 46} className="vs">1 : {scaleN}</text>
     </g>
   );
 }
 
 const STYLE = `
-  .dr-sheet-top{fill:#f8f5ee}.dr-sheet-front{fill:#f1ece2}.dr-sheet-side{fill:#ddd5c4}
-  .dr-leg-top{fill:#efe4cf}.dr-leg-front{fill:#e2d3b8}.dr-leg-side{fill:#cdbd9f}
-  .dr-fix-top{fill:#b4bbc2}.dr-fix-front{fill:#8f979f}.dr-fix-side{fill:#737b83}
-  .dr-handle-top,.dr-handle-front,.dr-handle-side{fill:#c9ced4}
-  .dr-poly{stroke:${INK};stroke-width:1.6;stroke-linejoin:round}
-  .dim line,.dim path{stroke:#0b5d91;stroke-width:1.6;fill:none}
-  .dim line.ext{stroke-width:1;stroke-dasharray:5 4}
-  .dim text{font:22px system-ui,sans-serif;fill:#0b5d91}
-  .vt{font:600 26px system-ui,sans-serif;fill:${INK}}
+  .dr-poly{fill:#fff;stroke:${INK};stroke-width:1.3;stroke-linejoin:round}
+  .dr-fix-front,.dr-fix-top,.dr-fix-side{fill:#fff}
+  .dim line,.dim path{stroke:${RED};stroke-width:1.2;fill:none}
+  .dim path.tk{fill:${RED}}
+  .dim line.ext{stroke-width:.9}
+  .dim text{font:26px "Arial Narrow","Roboto Condensed","Liberation Sans Narrow",Arial,sans-serif;font-stretch:condensed;letter-spacing:.5px;fill:${RED}}
+  .vt{font:34px Arial,"Liberation Sans",sans-serif;fill:${INK}}
+  .vs{font:24px Arial,"Liberation Sans",sans-serif;fill:${INK}}
 `;
 
 /** Imprime (o guarda como PDF) un fragmento de la página en una hoja blanca, sin depender del resto de la interfaz. */
@@ -73,12 +85,12 @@ export function printHtml(title, html, landscape = false) {
 export function ViewSvg({ drawing, vkey }) {
   const v = drawing.views.find((x) => x.key === vkey);
   if (!v) return null;
-  const x0 = v.x - 40, y0 = v.y - 70;
-  const w = v.w + 260, h = v.h + 270;
+  const x0 = v.x - 50, y0 = v.y - 40;
+  const w = Math.max(v.w + 330, 560), h = v.rowBottom - v.y + 290;
   return (
     <svg viewBox={`${x0} ${y0} ${w} ${h}`} className="view-svg" preserveAspectRatio="xMinYMin meet" role="img" aria-label={v.title} xmlns="http://www.w3.org/2000/svg">
       <style>{STYLE}</style>
-      <text x={v.x} y={v.y - 30} className="vt">{v.title}</text>
+      <ViewTitle v={v} scaleN={drawing.scaleN} />
       <Polys v={v} />
       {v.dims.map((d, i) => (d.t === 'h'
         ? <HDim key={i} x1={d.x1} x2={d.x2} y={d.at} off={d.off} label={d.label} />
@@ -117,7 +129,7 @@ export function Planos({ drawing, spec, title, subtitle }) {
             <rect x="1" y="1" width={total.w - 2} height={total.h - 2} fill="#fff" stroke={INK} strokeWidth="2" />
             {views.map((v) => (
               <g key={v.key}>
-                <text x={v.x} y={v.y - 30} className="vt">{v.title}</text>
+                <ViewTitle v={v} scaleN={drawing.scaleN} />
                 <Polys v={v} />
                 {v.dims.map((d, i) => (d.t === 'h'
                   ? <HDim key={i} x1={d.x1} x2={d.x2} y={d.at} off={d.off} label={d.label} />
@@ -129,7 +141,7 @@ export function Planos({ drawing, spec, title, subtitle }) {
               <line x1="0" y1="52" x2="640" y2="52" stroke={INK} strokeWidth="2" />
               <text x="14" y="36" className="vt" style={{ fontSize: 30 }}>{title}</text>
               <text x="14" y="86" style={{ font: '22px system-ui,sans-serif', fill: INK }}>{subtitle}</text>
-              <text x="14" y="116" style={{ font: '22px system-ui,sans-serif', fill: INK }}>Planimetría base · cotas en cm · sin escala fija</text>
+              <text x="14" y="116" style={{ font: '22px system-ui,sans-serif', fill: INK }}>Cotas en cm · escala aprox. 1 : {drawing.scaleN} en A4 apaisado</text>
               <text x="14" y="140" style={{ font: '20px system-ui,sans-serif', fill: '#555' }}>MOBILABs · mobilabs.elbunkerservers.com · verifica en obra</text>
             </g>
           </svg>
