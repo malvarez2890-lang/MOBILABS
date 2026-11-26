@@ -115,9 +115,21 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     ro.observe(el);
     resize();
 
+    controls.addEventListener('start', () => { S.current.anim = null; }); // si el usuario toma la cámara, se detiene
     let raf = 0;
     const loop = () => {
       raf = requestAnimationFrame(loop);
+      const a = S.current.anim;
+      if (a) {
+        const t = Math.min(1, (performance.now() - a.t0) / a.dur);
+        const e = 1 - (1 - t) ** 3;
+        camera.position.copy(controls.target).add(a.from.clone().lerp(a.to, e));
+        needRender = true;
+        if (t >= 1) {
+          S.current.anim = null;
+          S.current.fitIfNeeded?.(a.depth + 1); // por si un solo paso no alcanzó
+        }
+      }
       const moved = controls.update(); // true mientras la cámara se mueve (incluye la inercia)
       if (moved || needRender) {
         needRender = false;
@@ -129,6 +141,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     S.current = { renderer, scene, camera, controls, root, lastSize: 0, invalidate };
     return () => {
       cancelAnimationFrame(raf);
+      clearTimeout(S.current.fitT);
       renderer.domElement.removeEventListener('pointerdown', onDown);
       renderer.domElement.removeEventListener('pointerup', onUp);
       renderer.domElement.removeEventListener('pointermove', onMove);
@@ -140,6 +153,26 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
       S.current = {};
     };
   }, []);
+
+  // ---- alejar la cámara solo si hace falta ----
+  const fitIfNeeded = (depth = 0) => {
+    const { camera, controls } = S.current;
+    const bb = latest.current.bbox;
+    if (!camera || !bb || depth > 4) return;
+    const [w, h, d] = bb.dims.map((n) => n / 10);
+    camera.updateMatrixWorld();
+    const v = new THREE.Vector3();
+    let m = 0; // cuánto se acerca el mueble al borde de la pantalla (1 = justo en el borde)
+    for (const x of [-w / 2, w / 2]) for (const y of [0, h]) for (const z of [-d / 2, d / 2]) {
+      v.set(x, y, z).project(camera);
+      m = Math.max(m, Math.abs(v.x), Math.abs(v.y));
+    }
+    if (m <= 0.97) return;
+    const from = camera.position.clone().sub(controls.target);
+    // al alejarse deja holgura (el mueble queda al ~75 % del ancho), para no repetirlo a cada ajuste
+    const to = from.clone().multiplyScalar(Math.min(1.7, m / 0.75));
+    S.current.anim = { from, to, t0: performance.now(), dur: 280, depth };
+  };
 
   // ---- encuadre de cámara ----
   const frame = (dirName) => {
@@ -154,7 +187,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     const R = 0.5 * Math.sqrt(w * w + h * h + d * d + 900);
     const vf = THREE.MathUtils.degToRad(camera.fov);
     const hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
-    const dist = Math.max(R / Math.sin(vf / 2), R / Math.sin(hf / 2)) * 1.04;
+    const dist = Math.max(R / Math.sin(vf / 2), R / Math.sin(hf / 2)) * 1.12; // algo de margen: el mueble puede crecer sin tocar el borde
     camera.position.copy(target).addScaledVector(dir, dist);
     controls.target.copy(target);
     controls.update();
@@ -202,18 +235,11 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
       mesh.position.copy(base);
       root.add(mesh);
     });
-    // mantiene el zoom relativo del usuario cuando cambia el tamaño del mueble
-    const [w, h, d] = bbox.dims.map((v) => v / 10);
-    const size = Math.max(w, h, d, 30);
-    const ls = S.current.lastSize;
-    const target = new THREE.Vector3(0, h / 2, 0);
-    if (ls && camera) {
-      const off = camera.position.clone().sub(controls.target).multiplyScalar(size / ls);
-      controls.target.copy(target);
-      camera.position.copy(target).add(off);
-      controls.update();
-    }
-    S.current.lastSize = size;
+    // La cámara NO se mueve al cambiar medidas (sin zoom ni desplazamiento del fondo).
+    // Solo se aleja, con suavidad, si el mueble creció y ya no cabe en pantalla.
+    S.current.fitIfNeeded = fitIfNeeded;
+    clearTimeout(S.current.fitT);
+    S.current.fitT = setTimeout(() => fitIfNeeded(), 200);
     applyState();
   }, [parts, fixtures]);
 
