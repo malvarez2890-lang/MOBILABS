@@ -769,3 +769,14 @@ html, body { overscroll-behavior: none; }
 .size-pick select { padding: 5px 8px; font-size: 13px; border: 1px solid #647187; background: #3c485a; color: #fff; }
 @media print { .size-pick select { border: 0; background: none; color: #111; appearance: none; } }
 .tip-line { margin: 4px 0; padding: 5px 8px; border-left: 3px solid #42a9e9; background: #223244; color: #dbe8f5; font-size: 12px; }
+
+.presets-box { margin: 6px 0 4px; border: 1px solid #647187; background: #2f3b4c; }
+.presets-box summary { padding: 8px 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; list-style: none; display: flex; align-items: center; gap: 8px; }
+.presets-box summary::-webkit-details-marker { display: none; }
+.presets-box summary::before { content: "▸"; color: #8fd0ff; }
+.presets-box[open] summary::before { content: "▾"; }
+.presets-box .count { margin-left: auto; padding: 0 7px; border-radius: 9px; background: #285f82; font-size: 11px; font-weight: 600; }
+.presets-box .presets { display: flex; flex-direction: column; gap: 0; margin: 0; border-top: 1px solid #647187; }
+.preset-item { text-align: left; padding: 9px 12px; border: 0; border-bottom: 1px solid #3c485a; background: transparent; color: #e1e6ec; font-size: 13px; cursor: pointer; }
+.preset-item:last-child { border-bottom: 0; }
+.preset-item:hover { background: #285f82; color: #fff; }

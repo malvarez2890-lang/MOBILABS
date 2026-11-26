@@ -366,11 +366,14 @@ export default function App() {
         </div>
         <p className="muted small type-desc">{type.desc}</p>
 
-        <div className="presets">
-          {type.presets.map((pr) => (
-            <button key={pr.name} className="pill" onClick={() => applyPreset(pr)}>{pr.name}</button>
-          ))}
-        </div>
+        <details className="presets-box" key={type.id}>
+          <summary>Modelos predefinidos <span className="count">{type.presets.length}</span></summary>
+          <div className="presets">
+            {type.presets.map((pr) => (
+              <button key={pr.name} className="preset-item" onClick={(e) => { applyPreset(pr); e.currentTarget.closest('details').open = false; }}>{pr.name}</button>
+            ))}
+          </div>
+        </details>
 
         <ParamsForm type={type} values={values} onChange={setValue} />
 
