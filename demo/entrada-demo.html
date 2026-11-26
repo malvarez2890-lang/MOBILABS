@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MOBILABs · ideas de entrada</title>
+<style>
+  :root {
+    --bg: #1f2a38; --bg2: #2b3a4d; --panel: #354356; --line: #52627a; --txt: #eef2f6; --muted: #9fb0c4;
+    --acc: #42a9e9; --wood: #d9bd8f; --wood2: #c3a273; --wood3: #a98a5c; --red: #e10000;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--txt); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  header.top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; background: #17202b; border-bottom: 1px solid #0f151d; position: sticky; top: 0; z-index: 20; }
+  header.top h1 { font-size: 15px; margin: 0 14px 0 0; font-weight: 700; letter-spacing: .02em; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tabs button { border: 1px solid var(--line); background: var(--panel); color: var(--txt); padding: 8px 14px; font: 600 13px inherit; font-family: inherit; cursor: pointer; border-radius: 4px; }
+  .tabs button[aria-selected="true"] { background: var(--acc); border-color: var(--acc); color: #06141f; }
+  .stage { display: none; padding: 20px 16px 40px; max-width: 1180px; margin: 0 auto; }
+  .stage.on { display: block; }
+  .stage > h2 { font-size: 20px; margin: 6px 0 4px; }
+  .stage > p.lead { color: var(--muted); margin: 0 0 14px; max-width: 70ch; }
+  .frame { position: relative; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: radial-gradient(ellipse at 50% 30%, #2f4157 0%, #1d2836 70%); min-height: 520px; }
+  .replay { position: absolute; right: 12px; top: 12px; z-index: 5; border: 1px solid var(--line); background: #17202bcc; color: var(--txt); padding: 6px 12px; border-radius: 4px; cursor: pointer; font: 12px inherit; font-family: inherit; }
+  .replay:hover { background: var(--acc); color: #06141f; }
+  .brand { text-align: center; }
+  .brand b { display: block; font-size: 34px; letter-spacing: .06em; font-weight: 800; }
+  .brand span { color: var(--muted); letter-spacing: .12em; font-size: 13px; }
+
+  /* ---------- 1 · CARGA ---------- */
+  #loader .frame { display: grid; place-items: center; }
+  .ld { width: min(720px, 92%); text-align: center; }
+  .ld svg { width: 100%; height: auto; overflow: visible; }
+  .ld .ln { fill: none; stroke: #e9eef4; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .ld .dm { stroke: var(--red); stroke-width: 1.4; fill: none; opacity: 0; }
+  .ld .dt { fill: var(--red); font: 15px "Arial Narrow", Arial, sans-serif; opacity: 0; }
+  .ld.run .ln { animation: draw 2.6s cubic-bezier(.6,.1,.3,1) forwards; animation-delay: calc(var(--i) * .12s); }
+  .ld.run .dm, .ld.run .dt { animation: fadein .6s ease forwards; animation-delay: 2.9s; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes fadein { to { opacity: 1; } }
+  .ld .brand { margin-top: 18px; opacity: 0; }
+  .ld.run .brand { animation: fadein .8s ease 3.2s forwards; }
+  .bar { height: 3px; width: min(360px, 70%); margin: 22px auto 0; background: #ffffff22; border-radius: 2px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--acc); }
+  .ld.run .bar i { animation: load 3.8s ease-in-out forwards; }
+  @keyframes load { to { width: 100%; } }
+  .ld small { display: block; margin-top: 10px; color: var(--muted); height: 18px; }
+
+  /* ---------- 2 · PORTADA ---------- */
+  #cover .frame { display: grid; grid-template-columns: 1.05fr 1fr; align-items: center; gap: 10px; padding: 28px 34px; }
+  .hero-t h3 { font-size: clamp(28px, 4.4vw, 48px); line-height: 1.04; margin: 0 0 12px; font-weight: 800; }
+  .hero-t h3 em { color: var(--acc); font-style: normal; }
+  .hero-t p { color: var(--muted); max-width: 46ch; margin: 0 0 20px; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0 0 22px; }
+  .steps div { background: #ffffff0f; border: 1px solid #ffffff1f; border-radius: 8px; padding: 10px 6px; text-align: center; font-weight: 700; font-size: 13px; transition: .25s; }
+  .steps div:hover { transform: translateY(-3px); border-color: var(--acc); }
+  .steps div span { display: block; font-size: 22px; margin-bottom: 2px; }
+  .cta { display: inline-block; border: 0; background: var(--acc); color: #06141f; font: 800 16px inherit; font-family: inherit; padding: 14px 26px; border-radius: 6px; cursor: pointer; box-shadow: 0 8px 22px #42a9e955; transition: .2s; }
+  .cta:hover { transform: translateY(-2px); box-shadow: 0 12px 28px #42a9e980; }
+  .skip { margin-left: 14px; color: var(--muted); font-size: 13px; text-decoration: underline; cursor: pointer; background: none; border: 0; font-family: inherit; }
+  .scene { perspective: 1100px; height: 440px; display: grid; place-items: center; }
+  .world { position: relative; width: 0; height: 0; transform-style: preserve-3d; animation: spin 26s linear infinite; transform: rotateX(-16deg) rotateY(-30deg); }
+  @keyframes spin { to { transform: rotateX(-16deg) rotateY(330deg); } }
+  .box { position: absolute; transform-style: preserve-3d; }
+  .box > i { position: absolute; display: block; backface-visibility: hidden; border: 1px solid #00000033; }
+  .shadow { position: absolute; left: -150px; top: 170px; width: 300px; height: 300px; background: radial-gradient(#0008, transparent 65%); transform: rotateX(90deg); }
+
+  /* ---------- 3 · GALERÍA ---------- */
+  .gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; padding: 22px; }
+  .card { background: #ffffff0d; border: 1px solid #ffffff1c; border-radius: 10px; overflow: hidden; cursor: pointer; transition: .22s; text-align: left; color: inherit; font-family: inherit; padding: 0; }
+  .card:hover { transform: translateY(-5px); border-color: var(--acc); box-shadow: 0 14px 30px #0006; }
+  .card .th { height: 150px; display: grid; place-items: center; background: linear-gradient(#e8edf2, #cfd7e0); }
+  .card .th svg { width: 82%; height: 82%; }
+  .card .in { padding: 11px 13px 13px; }
+  .card h4 { margin: 0; font-size: 15px; }
+  .card p { margin: 2px 0 8px; color: var(--muted); font-size: 12.5px; }
+  .card .tags span { display: inline-block; font-size: 11px; background: #42a9e922; color: #9bd3f5; padding: 2px 8px; border-radius: 10px; margin-right: 4px; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; padding: 18px 22px 0; }
+  .filters button { border: 1px solid var(--line); background: transparent; color: var(--txt); padding: 5px 12px; border-radius: 16px; cursor: pointer; font: 12.5px inherit; font-family: inherit; }
+  .filters button.on { background: var(--acc); border-color: var(--acc); color: #06141f; font-weight: 700; }
+  .toast { position: absolute; left: 50%; bottom: 18px; transform: translate(-50%, 30px); background: #0b1118; border: 1px solid var(--acc); padding: 10px 18px; border-radius: 8px; opacity: 0; transition: .3s; z-index: 6; }
+  .toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ---------- 4 · DETALLES ---------- */
+  .det { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; padding: 18px; }
+  .box2 { background: #ffffff0b; border: 1px solid #ffffff1a; border-radius: 10px; padding: 14px; position: relative; overflow: hidden; }
+  .box2 h4 { margin: 0 0 6px; font-size: 14px; color: #9bd3f5; letter-spacing: .04em; text-transform: uppercase; }
+  .box2 .scene { height: 330px; }
+  .letter { position: absolute; width: 26px; height: 26px; border-radius: 50%; background: #fff; color: #1b1f24; border: 2px solid #1b1f24; font: 800 14px/22px Arial; text-align: center; opacity: 0; transition: opacity .4s; transform: translateZ(60px); }
+  .resume { display: flex; gap: 12px; align-items: center; background: linear-gradient(90deg, #42a9e91f, transparent); border: 1px solid #42a9e955; border-radius: 10px; padding: 12px; cursor: pointer; transition: .2s; }
+  .resume:hover { border-color: var(--acc); transform: translateX(3px); }
+  .resume .ico { width: 64px; height: 50px; background: #e8edf2; border-radius: 6px; display: grid; place-items: center; }
+  .resume b { display: block; } .resume small { color: var(--muted); }
+  .resume .go { margin-left: auto; color: var(--acc); font-weight: 800; }
+  .tour { position: relative; height: 270px; background: #17202b; border-radius: 8px; border: 1px solid #0d131a; overflow: hidden; margin-top: 8px; }
+  .tour .mock { position: absolute; background: #2b3a4d; border: 1px solid #52627a; color: #9fb0c4; font-size: 11px; display: grid; place-items: center; }
+  .tour .hl { position: absolute; border: 2px solid var(--acc); border-radius: 6px; box-shadow: 0 0 0 9999px #0009; transition: all .5s cubic-bezier(.5,0,.2,1); pointer-events: none; }
+  .tour .tip { position: absolute; background: #fff; color: #17202b; padding: 10px 12px; border-radius: 8px; width: 210px; font-size: 12.5px; transition: all .5s cubic-bezier(.5,0,.2,1); box-shadow: 0 8px 22px #0007; }
+  .tour .tip b { display: block; margin-bottom: 2px; }
+  .tour .nav { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
+  .tour .nav button { border: 1px solid #b6c2cf; background: #eef2f6; border-radius: 4px; padding: 3px 10px; cursor: pointer; font: 600 12px inherit; font-family: inherit; }
+  .tour .nav span { color: #667; font-size: 11px; margin-left: auto; }
+  .reveal { transition: transform .9s cubic-bezier(.2,.8,.2,1), opacity .6s; }
+
+  @media (max-width: 860px) {
+    #cover .frame, .det { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) { .world { animation: none; } .ld .ln { stroke-dashoffset: 0; animation: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>MOBILABs · ideas de entrada</h1>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-t="loader">1 · Pantalla de carga</button>
+    <button role="tab" aria-selected="false" data-t="cover">2 · Portada</button>
+    <button role="tab" aria-selected="false" data-t="gallery">3 · Galería de ejemplos</button>
+    <button role="tab" aria-selected="false" data-t="details">4 · Detalles de calidad</button>
+  </div>
+</header>
+
+<!-- ============ 1 ============ -->
+<section class="stage on" id="loader">
+  <h2>1 · Pantalla de carga: el mueble se dibuja como un plano</h2>
+  <p class="lead">Aparece mientras carga la app (reemplaza el texto que casi no se veía). El mueble se traza con línea fina, aparecen las cotas rojas y luego el nombre.</p>
+  <div class="frame">
+    <button class="replay" data-replay="loader">↻ Repetir</button>
+    <div class="ld" id="ld">
+      <svg viewBox="0 0 640 300" aria-label="Credenza dibujándose">
+        <g transform="translate(40 30)">
+          <path class="ln" pathLength="1" style="--i:0" d="M0 0H560V170H0Z"/>
+          <path class="ln" pathLength="1" style="--i:1" d="M10 10H550V160H10Z" />
+          <path class="ln" pathLength="1" style="--i:2" d="M200 10V160M10 70H200"/>
+          <path class="ln" pathLength="1" style="--i:3" d="M300 10V160M400 10V160"/>
+          <path class="ln" pathLength="1" style="--i:4" d="M20 80H190V150H20ZM105 80V150" />
+          <path class="ln" pathLength="1" style="--i:5" d="M30 170L22 230M530 170L538 230M120 170L112 230M440 170L448 230"/>
+          <path class="ln" pathLength="1" style="--i:6" d="M96 112V128M114 112V128"/>
+          <g class="dm"><path d="M0 252H560M0 244V260M560 244V260M590 0V170M582 0H598M582 170H598"/></g>
+          <text class="dt" x="262" y="246">150</text>
+          <text class="dt" x="598" y="90">78</text>
+        </g>
+      </svg>
+      <div class="brand"><b>MOBILABs</b><span>DISEÑA · CUBICA · COMPRA · ARMA</span></div>
+      <div class="bar"><i></i></div>
+      <small id="ldmsg">Preparando el taller…</small>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section class="stage" id="cover">
+  <h2>2 · Portada de bienvenida</h2>
+  <p class="lead">Se ve al abrir la app (o con el botón “Inicio”). Un mueble 3D gira lento, los cuatro pasos explican el flujo y un botón grande lleva directo al diseño.</p>
+  <div class="frame">
+    <div class="hero-t">
+      <div class="brand" style="text-align:left;margin-bottom:12px"><span style="letter-spacing:.2em">MOBILABs</span></div>
+      <h3>Diseña tu mueble.<br><em>Nosotros hacemos las cuentas.</em></h3>
+      <p>Elige un mueble, ajusta las medidas y míralo en 3D. Obtén el despiece, el plan de corte, la lista de compras y el manual de armado.</p>
+      <div class="steps">
+        <div><span>📐</span>Diseña</div><div><span>✂️</span>Cubica</div><div><span>🛒</span>Compra</div><div><span>🔧</span>Arma</div>
+      </div>
+      <button class="cta" data-toast="Entrando al diseñador… (demo)">Empezar a diseñar →</button>
+      <button class="skip" data-toast="Abriendo el último proyecto… (demo)">Continuar donde quedé</button>
+    </div>
+    <div class="scene"><div class="world" id="world1"><div class="shadow"></div></div></div>
+    <div class="toast" id="t2"></div>
+  </div>
+</section>
+
+<!-- ============ 3 ============ -->
+<section class="stage" id="gallery">
+  <h2>3 · Galería de ejemplos</h2>
+  <p class="lead">Tarjetas con los modelos predefinidos. Un clic abre el mueble ya configurado: ideal para quien llega sin saber por dónde partir.</p>
+  <div class="frame" style="min-height:560px">
+    <div class="filters" id="filters"></div>
+    <div class="gal" id="gal"></div>
+    <div class="toast" id="t3"></div>
+  </div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section class="stage" id="details">
+  <h2>4 · Detalles que dan sensación de calidad</h2>
+  <p class="lead">Tres microdetalles: el mueble que se arma por piezas al entrar, el acceso rápido al último proyecto y un tour guiado de 4 globos la primera vez.</p>
+  <div class="frame" style="min-height:0">
+    <div class="det">
+      <div class="box2">
+        <button class="replay" data-replay="assemble">↻ Armar de nuevo</button>
+        <h4>Se arma por piezas</h4>
+        <div class="scene"><div class="world" id="world2" style="animation:none;transform:rotateX(-18deg) rotateY(-32deg)"><div class="shadow" style="top:140px"></div></div></div>
+      </div>
+      <div>
+        <div class="box2" style="margin-bottom:14px">
+          <h4>Última sesión recordada</h4>
+          <div class="resume" data-toast4="Abriendo tu escritorio… (demo)">
+            <div class="ico"><svg viewBox="0 0 60 44" width="52"><path d="M4 12H56V17H4ZM8 17V40M52 17V40M16 17V24H44V17" fill="none" stroke="#1b1f24" stroke-width="2.4"/></svg></div>
+            <div><b>Continuar con tu escritorio de 140 cm</b><small>Editado hace 2 días · 11 piezas · $ 128.400</small></div>
+            <span class="go">→</span>
+          </div>
+        </div>
+        <div class="box2">
+          <h4>Tour de bienvenida</h4>
+          <div class="tour" id="tour">
+            <div class="mock" style="left:8px;top:8px;width:84px;bottom:8px">Muebles</div>
+            <div class="mock" style="left:100px;top:8px;right:112px;bottom:8px">Vista 3D</div>
+            <div class="mock" style="right:8px;top:8px;width:96px;height:112px">Piezas · Cortes</div>
+            <div class="mock" style="right:8px;top:128px;width:96px;bottom:8px">Planos · Manual</div>
+            <div class="hl" id="hl"></div>
+            <div class="tip" id="tip"><b></b><span></span>
+              <div class="nav"><button id="tp">←</button><button id="tn">Siguiente →</button><span id="tc"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="toast" id="t4"></div>
+  </div>
+</section>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+/* ---------- pestañas ---------- */
+$$('.tabs button').forEach(b => b.onclick = () => {
+  $$('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  $$('.stage').forEach(s => s.classList.toggle('on', s.id === b.dataset.t));
+  if (b.dataset.t === 'loader') runLoader();
+  if (b.dataset.t === 'details') { runAssemble(); tourShow(0); }
+});
+
+/* ---------- 1 · carga ---------- */
+const msgs = ['Preparando el taller…', 'Afilando los lápices…', 'Midiendo dos veces…', 'Listo para cortar'];
+let mt = [];
+function runLoader() {
+  const ld = $('#ld'); ld.classList.remove('run'); void ld.offsetWidth; ld.classList.add('run');
+  mt.forEach(clearTimeout); mt = [];
+  msgs.forEach((m, i) => mt.push(setTimeout(() => $('#ldmsg').textContent = m, i * 1000)));
+}
+$('[data-replay=loader]').onclick = runLoader;
+runLoader();
+
+/* ---------- cajas 3D con CSS ---------- */
+function box(parent, w, h, d, x, y, z, cols) {
+  // x,y,z = centro del bloque respecto al origen del mundo (y hacia abajo)
+  const b = document.createElement('div'); b.className = 'box';
+  b.style.cssText = `width:${w}px;height:${h}px;transform:translate3d(${x - w / 2}px,${y - h / 2}px,${z}px)`;
+  const faces = [
+    [w, h, `translateZ(${d / 2}px)`, cols[0]], [w, h, `rotateY(180deg) translateZ(${d / 2}px)`, cols[1]],
+    [d, h, `rotateY(90deg) translateZ(${w - d / 2}px)`, cols[2]], [d, h, `rotateY(-90deg) translateZ(${d / 2}px)`, cols[3]],
+    [w, d, `rotateX(90deg) translateZ(${d / 2}px)`, cols[4]], [w, d, `rotateX(-90deg) translateZ(${h - d / 2}px)`, cols[5]],
+  ];
+  faces.forEach(([fw, fh, tr, c]) => { const f = document.createElement('i'); f.style.cssText = `width:${fw}px;height:${fh}px;background:${c};transform:${tr}`; b.appendChild(f); });
+  parent.appendChild(b); return b;
+}
+// una caja con 6 caras bien posicionadas (versión simple y robusta)
+function block(parent, W, H, D, cx, cy, cz, c) {
+  const g = document.createElement('div'); g.className = 'box';
+  g.style.cssText = `width:0;height:0;transform:translate3d(${cx}px,${cy}px,${cz}px)`;
+  const f = (w, h, tr, bg) => { const e = document.createElement('i'); e.style.cssText = `width:${w}px;height:${h}px;left:${-w / 2}px;top:${-h / 2}px;background:${bg};transform:${tr}`; g.appendChild(e); };
+  f(W, H, `translateZ(${D / 2}px)`, c.f); f(W, H, `rotateY(180deg) translateZ(${D / 2}px)`, c.b);
+  f(D, H, `rotateY(90deg) translateZ(${W / 2}px)`, c.r); f(D, H, `rotateY(-90deg) translateZ(${W / 2}px)`, c.l);
+  f(W, D, `rotateX(90deg) translateZ(${H / 2}px)`, c.t); f(W, D, `rotateX(-90deg) translateZ(${H / 2}px)`, c.bo);
+  parent.appendChild(g); return g;
+}
+const WOOD = { f: '#d9bd8f', b: '#c7a876', r: '#b8985f', l: '#b8985f', t: '#ead3a6', bo: '#9f8250' };
+const DARK = { f: '#8a6b45', b: '#7a5d3b', r: '#6f5435', l: '#6f5435', t: '#9a7a52', bo: '#5d462c' };
+
+function shelf(world, spread = false) {
+  const parts = [];
+  const W = 200, H = 260, D = 80, t = 10;
+  const add = (w, h, d, x, y, z, c, off) => { const b = block(world, w, h, d, x, y, z, c); b.classList.add('reveal'); parts.push({ b, x, y, z, off }); return b; };
+  add(t, H, D, -W / 2 + t / 2, 0, 0, WOOD, [-160, 0, 0]);          // lateral izq
+  add(t, H, D, W / 2 - t / 2, 0, 0, WOOD, [160, 0, 0]);            // lateral der
+  add(W - 2 * t, t, D, 0, H / 2 - t / 2, 0, WOOD, [0, 140, 0]);    // base
+  for (let i = 0; i < 3; i++) add(W - 2 * t, t, D, 0, -H / 2 + t / 2 + (i + 1) * (H - t) / 4, 0, WOOD, [0, -140 - i * 30, 0]);   // repisas
+  add(W, t, D, 0, -H / 2 - t / 2 + t, 0, WOOD, [0, -260, 0]);       // tapa
+  add(W - 2 * t, H - t, 4, 0, 0, -D / 2 + 2, DARK, [0, 0, -160]);   // trasera
+  [[-W / 2 + 16, 1], [W / 2 - 16, 1]].forEach(([x]) => add(14, 22, 14, x, H / 2 + 11, D / 2 - 14, WOOD, [0, 120, 0]));
+  [[-W / 2 + 16], [W / 2 - 16]].forEach(([x]) => add(14, 22, 14, x, H / 2 + 11, -D / 2 + 14, WOOD, [0, 120, 0]));
+  return parts;
+}
+const w1 = $('#world1'); shelf(w1).forEach(p => p.b.classList.remove('reveal'));
+
+/* ---------- 2 · portada ---------- */
+function toast(id, text) { const t = $(id); t.textContent = text; t.classList.add('on'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('on'), 1800); }
+$$('#cover [data-toast]').forEach(b => b.onclick = () => toast('#t2', b.dataset.toast));
+
+/* ---------- 3 · galería ---------- */
+const COL = '#1b1f24';
+const svgs = {
+  estante: `<svg viewBox="0 0 120 100"><g fill="#d9bd8f" stroke="${COL}" stroke-width="2"><rect x="38" y="8" width="44" height="82"/><path d="M38 28H82M38 48H82M38 68H82" fill="none"/></g></svg>`,
+  mesa: `<svg viewBox="0 0 120 100"><g fill="#d9bd8f" stroke="${COL}" stroke-width="2"><rect x="14" y="32" width="92" height="9"/><path d="M22 41V84M98 41V84" fill="none" stroke-width="4"/></g></svg>`,
+  redonda: `<svg viewBox="0 0 120 100"><g fill="#d9bd8f" stroke="${COL}" stroke-width="2"><ellipse cx="60" cy="34" rx="42" ry="10"/><path d="M60 44V86M42 86H78" fill="none" stroke-width="4"/></g></svg>`,
+  escritorio: `<svg viewBox="0 0 120 100"><g fill="#d9bd8f" stroke="${COL}" stroke-width="2"><rect x="10" y="28" width="100" height="8"/><rect x="12" y="36" width="26" height="50"/><path d="M12 53H38M12 70H38" fill="none"/><path d="M104 36V86" fill="none" stroke-width="4"/></g></svg>`,
+  credenza: `<svg viewBox="0 0 120 100"><g fill="#d9bd8f" stroke="${COL}" stroke-width="2"><rect x="8" y="30" width="104" height="38"/><path d="M45 30V68M70 30V68M92 30V68M8 46H45" fill="none"/><path d="M14 68L10 86M106 68L110 86" fill="none" stroke-width="4"/></g></svg>`,
+  rack: `<svg viewBox="0 0 120 100"><g fill="#d9bd8f" stroke="${COL}" stroke-width="2"><rect x="8" y="44" width="104" height="28"/><path d="M43 44V72M78 44V72" fill="none"/><rect x="38" y="14" width="44" height="26" fill="#2b3a4d"/><path d="M16 72V88M104 72V88" fill="none" stroke-width="4"/></g></svg>`,
+  vinilos: `<svg viewBox="0 0 120 100"><g fill="#d9bd8f" stroke="${COL}" stroke-width="2"><rect x="22" y="10" width="76" height="78"/><path d="M22 36H98M22 62H98M60 10V88" fill="none"/></g><g fill="${COL}"><circle cx="41" cy="23" r="7"/><circle cx="79" cy="49" r="7"/></g></svg>`,
+  silla: `<svg viewBox="0 0 120 100"><g fill="#d9bd8f" stroke="${COL}" stroke-width="2"><rect x="34" y="12" width="6" height="40"/><rect x="30" y="50" width="62" height="8"/><path d="M34 58V88M88 58V88" fill="none" stroke-width="4"/></g></svg>`,
+};
+const MODELS = [
+  ['Credenza con tocadiscos', 'Módulo para tocadiscos, receiver y celdas de vinilos', 'credenza', ['Salón', '150 cm']],
+  ['Escritorio con cajonera', 'Laterales de tablero, 3 cajones con corredera', 'escritorio', ['Oficina', '140 cm']],
+  ['Mesa redonda 4 personas', 'Tapa de Ø100 con patas cónicas', 'redonda', ['Comedor', 'Ø100']],
+  ['Estante clásico 5 niveles', 'Estantería abierta de piso con zócalo', 'estante', ['Almacenaje', '70 × 180']],
+  ['Rack para TV', 'Con puertas y patas en diagonal', 'rack', ['Salón', '150 cm']],
+  ['Mueble para vinilos 4 × 4', 'Más de 1.000 LPs en grilla', 'vinilos', ['Música', '145 × 153']],
+  ['Mesa comedor 6 personas', 'Faldones, tapa de melamina de 183 × 250', 'mesa', ['Comedor', '160 cm']],
+  ['Silla de pino', 'Patas cuadradas y respaldo de tablas', 'silla', ['Comedor', '42 × 88']],
+];
+const CATS = ['Todos', 'Salón', 'Oficina', 'Comedor', 'Música', 'Almacenaje'];
+function drawGallery(cat = 'Todos') {
+  $('#filters').innerHTML = CATS.map(c => `<button class="${c === cat ? 'on' : ''}" data-c="${c}">${c}</button>`).join('');
+  $('#gal').innerHTML = MODELS.filter(m => cat === 'Todos' || m[3][0] === cat).map(m =>
+    `<button class="card" data-n="${m[0]}"><div class="th">${svgs[m[2]]}</div><div class="in"><h4>${m[0]}</h4><p>${m[1]}</p><div class="tags">${m[3].map(t => `<span>${t}</span>`).join('')}</div></div></button>`).join('');
+  $$('#filters button').forEach(b => b.onclick = () => drawGallery(b.dataset.c));
+  $$('#gal .card').forEach(c => c.onclick = () => toast('#t3', `Abriendo «${c.dataset.n}» con sus medidas… (demo)`));
+}
+drawGallery();
+
+/* ---------- 4 · detalles ---------- */
+const w2 = $('#world2'); const parts2 = shelf(w2);
+const letters = 'ABCDEFGH';
+function runAssemble() {
+  parts2.forEach((p, i) => {
+    p.b.style.transition = 'none'; p.b.style.opacity = 0;
+    p.b.style.transform = `translate3d(${p.x + p.off[0]}px,${p.y + p.off[1]}px,${p.z + p.off[2]}px)`;
+  });
+  void w2.offsetWidth;
+  parts2.forEach((p, i) => setTimeout(() => {
+    p.b.style.transition = 'transform .9s cubic-bezier(.2,.8,.2,1), opacity .5s';
+    p.b.style.opacity = 1;
+    p.b.style.transform = `translate3d(${p.x}px,${p.y}px,${p.z}px)`;
+  }, 250 + i * 330));
+}
+$('[data-replay=assemble]').onclick = runAssemble;
+$$('[data-toast4]').forEach(b => b.onclick = () => toast('#t4', b.dataset.toast4));
+
+/* tour */
+const STEPS = [
+  { r: [8, 8, 84, 254], t: 'Elige el mueble', d: 'Estante, mesa, escritorio, credenza… y ajusta las medidas con las barras.', tip: [104, 20] },
+  { r: [100, 8, 240, 254], t: 'Míralo en 3D', d: 'Rueda para acercar, clic para seleccionar piezas, clic derecho para colores y texturas.', tip: [140, 60] },
+  { r: [452, 8, 96, 112], t: 'Despiece, cortes y compras', d: 'Todo se recalcula solo: piezas, planchas y lista con precio aproximado.', tip: [236, 130] },
+  { r: [452, 128, 96, 134], t: 'Planos y manual', d: 'Planimetría con cotas y manual de armado con imágenes, listos para imprimir en PDF.', tip: [236, 70] },
+];
+let ti = 0;
+function tourShow(i) {
+  ti = (i + STEPS.length) % STEPS.length; const s = STEPS[ti]; const tour = $('#tour');
+  const k = tour.clientWidth / 556; // escala de la maqueta (556 px de ancho de referencia)
+  const hl = $('#hl'); Object.assign(hl.style, { left: s.r[0] * 1 + 'px', top: s.r[1] + 'px', width: s.r[2] + 'px', height: s.r[3] + 'px' });
+  // los mocks de la derecha se posicionan desde el borde derecho: se recalculan según el ancho real
+  const W = tour.clientWidth;
+  if (ti >= 2) hl.style.left = (W - 8 - s.r[2]) + 'px';
+  if (ti === 1) { hl.style.left = '100px'; hl.style.width = (W - 100 - 112) + 'px'; }
+  const tip = $('#tip'); tip.querySelector('b').textContent = s.t; tip.querySelector('span').textContent = s.d;
+  const tx = ti >= 2 ? Math.max(8, W - 8 - 96 - 220) : Math.min(s.tip[0], W - 220);
+  Object.assign(tip.style, { left: tx + 'px', top: s.tip[1] + 'px' });
+  $('#tc').textContent = `${ti + 1} / ${STEPS.length}`;
+}
+$('#tn').onclick = () => tourShow(ti + 1); $('#tp').onclick = () => tourShow(ti - 1);
+addEventListener('resize', () => tourShow(ti));
+</script>
+</body>
+</html>
