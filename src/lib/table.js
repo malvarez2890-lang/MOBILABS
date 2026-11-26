@@ -15,7 +15,7 @@ const steelTube = (p, min, size) => p.fixture({ kind: 'metalLeg', min, size, tub
  * o = { W, D, H, mat, layers, leg, casters, oh, shelf:{y}|null, round:boolean }   (round: W es el diámetro)
  */
 export function tableFrame(p, o) {
-  const { W, D, H, mat } = o;
+  const { W, D, mat } = o;
   const spec = o.leg || legSpec('cuadrada', 'fino');
   const round = !!o.round;
   const steelFrame = spec.kind === 'metalFrame';
@@ -23,6 +23,8 @@ export function tableFrame(p, o) {
   const layers = o.layers || 1;
   const t = SHEETS[mat].t;
   const topT = t * layers;
+  const product = spec.kind === 'product'; // patas listas: alto fijo; la altura total = pata + tapa
+  const H = product ? spec.h + topT : o.H;
   const s = spec.s;
   const aT = 19; // grosor del faldón
   const aH = 90; // alto del faldón
@@ -40,6 +42,20 @@ export function tableFrame(p, o) {
   }
   if (layers > 1) {
     p.hardware('Tornillo 4×30 mm (unir capas de la tapa)', Math.ceil((W * D) / 40000), 'Además de cola');
+  }
+
+  // ---------------------------------------------------------------- patas listas (producto de alto fijo)
+  if (product) {
+    for (const x of [oh, W - oh - s]) {
+      for (const z of [oh, D - oh - s]) placeLeg(p, spec, x, 0, z, spec.h);
+    }
+    legHardware(p, spec, 4, spec.h);
+    p.hardware('Tornillo 4×16 mm', 16, 'Fijación de las placas bajo la tapa');
+    p.tip(`Las patas son un producto listo de ${spec.h / 10} cm: el alto total de la mesa queda en ${Math.round(H) / 10} cm (pata + tapa) y no se puede regular.`);
+    if (o.shelf) p.tip('Con patas listas no se agrega repisa inferior: no hay marco donde atornillarla.');
+    if (o.casters) p.tip('Las ruedas no se combinan con patas listas.');
+    if (W * D > 1000000) p.warn('Una tapa grande sobre 4 patas atornilladas por una placa queda poco rígida: considera patas gruesas, tapa doble o el estilo con faldones.');
+    return { oh, ohx: oh, ohz: oh, s, topT, legLen: spec.h, yA: spec.h, nCross: 0 };
   }
 
   // ruedas: solo con patas rectas de madera (las patas se acortan y la altura total no cambia)

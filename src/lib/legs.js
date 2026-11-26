@@ -26,16 +26,29 @@ export const normSize = (v) => (v === 'pino41' || v === 'fino' ? 'fino' : 'grues
  * Describe un tipo de pata. `s` = lado (o diámetro) de su huella en mm.
  * kind: 'wood' (se corta, va al despiece) | 'metal' | 'caster' (se compran, solo se dibujan).
  */
-export function legSpec(style = 'cuadrada', size = 'fino') {
+// Patas "de torno" (cónicas, redondas): no se cortan, se compran como producto listo y de altura fija.
+export const PRODUCT_STYLES = ['afinada', 'redonda', 'redondaAfinada'];
+export const isProductStyle = (style) => PRODUCT_STYLES.includes(style);
+export const LEG_HEIGHTS_CABINET = [8, 10, 12, 15, 20, 25, 30]; // cm, alturas típicas de venta
+export const LEG_HEIGHTS_TABLE = [40, 45, 71]; // cm: mesa de centro/banco/comedor
+const PRODUCT_NAME = { afinada: 'cónica', redonda: 'redonda', redondaAfinada: 'cónica redonda' };
+
+/** `opts.cut` = pata cortada a medida en pino (solo sillas); `opts.h` = alto en mm de la pata comprada. */
+export function legSpec(style = 'cuadrada', size = 'fino', opts = {}) {
   const sz = normSize(size);
   const thick = sz === 'grueso';
   const wood = (mat, shape, taper, suffix) => ({
     style, size: sz, kind: 'wood', mat, s: LINEARS[mat].section[0], shape, taper, suffix,
   });
+  if (isProductStyle(style) && !opts.cut) {
+    const h = opts.h || 150;
+    const s = thick ? 55 : 40;
+    const shape = style === 'redonda' ? 'round' : style === 'afinada' ? 'taperBox' : 'taperRound';
+    const name = style === 'redonda' ? 'Pata de madera redonda' : `Pata de madera ${PRODUCT_NAME[style]}`;
+    return { style, size: sz, kind: 'product', s, h, shape, taper: style === 'redonda' ? 1 : 0.55, suffix: '', label: `${name} ${h / 10} cm`.replace('.', ',') };
+  }
   switch (style) {
     case 'afinada': return wood(thick ? 'pino70' : 'pino41', 'taperBox', 0.55, ' afinada');
-    case 'redonda': return wood(thick ? 'redonda70' : 'redonda45', 'round', 1, ' redonda');
-    case 'redondaAfinada': return wood(thick ? 'redonda70' : 'redonda45', 'taperRound', 0.55, ' redonda afinada');
     case 'inclinada': return { ...wood(thick ? 'pino70' : 'pino41', 'box', 1, ' inclinada'), splay: 8 };
     case 'aceroDiagonal': {
       const s = thick ? 40 : 30;
@@ -74,6 +87,7 @@ export function placeLeg(p, spec, x, y, z, len, o = {}) {
     return p.L(label + spec.suffix, spec.mat, 'y', len, x, y, z, undefined, { shape: spec.shape, taper: spec.taper, head: o.head || 0, blocks: o.blocks });
   }
   if (spec.kind === 'metal') return p.fixture({ kind: 'metalLeg', min: [x, y, z], size: [spec.s, len, spec.s] });
+  if (spec.kind === 'product') return p.fixture({ kind: 'productLeg', min: [x, y, z], size: [spec.s, len, spec.s], shape: spec.shape, taper: spec.taper });
   return p.fixture({ kind: 'caster', min: [x, y, z], size: [spec.s, len, spec.s], wheelD: spec.wheelD });
 }
 
@@ -82,6 +96,9 @@ export function legHardware(p, spec, n, len) {
   if (spec.kind === 'metal') {
     p.hardware(`${spec.label}, alto ${Math.round(len / 10)} cm`, n, spec.splay ? 'Con la inclinación incluida (placa en ángulo)' : 'Se piden de ese alto');
     p.hardware('Placa de montaje para pata metálica', n, 'Con tornillos');
+  } else if (spec.kind === 'product') {
+    p.hardware(`${spec.label} (pata lista)`, n, 'Producto listo, alto fijo; se compra por unidad o en pack de 4');
+    p.hardware('Placa de montaje para pata de madera', n, 'Si la pata no trae inserto; con tornillos');
   } else if (spec.kind === 'caster') {
     p.hardware(`${spec.label}`, n - 2, 'Sin freno');
     p.hardware(`${spec.label} con freno`, 2, 'Las dos delanteras');

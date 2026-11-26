@@ -26,7 +26,7 @@ export function carcass(p, o) {
     const fitsAt = (sp, ins) => dbEarly >= 2 * (ins + sp.s) + 20;
     legIns = fitsAt(legSp, 25) ? 25 : 10;
     if (!fitsAt(legSp, legIns) && legSp.size === 'grueso') {
-      legSp = legSpec(legSp.style, 'fino');
+      legSp = legSpec(legSp.style, 'fino', { h: legSp.h });
       legIns = fitsAt(legSp, 25) ? 25 : 10;
       legShrunk = true;
     }
@@ -34,7 +34,8 @@ export function carcass(p, o) {
     if (legSp.splay && fitsAt(legSp, 45)) legIns = 45;
   }
   const isCaster = base === 'patas' && legSp.kind === 'caster';
-  const baseH = base === 'none' ? 0 : isCaster ? legSp.h : o.baseH; // con ruedas, la altura la define la rueda
+  const isProduct = base === 'patas' && legSp.kind === 'product';
+  const baseH = base === 'none' ? 0 : isCaster || isProduct ? legSp.h : o.baseH; // con ruedas o patas listas, la altura la define el producto
   const rows = o.rows.map((r) => ({ cols: 1, ...r }));
   const n = rows.length;
 
@@ -51,7 +52,7 @@ export function carcass(p, o) {
     p.warn(`El alto se ajustó a ${cm(H)} cm para que los niveles tengan al menos 6 cm libres.`);
   }
 
-  const z0 = back === 'hdf' ? SHEETS.hdf3.t : 0; // la trasera HDF va por fuera
+  const z0 = back === 'hdf' ? SHEETS.hdf3.t : 0; // la trasera MDF va por fuera
   const Db = D - z0;
   const y0 = base === 'zocalo' ? 0 : baseH; // con zócalo los laterales bajan hasta el piso
   const innerW = W - 2 * t;
@@ -113,7 +114,7 @@ export function carcass(p, o) {
 
   // --- trasera ---
   if (back === 'hdf') {
-    // si la trasera no cabe en una plancha de HDF, se divide en tramos iguales
+    // si la trasera no cabe en una plancha de MDF de 3 mm, se divide en tramos iguales
     const [SL, SW] = SHEETS.hdf3.size;
     const fits = (a, b) => (a <= SW && b <= SL) || (b <= SW && a <= SL);
     const split = (x, y, w, h) => {
@@ -124,7 +125,7 @@ export function carcass(p, o) {
     };
     const pieces = split(0, baseH, W, H - baseH);
     pieces.forEach(([x, y, w, h]) => p.B('Trasera', 'hdf3', x, y, 0, w, h, ''));
-    if (pieces.length > 1) p.tip(`La trasera es muy grande para una plancha de HDF: se divide en ${pieces.length} tramos.`);
+    if (pieces.length > 1) p.tip(`La trasera es muy grande para una plancha de MDF de 3 mm: se divide en ${pieces.length} tramos.`);
     const fix = Math.ceil((2 * (W + H - baseH) + (n - 1) * W + dividerLen) / 150);
     p.hardware('Tornillo o clavo 3×16 mm (trasera)', fix, 'Fijación del panel trasero');
   } else if (back === 'rails') {
@@ -153,6 +154,7 @@ export function carcass(p, o) {
       }
     }
     legHardware(p, spec, 4, baseH);
+    if (isProduct) p.tip(`Las patas son un producto listo de ${baseH / 10} cm de alto fijo (se compran así, no se cortan): la medida "Alto de la base" no aplica.`);
     if (isCaster) p.tip(`La altura de la base la define la rueda: ${baseH / 10} cm (la medida "Alto de la base" no aplica).`);
   }
 

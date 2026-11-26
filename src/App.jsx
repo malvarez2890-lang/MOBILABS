@@ -9,6 +9,9 @@ import logoUrl from './assets/logo.png';
 import ParamsForm from './components/ParamsForm.jsx';
 import Viewer3D from './components/Viewer3D.jsx';
 import { CutList, SheetPlans, Shopping, labelColor, labelStroke } from './components/Lists.jsx';
+import { Planos, Manual } from './components/Docs.jsx';
+import { buildDrawing, techSpec } from './lib/plans.js';
+import { buildManual } from './lib/manual.js';
 import ContextMenu from './components/ContextMenu.jsx';
 import PropsDialog from './components/PropsDialog.jsx';
 import { partKeys, TEXTURES } from './lib/looks.js';
@@ -81,6 +84,8 @@ export default function App() {
   const plans = useMemo(() => packAll(model.parts, settings), [model, settings]);
   const shop = useMemo(() => buildShopping(model, plans), [model, plans]);
   const priced = useMemo(() => priceShop(shop, prices), [shop, prices]);
+  const drawing = useMemo(() => buildDrawing(model), [model]);
+  const manual = useMemo(() => buildManual(model, plans, shop), [model, plans, shop]);
   const [bw, bh, bd] = model.bbox.dims;
 
   // ---- piezas: claves estables, selección múltiple, ocultas y aspecto ----
@@ -478,7 +483,7 @@ export default function App() {
       {/* ---------------- panel derecho ---------------- */}
       <aside className="right">
         <div className="tabs" role="tablist">
-          {[['piezas', 'Piezas'], ['cortes', 'Cortes'], ['compras', 'Compras']].map(([id, label]) => (
+          {[['piezas', 'Piezas'], ['cortes', 'Cortes'], ['compras', 'Compras'], ['planos', 'Planos'], ['manual', 'Manual']].map(([id, label]) => (
             <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -496,11 +501,13 @@ export default function App() {
 
         <div className={`tab-body ${tab === 'piezas' ? 'show' : ''}`}><CutList plans={plans} onHover={setHover} selectedKeys={fullKeys} partialKeys={partialKeys} onSelect={(g, add) => onPick(g.ids[0], { add })} scrollTo={scrollTo} /></div>
         <div className={`tab-body ${tab === 'cortes' ? 'show' : ''}`}><SheetPlans plans={plans} /></div>
+        <div className={`tab-body ${tab === 'planos' ? 'show' : ''}`}>{tab === 'planos' && <Planos drawing={drawing} spec={techSpec(model, plans, shop, type, values)} title={type.name} subtitle={`${cm(bw)} × ${cm(bh)} × ${cm(bd)} cm (ancho × alto × fondo)`} />}</div>
+        <div className={`tab-body ${tab === 'manual' ? 'show' : ''}`}>{tab === 'manual' && <Manual manual={manual} title={type.name} />}</div>
         <div className={`tab-body ${tab === 'compras' ? 'show' : ''}`}><Shopping shop={shop} priced={priced} onCopy={copy} copied={copied} onPrice={setPrice} onResetPrices={() => setPrices({})} onImportPrices={importPrices} onExportPrices={PUBLISHED ? null : () => download('precios-mobilabs.csv', pricesToCsv(priced))} /></div>
       </aside>
 
       <nav className="mnav" aria-label="Secciones">
-        {[['diseno', 'Diseño'], ['piezas', 'Piezas'], ['cortes', 'Cortes'], ['compras', 'Compras']].map(([id, label]) => {
+        {[['diseno', 'Diseño'], ['piezas', 'Piezas'], ['cortes', 'Cortes'], ['compras', 'Compras'], ['planos', 'Planos'], ['manual', 'Manual']].map(([id, label]) => {
           const active = id === 'diseno' ? mview === 'diseno' : mview === 'resultados' && tab === id;
           return (
             <button

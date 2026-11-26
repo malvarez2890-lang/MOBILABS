@@ -47,6 +47,7 @@ const cyl = (r, len, segs = 16) => new THREE.CylinderGeometry(r, r, len, segs);
 /** Geometría y color de un elemento comprado (tirador, rueda, pata metálica). */
 export function fixtureGeometry(f) {
   const [sx, sy, sz] = f.size.map((v) => v / 10);
+  if (f.kind === 'productLeg') return { geo: partGeometry({ size: f.size, shape: f.shape, taper: f.taper }), color: '#b98a55', metal: 0 };
   if (f.kind === 'metalLeg') return { geo: new THREE.BoxGeometry(sx, sy, sz), color: '#2f3237', metal: 0.6 };
 
   if (f.kind === 'caster') {

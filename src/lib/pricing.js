@@ -29,6 +29,8 @@ export const keyOfEdge = (width) => `edge:${width}`;
 export const keyOfHardware = (name) => `hw:${name.trim().toLowerCase()}`;
 
 const hwDefault = (name) => {
+  const pata = /^pata de madera.*?(\d+(?:[.,]\d+)?) cm/i.exec(name); // pata lista: el precio sube con el alto
+  if (pata) { const h = Number(pata[1].replace(',', '.')); return h >= 60 ? 14000 : h >= 35 ? 8000 : h >= 20 ? 4500 : 3000; }
   const r = HW_RULES.find(([re]) => re.test(name));
   return r ? r[1] : null;
 };
@@ -75,8 +77,47 @@ export function priceShop(shop, prices = {}) {
 
 export const fmtCLP = (n) => `$ ${Math.round(n).toLocaleString('es-CL')}`;
 
-/** Búsqueda de referencia en la web (abre en otra pestaña). */
-export const searchUrl = (text) => `https://www.google.com/search?q=${encodeURIComponent(`${text} precio Chile`)}`;
+// Nombres como se venden en Chile (para buscar en tiendas); el rótulo de la app es descriptivo y no sirve de búsqueda textual.
+const SHEET_TERM = {
+  mel18: 'melamina 18 mm 1,83 x 2,44', mel15: 'melamina 15 mm 1,83 x 2,44', mdf18: 'mdf crudo 18 mm 1,52 x 2,44',
+  ter18: 'terciado estructural 18 mm 1,22 x 2,44', ter15: 'terciado 15 mm 1,22 x 2,44', hdf3: 'mdf 3 mm 1,22 x 2,44',
+};
+const BAR_TERM = {
+  pino41: 'pino cepillado 2x2 41x41 mm', pino70: 'pino cepillado 3x3 70x70 mm', pino19x90: 'pino cepillado 1x4 19x90 mm',
+  pino19x42: 'pino cepillado 1x2 19x42 mm', redonda45: 'varilla redonda pino 45 mm', redonda70: 'varilla redonda pino 70 mm',
+};
+const HW_TERMS = [
+  [/^tornillo confirmat|confirmat/i, 'tornillo confirmat 7x50'], [/^tornillo o clavo 3/i, 'clavo 3x16 mm para trasera mdf'],
+  [/^tornillo 4×40/i, 'tornillo madera 4x40 mm'], [/^tornillo (\d)×(\d+)/i, (m) => `tornillo madera ${m[1]}x${m[2]} mm`],
+  [/^tarugo/i, 'tarugo madera 8x30 mm'], [/^tapa cubre/i, 'tapa cubre confirmat melamina'], [/^cola fr[ií]a/i, 'cola fria carpintero 250 ml'],
+  [/^bisagra/i, 'bisagra cazoleta 35 mm cierre suave'], [/^jaladera de barra.*?(\d+) ?mm/i, (m) => `tirador barra ${m[1]} mm`],
+  [/^jaladera/i, 'tirador barra 128 mm'], [/^perilla/i, 'perilla mueble'], [/^perfil tirador/i, 'perfil tirador gola aluminio'],
+  [/^pist[oó]n/i, 'piston a gas mueble'], [/^nivelador/i, 'nivelador pata mueble regulable'],
+  [/^corredera/i, 'corredera telescopica cajon 45 cm'], [/^rueda giratoria.*freno/i, 'rueda giratoria con freno placa'], [/^rueda giratoria/i, 'rueda giratoria mueble placa'],
+  [/^pata de madera.*?(\d+(?:[.,]\d+)?) cm/i, (m) => `pata madera conica ${Number(m[1].replace(',', '.')) * 10} mm`],
+  [/^pata met[aá]lica/i, 'pata metalica mueble'], [/^pata de acero en diagonal/i, 'pata metalica mueble inclinada'], [/^tubo de acero/i, 'tubo cuadrado acero 30x30'],
+  [/^placa de montaje/i, 'placa montaje pata mueble'], [/^escuadra met[aá]lica/i, 'escuadra metalica refuerzo 40 mm'],
+  [/^kit anti-vuelco|^anti-vuelco/i, 'kit antivuelco muebles'], [/^barniz/i, 'barniz poliuretano interior'], [/^sellador/i, 'sellador madera'], [/^lija/i, 'lija madera grano 120'],
+];
+/** Nombre comercial chileno para buscar un ítem de la lista de compras (a partir de la clave de precio y el rótulo). */
+export function searchTerm(key = '', label = '') {
+  if (key.startsWith('sheet:')) return SHEET_TERM[key.slice(6)] || label;
+  if (key.startsWith('bar:')) return BAR_TERM[key.slice(4)] || label;
+  if (key.startsWith('edge:')) return `tapacanto melamina ${key.slice(5)} mm`;
+  for (const [re, t] of HW_TERMS) {
+    const m = re.exec(label);
+    if (m) return typeof t === 'function' ? t(m) : t;
+  }
+  return label;
+}
+const slug = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9,]+/g, '-').replace(/^-|-$/g, '');
+/** Enlaces de búsqueda en tiendas chilenas (abren en otra pestaña). */
+export const storeLinks = (term) => [
+  { name: 'Sodimac', url: `https://www.sodimac.cl/sodimac-cl/search?Ntt=${encodeURIComponent(term)}` },
+  { name: 'Mercado Libre', url: `https://listado.mercadolibre.cl/${slug(term)}` },
+  { name: 'Google', url: `https://www.google.com/search?q=${encodeURIComponent(`${term} precio Chile`)}` },
+];
+export const searchUrl = (text) => storeLinks(text)[2].url;
 
 /** CSV de precios para llevarlos a una planilla: clave;nombre;cantidad;precio unitario */
 export function pricesToCsv(priced) {

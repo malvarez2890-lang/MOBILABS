@@ -1,4 +1,6 @@
 // Autotest: geometría sin choques, espesores correctos y cubicación completa.
+import { buildDrawing, techSpec } from '../src/lib/plans.js';
+import { buildManual } from '../src/lib/manual.js';
 import assert from 'node:assert/strict';
 import { FURNITURE, buildFurniture, defaultsFor } from '../src/lib/types.js';
 import { SHEETS, LINEARS } from '../src/lib/materials.js';
@@ -75,6 +77,12 @@ function check(label, typeId, values) {
   // cubicación
   const plans = packAll(m.parts, { kerf: 3, rotate: false });
   const shop = buildShopping(m, plans);
+  // planos, ficha técnica y manual: se generan sin errores y con contenido
+  const dr = buildDrawing(m);
+  assert.ok(Number.isFinite(dr.s) && dr.s > 0 && dr.chain.y.length >= 2, `${label}: planimetría inválida`);
+  assert.ok(techSpec(m, plans, shop, FURNITURE.find((f) => f.id === typeId), values).length >= 6, `${label}: ficha técnica incompleta`);
+  const man = buildManual(m, plans, shop);
+  assert.ok(man.stepCount >= 8 && man.sections.every((x) => x.steps.every((t) => typeof t === 'string' && !/undefined|\[object/.test(t))), `${label}: manual inválido`);
   // costos: toda línea tiene precio de ejemplo y ninguno es absurdo (p. ej. un tornillo valorado como corredera)
   const priced = priceShop(shop, {});
   assert.equal(priced.missing, 0, `${label}: líneas sin precio: ${priced.groups.flatMap((g) => g.rows.filter((r) => r.missing).map((r) => r.label)).join(', ')}`);

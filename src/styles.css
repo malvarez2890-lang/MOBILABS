@@ -692,7 +692,8 @@ table.cut tbody tr.part { background: rgb(42 111 158 / .38); box-shadow: inset 3
 .price-in span, .price-in em { color: var(--muted); font-size: 10.5px; font-style: normal; }
 .buy-price .sub { color: #e7ebf0; font-size: 12px; font-variant-numeric: tabular-nums; }
 .find { color: #8fd0ff; font-size: 10.5px; }
-@media print { .cost-actions, .find { display: none !important; } .cost-box { border-color: #bbb; background: #fff; } .cost-total { color: #075b8d; } .price-in { border-color: #ccc; background: #fff; color: #111; } .buy-price .sub { color: #111; } }
+.finds { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+@media print { .cost-actions, .find, .finds { display: none !important; } .cost-box { border-color: #bbb; background: #fff; } .cost-total { color: #075b8d; } .price-in { border-color: #ccc; background: #fff; color: #111; } .buy-price .sub { color: #111; } }
 
 /* Impresión técnica en fondo blanco */
 @media print {
@@ -716,3 +717,25 @@ table.cut tbody tr.part { background: rgb(42 111 158 / .38); box-shadow: inset 3
   .buy li { border-color: #bbb; background: #fff; color: #111; }
   .buy .q { color: #075b8d; }
 }
+
+/* ---------- planos y manual ---------- */
+.docs .plan-sheet { background: #fff; border-radius: 4px; padding: 4px; overflow: hidden; }
+.plan-svg { width: 100%; height: auto; display: block; }
+.doc-h { margin: 16px 0 6px; font-size: 12.5px; color: #8fd0ff; text-transform: uppercase; letter-spacing: .04em; }
+table.spec { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.spec th { text-align: left; width: 34%; color: #9aa3ad; font-weight: 600; vertical-align: top; padding: 5px 8px 5px 0; border-bottom: 1px solid #2c3541; }
+table.spec td { padding: 5px 0; border-bottom: 1px solid #2c3541; color: #dfe5ec; }
+.manual ol { margin: 0 0 4px; padding-left: 22px; font-size: 12.5px; line-height: 1.5; color: #dfe5ec; }
+.manual li { margin: 0 0 7px; }
+.mnav button span { font-size: 10px; }
+@media (max-width: 480px) { .mnav button { padding-left: 2px; padding-right: 2px; } .mnav button span { font-size: 9.5px; } }
+@media print {
+  .docs .plan-sheet { border: 1px solid #999; }
+  .doc-h { color: #075b8d; }
+  table.spec th { color: #333; } table.spec td, .manual ol { color: #111; } table.spec th, table.spec td { border-color: #ccc; }
+  .tab-body.show { display: block !important; }
+}
+.plan-sheet.big { position: fixed; inset: 0; z-index: 60; overflow: auto; padding: 12px; border-radius: 0; }
+.plan-sheet.big .plan-svg { width: max(1100px, 100%); }
+.plan-close { position: sticky; top: 0; left: 0; z-index: 2; margin-bottom: 6px; }
+.sec-head .mini { margin-left: auto; padding: 3px 10px; font-size: 11px; }

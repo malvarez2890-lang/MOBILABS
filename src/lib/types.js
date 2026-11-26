@@ -3,7 +3,7 @@ import { SHEETS, LINEARS, MAIN_SHEETS } from './materials.js';
 import { carcass } from './carcass.js';
 import { tableFrame, stackTop } from './table.js';
 import { cm } from './util.js';
-import { LEG_STYLES_ALL, LEG_STYLES_WOOD, LEG_STYLES_CHAIR, legSpec, placeLeg, normSize } from './legs.js';
+import { LEG_STYLES_ALL, LEG_STYLES_WOOD, LEG_STYLES_CHAIR, legSpec, placeLeg, normSize, isProductStyle, LEG_HEIGHTS_CABINET, LEG_HEIGHTS_TABLE } from './legs.js';
 import { HANDLE_TYPES, HANDLE_C2C, HINGE_MODES, handleFromValues, handleSummary } from './handles.js';
 import { drawerUnit } from './drawers.js';
 import { credenza } from './credenza.js';
@@ -15,9 +15,15 @@ const bool = (key, label, def, extra = {}) => ({ type: 'bool', key, label, def, 
 
 const MAT = sel('mat', 'Tablero principal', 'mel18', MAIN_SHEETS.map((id) => [id, SHEETS[id].name]), { section: 'Materiales' });
 /** Estilo y tamaño de patas (dos parámetros). styles: 'all' | 'wood' | 'chair' */
-const LEGS = (size = 'grueso', extra = {}, styles = 'all') => [
+const productH = (list) => list.map((h) => [String(h), `${h} cm`]);
+const LEGS = (size = 'grueso', extra = {}, styles = 'all', table = true) => [
   sel('pataEstilo', 'Estilo de patas', 'cuadrada', styles === 'all' ? LEG_STYLES_ALL : styles === 'chair' ? LEG_STYLES_CHAIR : LEG_STYLES_WOOD, extra),
   sel('pata', 'Tamaño de las patas', size, [['fino', 'Delgadas'], ['grueso', 'Gruesas']], extra),
+  ...(styles === 'chair' ? [] : [
+    sel('pataAlto', 'Alto de la pata (producto listo)', table ? '71' : '15', productH(table ? LEG_HEIGHTS_TABLE : LEG_HEIGHTS_CABINET), {
+      visibleIf: (v) => (!extra.visibleIf || extra.visibleIf(v)) && isProductStyle(v.pataEstilo),
+    }),
+  ]),
 ];
 
 /** Tiradores de las puertas (solo se muestran si el mueble tiene puertas). */
@@ -35,17 +41,18 @@ const HANDLES = (hasDoors, drawers = false) => {
   return drawers ? list.filter((q) => !['tiradorOrient', 'tiradorX', 'bisagra'].includes(q.key)) : list;
 };
 const WHEEL_SIZES = [['fino', 'Ø50 mm (7 cm de alto)'], ['grueso', 'Ø75 mm (10 cm de alto)']];
-const showBaseH = (v) => v.base === 'zocalo' || v.base === 'patas'; // con ruedas, la altura la define la rueda
-const legOf = (v) => (v.base === 'ruedas' ? legSpec('ruedas', v.ruedaTam) : legSpec(v.pataEstilo, v.pata));
+const showBaseH = (v) => v.base === 'zocalo' || (v.base === 'patas' && !isProductStyle(v.pataEstilo)); // con ruedas, la altura la define la rueda
+const legOf = (v) => (v.base === 'ruedas' ? legSpec('ruedas', v.ruedaTam) : legSpec(v.pataEstilo, v.pata, { h: Number(v.pataAlto || 15) * 10 }));
 
 /** Patas y ruedas de los muebles de cajón: aparecen justo debajo de "Base", según lo elegido. */
 const CARCASS_LEGS = (size = 'fino', style = 'cuadrada') => [
   sel('pataEstilo', 'Estilo de patas', style, LEG_STYLES_ALL, { visibleIf: isLegs }),
   sel('pata', 'Tamaño de las patas', size, [['fino', 'Delgadas'], ['grueso', 'Gruesas']], { visibleIf: isLegs }),
+  sel('pataAlto', 'Alto de la pata (producto listo)', '15', LEG_HEIGHTS_CABINET.map((h) => [String(h), `${h} cm`]), { visibleIf: (v) => isLegs(v) && isProductStyle(v.pataEstilo) }),
   sel('ruedaTam', 'Tamaño de las ruedas', 'fino', WHEEL_SIZES, { visibleIf: isWheels }),
 ];
 /** "Con ruedas" para mesas: las patas se acortan y cada una apoya en una rueda. */
-const STRAIGHT_LEGS = (v) => !['inclinada', 'aceroDiagonal', 'aceroU'].includes(v.pataEstilo); // patas rectas de madera: admiten ruedas
+const STRAIGHT_LEGS = (v) => !['inclinada', 'aceroDiagonal', 'aceroU'].includes(v.pataEstilo) && !isProductStyle(v.pataEstilo); // patas rectas de madera: admiten ruedas
 const TABLE_WHEELS = (visibleIf = () => true) => [
   bool('ruedas', 'Con ruedas giratorias', false, { visibleIf: (v) => visibleIf(v) && STRAIGHT_LEGS(v) }),
   sel('ruedaTam', 'Tamaño de las ruedas', 'fino', WHEEL_SIZES, { visibleIf: (v) => visibleIf(v) && STRAIGHT_LEGS(v) && v.ruedas }),
@@ -53,7 +60,7 @@ const TABLE_WHEELS = (visibleIf = () => true) => [
 const casterOf = (v) => (v.ruedas && STRAIGHT_LEGS(v) ? legSpec('ruedas', v.ruedaTam) : null);
 
 const BASE_OPTS = [['none', 'Sin base'], ['zocalo', 'Zócalo'], ['patas', 'Patas'], ['ruedas', 'Ruedas giratorias']];
-const BACK_OPTS = [['hdf', 'Panel HDF 3 mm'], ['rails', 'Travesaños (abierta)'], ['none', 'Sin trasera']];
+const BACK_OPTS = [['hdf', 'Panel MDF 3 mm'], ['rails', 'Travesaños (abierta)'], ['none', 'Sin trasera']];
 const TOP_OPTS = [['simple', 'Un tablero'], ['doble', 'Doble (más gruesa)']];
 const notNone = (v) => v.base !== 'none';
 const isLegs = (v) => v.base === 'patas';
@@ -138,7 +145,7 @@ export const FURNITURE = [
       num('ancho', 'Largo', 160, 80, 240, 1, 'cm', { visibleIf: (v) => v.forma !== 'redonda' }),
       num('fondo', 'Ancho', 80, 50, 120, 1, 'cm', { visibleIf: (v) => v.forma !== 'redonda' }),
       num('diametro', 'Diámetro', 110, 60, 160, 1, 'cm', { visibleIf: (v) => v.forma === 'redonda' }),
-      num('alto', 'Alto', 75, 60, 80),
+      num('alto', 'Alto', 75, 60, 80, 1, 'cm', { visibleIf: (v) => !isProductStyle(v.pataEstilo) }),
       sel('tapa', 'Tapa', 'simple', TOP_OPTS, { section: 'Estructura' }),
       num('voladizo', 'Retranqueo de patas', 6, 0, 15, 1, 'cm', { visibleIf: (v) => v.forma !== 'redonda' }),
       ...LEGS('grueso', {}, 'wood'),
@@ -188,9 +195,9 @@ export const FURNITURE = [
     params: [
       num('ancho', 'Largo', 110, 60, 200, 1, 'cm', { section: 'Medidas' }),
       num('fondo', 'Fondo', 30, 20, 45),
-      num('alto', 'Alto', 80, 60, 100),
-      bool('estante', 'Repisa inferior', true, { section: 'Estructura', visibleIf: (v) => !['inclinada', 'aceroDiagonal'].includes(v.pataEstilo) }),
-      num('altoEstante', 'Altura de la repisa', 20, 10, 50, 1, 'cm', { visibleIf: (v) => v.estante && !['inclinada', 'aceroDiagonal'].includes(v.pataEstilo) }),
+      num('alto', 'Alto', 80, 60, 100, 1, 'cm', { visibleIf: (v) => !isProductStyle(v.pataEstilo) }),
+      bool('estante', 'Repisa inferior', true, { section: 'Estructura', visibleIf: (v) => !['inclinada', 'aceroDiagonal'].includes(v.pataEstilo) && !isProductStyle(v.pataEstilo) }),
+      num('altoEstante', 'Altura de la repisa', 20, 10, 50, 1, 'cm', { visibleIf: (v) => v.estante && !['inclinada', 'aceroDiagonal'].includes(v.pataEstilo) && !isProductStyle(v.pataEstilo) }),
       num('voladizo', 'Retranqueo de patas', 3, 0, 8, 1, 'cm'),
       ...LEGS('fino', {}, 'wood'),
       ...TABLE_WHEELS(),
@@ -219,10 +226,10 @@ export const FURNITURE = [
     params: [
       num('ancho', 'Largo', 120, 80, 200, 1, 'cm', { section: 'Medidas' }),
       num('fondo', 'Fondo', 60, 45, 90),
-      num('alto', 'Alto', 75, 65, 80),
+      num('alto', 'Alto', 75, 65, 80, 1, 'cm', { visibleIf: (v) => !(v.estilo === 'patas' && isProductStyle(v.pataEstilo)) }),
       sel('estilo', 'Estilo', 'paneles', [['paneles', 'Laterales de tablero'], ['patas', 'Patas de pino']], { section: 'Estructura' }),
       sel('tapa', 'Tapa', 'simple', TOP_OPTS),
-      bool('panelFrontal', 'Panel trasero (esconde cables)', true),
+      bool('panelFrontal', 'Panel trasero (esconde cables)', true, { visibleIf: (v) => v.estilo !== 'patas' || !['inclinada', 'aceroDiagonal', 'afinada', 'redonda', 'redondaAfinada'].includes(v.pataEstilo) }),
       bool('repisaInferior', 'Repisa inferior', false),
       sel('cajonera', 'Cajonera', 'no', [['no', 'Sin cajonera'], ['izq', 'A la izquierda'], ['der', 'A la derecha'], ['ambos', 'A ambos lados']], { visibleIf: (v) => v.estilo === 'paneles' }),
       num('cajones', 'Cantidad de cajones', 3, 1, 5, 1, 'u', { visibleIf: (v) => v.estilo === 'paneles' && v.cajonera !== 'no' }),
@@ -254,7 +261,10 @@ export const FURNITURE = [
           W, D, H, mat, layers, leg: legOf(v), casters: casterOf(v), oh: 30,
           shelf: v.repisaInferior ? { y: 150 } : null,
         });
-        if (v.panelFrontal) {
+        const openLegs = ['inclinada', 'aceroDiagonal', 'afinada', 'redonda', 'redondaAfinada'].includes(v.pataEstilo);
+        if (v.panelFrontal && openLegs) {
+          p.tip('Con patas en diagonal o patas listas no se agrega el panel trasero: no hay faldón ni estructura donde fijarlo.');
+        } else if (v.panelFrontal) {
           p.B('Panel trasero', mat, o.ohx + o.s, o.yA - 250, o.ohz, W - 2 * o.ohx - 2 * o.s, 250, 'u');
           p.joint(250, 2);
         }
@@ -287,7 +297,7 @@ export const FURNITURE = [
         const iw = rightEdge - leftEdge; // espacio libre para las piernas
         if (fronts.length) {
           handleSummary(p, hspec, fronts, fxs, 'cajón');
-          p.tip(`La cajonera tiene ${v.cajones} cajones con correderas telescópicas; las cajas son de melamina de 15 mm con fondo de HDF.`);
+          p.tip(`La cajonera tiene ${v.cajones} cajones con correderas telescópicas; las cajas son de melamina de 15 mm con fondo de MDF de 3 mm.`);
         }
         if (mode !== 'no' && iw < 500) p.warn(`Queda solo ${cm(iw)} cm libres para las piernas; lo cómodo son 50 cm o más. Reduce la cajonera o alarga el escritorio.`);
         if (v.panelFrontal) {
@@ -325,7 +335,7 @@ export const FURNITURE = [
     build(v) {
       const p = new PartList();
       const t = SHEETS[v.mat].t;
-      const front = legSpec(v.pataEstilo === 'afinada' ? 'afinada' : 'cuadrada', v.pata); // patas delanteras
+      const front = legSpec(v.pataEstilo === 'afinada' ? 'afinada' : 'cuadrada', v.pata, { cut: true }); // patas delanteras
       const back = legSpec('cuadrada', v.pata); // las traseras suben hasta el respaldo: van rectas
       const s = front.s;
       const W = v.ancho * 10;

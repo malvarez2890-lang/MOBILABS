@@ -14,7 +14,7 @@ export function drawerUnit(p, o) {
   const top = H - topT;
   const baseY = 50; // espacio para niveladores
   const back = SHEETS.hdf3.t;
-  const boxMat = 'mel15'; // las cajas de los cajones van en melamina de 15 mm (fondo en HDF)
+  const boxMat = 'mel15'; // las cajas de los cajones van en melamina de 15 mm (fondo en MDF de 3 mm)
   const tb = SHEETS[boxMat].t;
 
   p.V('Lateral', mat, x, 0, z, top, d, 'f');

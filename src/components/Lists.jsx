@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { materialOf, SHEETS, sectionLabel } from '../lib/materials.js';
 import { fmt, cm } from '../lib/util.js';
-import { fmtCLP, searchUrl, PRICE_NOTE } from '../lib/pricing.js';
+import { fmtCLP, searchTerm, storeLinks, PRICE_NOTE } from '../lib/pricing.js';
 
 const hue = (label) => {
   let h = 0;
@@ -219,7 +219,11 @@ export function Shopping({ shop, priced, onCopy, copied, onPrice, onResetPrices,
                 <div className="buy-price">
                   <PriceField row={r} onPrice={onPrice} />
                   <b className="sub">{r.missing ? '—' : fmtCLP(r.subtotal)}</b>
-                  <a className="find" href={searchUrl(r.label)} target="_blank" rel="noopener noreferrer" title="Buscar el precio en la web">buscar ↗</a>
+                  <span className="finds" title={`Buscar «${searchTerm(r.key, r.label)}»`}>
+                    {storeLinks(searchTerm(r.key, r.label)).map((s) => (
+                      <a key={s.name} className="find" href={s.url} target="_blank" rel="noopener noreferrer">{s.name} ↗</a>
+                    ))}
+                  </span>
                 </div>
               </li>
             ))}

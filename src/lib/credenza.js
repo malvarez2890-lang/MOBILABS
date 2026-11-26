@@ -27,10 +27,10 @@ export function credenza(p, o) {
   if (base === 'patas' || base === 'ruedas') {
     const fits = (sp, i) => Db >= 2 * (i + sp.s) + 20;
     ins = fits(leg, 25) ? 25 : 10;
-    if (!fits(leg, ins) && leg.size === 'grueso') leg = legSpec(leg.style, 'fino');
+    if (!fits(leg, ins) && leg.size === 'grueso') leg = legSpec(leg.style, 'fino', { h: leg.h });
     if (leg.splay && fits(leg, 45)) ins = 45; // diagonales: más hacia adentro para que al abrirse no sobresalgan
   }
-  const baseH = base === 'none' ? 0 : leg.kind === 'caster' ? leg.h : o.baseH;
+  const baseH = base === 'none' ? 0 : leg.kind === 'caster' || leg.kind === 'product' ? leg.h : o.baseH;
   const platformH = Math.min(o.platformH, H - 250); // al menos 25 cm de respaldo sobre la plataforma
   const innerBottom = baseH + t; // piso interior (sobre la base)
   const ttTop = platformH - t; // cara inferior de la plataforma
@@ -62,7 +62,7 @@ export function credenza(p, o) {
   p.B('Respaldo del tocadiscos', o.mat, riserX0, platformH, 0, izq ? divX : W - riserX0, H - platformH, 'tul');
   p.joint(Db, 8);
 
-  // ---- traseras (HDF) ----
+  // ---- traseras (MDF 3 mm) ----
   const ttBackX0 = izq ? 0 : divX + t;
   p.B('Trasera', 'hdf3', ttBackX0, baseH, 0, izq ? divX : W - ttBackX0, ttTop - baseH, '');
   p.B('Trasera', 'hdf3', izq ? divX : 0, baseH, 0, izq ? W - divX : divX + t, H - t - baseH, '');

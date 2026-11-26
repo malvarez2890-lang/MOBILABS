@@ -7,7 +7,7 @@ export const SHEETS = {
   mdf18: { id: 'mdf18', short: 'MDF 18', name: 'MDF 18 mm', t: 18, size: [2440, 1830], color: '#c8a571', edge: false, maxSpan: 750 },
   ter18: { id: 'ter18', short: 'Terciado 18', name: 'Terciado 18 mm', t: 18, size: [2440, 1220], color: '#dcb67c', edge: false, maxSpan: 900 },
   ter15: { id: 'ter15', short: 'Terciado 15', name: 'Terciado 15 mm', t: 15, size: [2440, 1220], color: '#dcb67c', edge: false, maxSpan: 750 },
-  hdf3: { id: 'hdf3', short: 'HDF 3 mm', name: 'HDF / fibrofácil 3 mm (trasera)', t: 3, size: [2440, 1220], color: '#9c7b58', edge: false, maxSpan: 0 },
+  hdf3: { id: 'hdf3', short: 'MDF 3 mm', name: 'MDF 3 mm (trasera)', t: 3, size: [2440, 1220], color: '#9c7b58', edge: false, maxSpan: 0 },
 };
 
 /** Tableros que el usuario puede elegir como material principal */
