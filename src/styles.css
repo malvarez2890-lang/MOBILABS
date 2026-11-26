@@ -790,3 +790,21 @@ html, body { overscroll-behavior: none; }
 .size-pick.custom input { width: 72px; padding: 5px 6px; font-size: 13px; border: 1px solid #647187; background: #3c485a; color: #fff; }
 .chip-l { display: inline-block; min-width: 24px; padding: 1px 6px; text-align: center; border: 1px solid; border-radius: 3px; font-weight: 700; color: #111; }
 .legend table.letters td { font-size: 12.5px; }
+
+/* ---------- tutorial ---------- */
+.tour-layer { position: fixed; inset: 0; z-index: 200; }
+.tour-dim { position: absolute; inset: 0; background: rgb(8 12 18 / .74); }
+.tour-spot { position: absolute; border: 2px solid #42a9e9; border-radius: 6px; box-shadow: 0 0 0 9999px rgb(8 12 18 / .74), 0 0 18px 2px rgb(66 169 233 / .55); transition: all .45s cubic-bezier(.5, 0, .2, 1); pointer-events: none; }
+.tour-tip { position: absolute; width: min(340px, calc(100vw - 20px)); padding: 14px 16px 12px; background: #fff; color: #17202b; border-radius: 10px; box-shadow: 0 14px 36px rgb(0 0 0 / .5); transition: left .45s cubic-bezier(.5, 0, .2, 1), top .45s cubic-bezier(.5, 0, .2, 1); }
+.tour-tip b { display: block; margin-bottom: 4px; font-size: 16px; }
+.tour-tip p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.5; color: #333c47; }
+.tour-count { float: right; color: #7a8795; font-size: 11px; }
+.tour-dots { display: flex; gap: 4px; margin-bottom: 10px; }
+.tour-dots i { width: 7px; height: 7px; border-radius: 50%; background: #cdd6df; }
+.tour-dots i.on { background: #1d8fd6; }
+.tour-nav { display: flex; gap: 6px; align-items: center; }
+.tour-nav span { flex: 1; }
+.tour-nav button { padding: 7px 13px; border: 1px solid #b6c2cf; background: #eef2f6; color: #17202b; border-radius: 5px; cursor: pointer; font: 600 13px inherit; font-family: inherit; }
+.tour-nav button.primary { background: #1d8fd6; border-color: #1d8fd6; color: #fff; }
+.tour-nav .tour-skip { border: 0; background: none; color: #667585; font-weight: 500; text-decoration: underline; padding-left: 0; }
+@media print { .tour-layer, #boot { display: none !important; } }

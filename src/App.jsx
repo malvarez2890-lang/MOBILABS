@@ -11,6 +11,7 @@ import Viewer3D from './components/Viewer3D.jsx';
 import { CutList, SheetPlans, Shopping, labelColor, labelStroke } from './components/Lists.jsx';
 import { Planos, Manual } from './components/Docs.jsx';
 import { ViewManager } from './components/ViewWindows.jsx';
+import Tour from './components/Tour.jsx';
 import { buildDrawing, techSpec } from './lib/plans.js';
 import { buildManual } from './lib/manual.js';
 import ContextMenu from './components/ContextMenu.jsx';
@@ -65,6 +66,16 @@ export default function App() {
   const [menu, setMenu] = useState(null); // menú de clic derecho
   const [propsOpen, setPropsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const closeTour = () => { setTourOpen(false); try { localStorage.setItem('mobilabs-tour', '1'); } catch { /* sin almacenamiento */ } };
+  // el tutorial se abre solo la primera vez, cuando termina la pantalla de carga
+  useEffect(() => {
+    let seen = false;
+    try { seen = !!localStorage.getItem('mobilabs-tour'); } catch { /* sin almacenamiento */ }
+    if (seen) return undefined;
+    const id = setTimeout(() => setTourOpen(true), 3700);
+    return () => clearTimeout(id);
+  }, []);
   const [slot3d, setSlot3d] = useState(null); // casilla de la vista 3D en el mosaico
   const [multi, setMulti] = useState(false); // selección múltiple con toques (pantallas táctiles)
   const [mview, setMview] = useState('diseno'); // en teléfono: 'diseno' | 'resultados'
@@ -372,6 +383,7 @@ export default function App() {
       <header className="top">
         <div className="brand"><img className="logo" src={logoUrl} alt="" width="36" height="36" /><span className="brand-text"><b>MOBILABs</b><small>diseña · cubica · compra · arma</small></span></div>
         <div className="top-actions">
+          <button className="btn" onClick={() => setTourOpen(true)} title="Ver el tutorial de la aplicación">Tutorial</button>
           {PUBLISHED ? (
             <button className="btn primary" onClick={copyCuts} title="Copia el despiece y las compras para pegar en Excel, Sheets o un mensaje">
               {copiedCuts ? '¡Copiado!' : <>Copiar<span className="long"> despiece</span></>}
@@ -542,6 +554,7 @@ export default function App() {
         <div className={`tab-body ${tab === 'compras' ? 'show' : ''}`}><Shopping shop={shop} priced={priced} onCopy={copy} copied={copied} onPrice={setPrice} onResetPrices={() => setPrices({})} onImportPrices={importPrices} onExportPrices={PUBLISHED ? null : () => download('precios-mobilabs.csv', pricesToCsv(priced))} /></div>
       </aside>
 
+      {tourOpen && <Tour onClose={closeTour} />}
       <nav className="mnav" aria-label="Secciones">
         {[['diseno', 'Diseño'], ['piezas', 'Piezas'], ['cortes', 'Cortes'], ['compras', 'Compras'], ['planos', 'Planos'], ['manual', 'Manual']].map(([id, label]) => {
           const active = id === 'diseno' ? mview === 'diseno' : mview === 'resultados' && tab === id;

@@ -5,6 +5,13 @@ import './styles.css';
 
 createRoot(document.getElementById('root')).render(<App />);
 
+// La pantalla de carga se queda lo justo para ver la animación y se desvanece.
+const boot = document.getElementById('boot');
+if (boot) {
+  const wait = Math.max(0, 3000 - performance.now());
+  setTimeout(() => { boot.classList.add('out'); setTimeout(() => boot.remove(), 700); }, wait);
+}
+
 // Evita "volver a la página anterior" por accidente (gestos del mouse con botón derecho, deslizar con dos dedos):
 // se deja una entrada propia en el historial y se vuelve a poner cada vez que el navegador intenta retroceder.
 try {
