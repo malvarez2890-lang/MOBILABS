@@ -5,11 +5,25 @@ import './styles.css';
 
 createRoot(document.getElementById('root')).render(<App />);
 
-// La pantalla de carga se queda lo justo para ver la animación y se desvanece.
+// La pantalla de carga espera a que el usuario entre con el botón (después de ver la animación y cuando la app ya cargó).
 const boot = document.getElementById('boot');
 if (boot) {
-  const wait = Math.max(0, 3000 - performance.now());
-  setTimeout(() => { boot.classList.add('out'); setTimeout(() => boot.remove(), 700); }, wait);
+  const go = document.getElementById('bootgo');
+  const enter = () => {
+    boot.classList.add('out');
+    setTimeout(() => boot.remove(), 700);
+    window.removeEventListener('keydown', onKey);
+    window.dispatchEvent(new Event('mobilabs-enter'));
+  };
+  const onKey = (e) => { if (e.key === 'Enter' && go.classList.contains('ready')) enter(); };
+  setTimeout(() => {
+    go.disabled = false;
+    go.textContent = 'Listo para cortar →';
+    go.classList.add('ready');
+    go.focus();
+  }, Math.max(0, 2400 - performance.now()));
+  go.addEventListener('click', enter);
+  window.addEventListener('keydown', onKey);
 }
 
 // Evita "volver a la página anterior" por accidente (gestos del mouse con botón derecho, deslizar con dos dedos):

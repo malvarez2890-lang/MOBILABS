@@ -73,8 +73,11 @@ export default function App() {
     let seen = false;
     try { seen = !!localStorage.getItem('mobilabs-tour'); } catch { /* sin almacenamiento */ }
     if (seen) return undefined;
-    const id = setTimeout(() => setTourOpen(true), 3700);
-    return () => clearTimeout(id);
+    // el tutorial se abre cuando el usuario entra desde la pantalla de carga (o poco después de cargar, si no hay pantalla)
+    if (!document.getElementById('boot')) { const id = setTimeout(() => setTourOpen(true), 800); return () => clearTimeout(id); }
+    const open = () => setTimeout(() => setTourOpen(true), 700);
+    window.addEventListener('mobilabs-enter', open, { once: true });
+    return () => window.removeEventListener('mobilabs-enter', open);
   }, []);
   const [slot3d, setSlot3d] = useState(null); // casilla de la vista 3D en el mosaico
   const [multi, setMulti] = useState(false); // selección múltiple con toques (pantallas táctiles)
