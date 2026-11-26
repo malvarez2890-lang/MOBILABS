@@ -370,7 +370,7 @@ export default function App() {
   return (
     <div className="app" data-mview={mview}>
       <header className="top">
-        <div className="brand"><img className="logo" src={logoUrl} alt="" width="36" height="36" /> MOBILABs <small>diseña · cubica · compra</small></div>
+        <div className="brand"><img className="logo" src={logoUrl} alt="" width="36" height="36" /><span className="brand-text"><b>MOBILABs</b><small>diseña · cubica · compra · arma</small></span></div>
         <div className="top-actions">
           {PUBLISHED ? (
             <button className="btn primary" onClick={copyCuts} title="Copia el despiece y las compras para pegar en Excel, Sheets o un mensaje">
