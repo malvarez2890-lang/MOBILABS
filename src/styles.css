@@ -124,6 +124,7 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
   grid-area: left;
   min-width: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 0 8px 14px;
   background: var(--panel);
   border-right: 2px solid #1d2530;
@@ -349,6 +350,7 @@ select { width: 100%; padding: 3px 6px; }
   grid-area: right;
   min-width: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   background: var(--panel);
   border-left: 2px solid #1d2530;
   scrollbar-color: #657185 #2a3443;
