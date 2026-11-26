@@ -25,6 +25,7 @@ npm test         # verifica geometría y cubicación de ~570 configuraciones
 | `src/lib/packing.js` | Despiece agrupado + optimización de cortes (MaxRects 2D y listones 1D). |
 | `src/lib/shopping.js` | Lista de compras. |
 | `src/lib/plans.js` | Planimetría base (elevaciones, planta y cotas) y ficha técnica. |
+| `src/lib/bim.js` | Exportación BIM: IFC 2x3 (Revit, ArchiCAD…) y script Python que crea una familia nativa de Revit (.rfa). |
 | `src/lib/manual.js` | Manual de armado generado a partir de las piezas reales. |
 | `src/components/` | Visor 3D (three.js), formulario y listas. |
 
@@ -47,6 +48,8 @@ https://mobilabs.elbunkerservers.com/ (Cloudflare). También se despliega en Git
 
 ## Costos
 Las pestañas **Planos** (elevaciones frontal y lateral, planta, cotas y especificación técnica; botón «Ampliar» e Imprimir/PDF) y **Manual** (pasos de armado con las letras del despiece) se generan solas para cada mueble. Las patas cónicas/redondas son **productos listos de alto fijo** (como se venden en Sodimac o Mercado Libre) y los enlaces de búsqueda de la lista de compras usan nombres comerciales chilenos.
+
+El menú **Revit / BIM** descarga el mueble como **IFC** (Abrir o Vincular IFC en Revit) o como **script de familia de Revit**: ejecutado en pyRevit, RevitPythonShell o un nodo Python de Dynamo, crea una familia de Mobiliario con cada pieza como extrusión y su material, la guarda en Documentos\MOBILABs y la carga en el proyecto.
 
 La pestaña **Compras** calcula un costo aproximado en pesos chilenos. Los precios que trae son **valores de ejemplo**
 (no vienen de ninguna tienda): cada línea tiene un campo para poner el precio de tu proveedor, se guardan en el navegador y se

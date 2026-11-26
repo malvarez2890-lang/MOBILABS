@@ -808,3 +808,15 @@ html, body { overscroll-behavior: none; }
 .tour-nav button.primary { background: #1d8fd6; border-color: #1d8fd6; color: #fff; }
 .tour-nav .tour-skip { border: 0; background: none; color: #667585; font-weight: 500; text-decoration: underline; padding-left: 0; }
 @media print { .tour-layer, #boot { display: none !important; } }
+
+/* ---------- menú Revit / BIM ---------- */
+.bim-menu { position: relative; }
+.bim-menu > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; height: 100%; }
+.bim-menu > summary::-webkit-details-marker { display: none; }
+.bim-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; width: 320px; background: #2b3646; border: 1px solid #5d6b80; box-shadow: 0 10px 26px rgb(0 0 0 / .45); display: flex; flex-direction: column; }
+.bim-pop button { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 10px 12px; border: 0; border-bottom: 1px solid #3d4a5d; background: none; color: #eef2f6; cursor: pointer; font-family: inherit; }
+.bim-pop button:last-child { border-bottom: 0; }
+.bim-pop button:hover { background: #285f82; }
+.bim-pop b { font-size: 13px; }
+.bim-pop span { font-size: 11.5px; color: #b7c3d0; line-height: 1.35; }
+.top { position: relative; z-index: 60; }

@@ -14,6 +14,7 @@ import { ViewManager } from './components/ViewWindows.jsx';
 import Tour from './components/Tour.jsx';
 import { buildDrawing, techSpec } from './lib/plans.js';
 import { buildManual } from './lib/manual.js';
+import { solidsOf, toIfc, toRevitPy } from './lib/bim.js';
 import ContextMenu from './components/ContextMenu.jsx';
 import PropsDialog from './components/PropsDialog.jsx';
 import { partKeys, TEXTURES } from './lib/looks.js';
@@ -40,8 +41,8 @@ const load = () => {
   try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; }
 };
 
-function download(name, text, mime = 'text/csv;charset=utf-8') {
-  const url = URL.createObjectURL(new Blob(['﻿' + text], { type: mime }));
+function download(name, text, mime = 'text/csv;charset=utf-8', bom = true) {
+  const url = URL.createObjectURL(new Blob([(bom ? '﻿' : '') + text], { type: mime }));
   const a = Object.assign(document.createElement('a'), { href: url, download: name });
   document.body.appendChild(a);
   a.click();
@@ -349,6 +350,27 @@ export default function App() {
     return rows;
   };
 
+  // ---- exportación BIM: IFC y script de familia de Revit ----
+  const bimInfo = () => {
+    const letterOf = new Map();
+    plans.groups.forEach((g) => g.ids.forEach((id) => letterOf.set(id, g.label)));
+    const [w, h, d] = model.bbox.dims;
+    const dimsTxt = `${Math.round(w / 10)}x${Math.round(h / 10)}x${Math.round(d / 10)}`;
+    return {
+      title: `${type.name} ${cm(w)} × ${cm(h)} × ${cm(d)} cm`,
+      desc: type.desc || '',
+      typeName: type.name,
+      fileBase: `MOBILABs_${type.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_')}_${dimsTxt}`,
+      dims: [w, h, d],
+      mainMat: materialOf(values.mat)?.name || '',
+      cost: priced.total,
+      cutText: plans.groups.map((g) => `${g.label} ${g.name} ${Math.round(g.l)}${g.w ? `x${Math.round(g.w)}` : ''} mm x${g.qty}`).join('; '),
+      solids: solidsOf(model, letterOf),
+    };
+  };
+  const exportIfc = () => { const i = bimInfo(); download(`${i.fileBase}.ifc`, toIfc(model, i), 'application/x-step', false); };
+  const exportRevit = () => { const i = bimInfo(); download(`${i.fileBase}_familia_revit.py`, toRevitPy(model, i), 'text/x-python;charset=utf-8', false); };
+
   const exportCsv = () => {
     const csv = buildRows().map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
     download(`${type.id}-despiece.csv`, csv);
@@ -393,6 +415,17 @@ export default function App() {
             </button>
           ) : (
             <>
+              <details className="bim-menu">
+                <summary className="btn">Revit / BIM ▾</summary>
+                <div className="bim-pop">
+                  <button onClick={(e) => { exportIfc(); e.currentTarget.closest('details').open = false; }}>
+                    <b>Descargar IFC</b><span>Revit, ArchiCAD, Navisworks… (Abrir o Vincular IFC)</span>
+                  </button>
+                  <button onClick={(e) => { exportRevit(); e.currentTarget.closest('details').open = false; }}>
+                    <b>Familia de Revit (.rfa)</b><span>Script para pyRevit, RevitPythonShell o Dynamo: crea la familia de mobiliario y la carga en tu proyecto</span>
+                  </button>
+                </div>
+              </details>
               <button className="btn" onClick={exportCsv}><span className="long">Descargar </span>CSV</button>
             </>
           )}
