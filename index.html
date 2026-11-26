@@ -34,8 +34,8 @@
         #boot .dt{fill:#e10000;font:15px 'Arial Narrow',Arial,sans-serif;opacity:0;animation:bfade .5s ease 1.7s forwards}
         #boot b{display:block;margin-top:16px;font-size:clamp(26px,5vw,36px);letter-spacing:.06em;font-weight:800;opacity:0;animation:bfade .7s ease 1.9s forwards}
         #boot span{display:block;color:#9fb0c4;letter-spacing:.12em;font-size:clamp(11px,2.2vw,13px);opacity:0;animation:bfade .7s ease 2.1s forwards}
-        #boot .bar{height:3px;width:min(340px,70%);margin:20px auto 0;background:#ffffff22;border-radius:2px;overflow:hidden}
-        #boot .bar i{display:block;height:100%;width:100%;background:#42a9e9;transform:scaleX(0);transform-origin:left}
+        #boot .bbar{height:3px;width:min(340px,70%);margin:20px auto 0;background:#ffffff22;border-radius:2px;overflow:hidden}
+        #boot .bbar i{display:block;height:100%;width:100%;background:#42a9e9;transform:scaleX(0);transform-origin:left}
         #boot button{margin-top:22px;min-width:230px;padding:14px 28px;border:0;border-radius:8px;background:#42a9e9;color:#06141f;font:800 17px inherit;font-family:inherit;cursor:pointer;opacity:.45;transition:opacity .4s,transform .2s,box-shadow .2s}
         #boot button:disabled{cursor:progress;background:#42a9e966;color:#dfe9f3}
         #boot button.ready{opacity:1;box-shadow:0 8px 24px #42a9e966;animation:bpulse 2s ease-in-out infinite}
@@ -57,14 +57,14 @@
           <text class="dt" x="262" y="244">150</text><text class="dt" x="598" y="90">78</text>
         </g></svg>
         <b>MOBILABs</b><span>DISEÑA · CUBICA · COMPRA · ARMA</span>
-        <div class="bar"><i></i></div>
+        <div class="bbar"><i></i></div>
         <button id="bootgo" type="button" disabled>Preparando el taller…</button>
       </div>
     </div>
     <script>
       // La barra se llena según el reloj (no depende de animaciones CSS): al llegar al 100 % se habilita el botón.
       (function () {
-        var s = performance.now(), i = document.querySelector('#boot .bar i');
+        var s = performance.now(), i = document.querySelector('#boot .bbar i');
         window.__bootDone = false;
         function f() {
           var p = Math.min(1, (performance.now() - s) / 2600);

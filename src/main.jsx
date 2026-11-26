@@ -18,7 +18,7 @@ if (boot) {
   const onKey = (e) => { if (e.key === 'Enter' && go.classList.contains('ready')) enter(); };
   // el botón se habilita cuando la barra llegó al 100 % (la barra la mueve un script del propio index.html)
   const ready = () => {
-    const bar = boot.querySelector('.bar i');
+    const bar = boot.querySelector('.bbar i');
     if (bar) bar.style.transform = 'scaleX(1)';
     go.disabled = false;
     go.textContent = 'Listo para cortar →';
