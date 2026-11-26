@@ -5,10 +5,10 @@ import { labelFor } from './util.js';
 export function groupParts(parts) {
   const map = new Map();
   for (const p of parts) {
-    const key = `${p.kind}|${p.mat}|${p.name}|${p.cut.l}|${p.cut.w ?? ''}`;
+    const key = `${p.kind}|${p.mat}|${p.name}|${p.cut.l}|${p.cut.w ?? ''}|${p.shape || ''}`;
     let g = map.get(key);
     if (!g) {
-      g = { key, name: p.name, mat: p.mat, kind: p.kind, l: p.cut.l, w: p.cut.w ?? null, t: p.cut.t ?? null, qty: 0, ids: [], edgeMm: 0 };
+      g = { key, disc: p.shape === 'disc', name: p.name, mat: p.mat, kind: p.kind, l: p.cut.l, w: p.cut.w ?? null, t: p.cut.t ?? null, qty: 0, ids: [], edgeMm: 0 };
       map.set(key, g);
     }
     g.qty++;
@@ -57,7 +57,7 @@ function tryPlace(sheet, item, kerf, rotate) {
   sheet.free = next.filter((a, i) =>
     !next.some((b, j) => i !== j && a.x >= b.x - 1e-6 && a.y >= b.y - 1e-6 && a.x + a.w <= b.x + b.w + 1e-6 && a.y + a.h <= b.y + b.h + 1e-6 && (i > j || a.w < b.w || a.h < b.h || a.x !== b.x || a.y !== b.y)));
   sheet.placements.push({
-    label: item.label, name: item.name, x: best.x, y: best.y,
+    label: item.label, name: item.name, disc: !!item.disc, x: best.x, y: best.y,
     w: best.w - kerf, h: best.h - kerf, rot: best.rot,
   });
   return true;
@@ -112,7 +112,7 @@ export function packAll(parts, opts = {}) {
       const custom = opts.sheetCustom?.[mat];
       let choice = opts.sheetChoice?.[mat] === 'custom' && custom && custom.w > 0 && custom.l > 0 && SHEETS[mat].t > 3 ? 'custom' : opts.sheetChoice?.[mat] === 'alt' && SHEET_SIZES[mat] ? 'alt' : 'std';
       const items = gs
-        .flatMap((g) => Array.from({ length: g.qty }, () => ({ label: g.label, name: g.name, l: g.l, w: g.w })))
+        .flatMap((g) => Array.from({ length: g.qty }, () => ({ label: g.label, name: g.name, disc: g.disc, l: g.l, w: g.w })))
         .sort((a, b) => b.l * b.w - a.l * a.w || b.l - a.l);
       let size = sheetSize(mat, choice, custom);
       let packed = packRects(items, size[0], size[1], kerf, rotate);

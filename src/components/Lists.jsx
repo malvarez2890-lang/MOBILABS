@@ -46,7 +46,7 @@ export function CutList({ plans, onHover, selectedKeys, partialKeys, onSelect, s
                 tabIndex={0}
               >
                 <td><span className="chip" style={{ background: labelColor(g.label), borderColor: labelStroke(g.label) }}>{g.label}</span></td>
-                <td>{g.name}</td>
+                <td>{g.name}{g.disc ? <span className="muted"> (disco Ø{fmt(g.l)})</span> : null}</td>
                 <td className="r num">{fmt(g.l)}</td>
                 <td className="r num">{g.kind === 'sheet' ? fmt(g.w) : <span className="muted">{sectionLabel(g.mat)}</span>}</td>
                 <td className="r num"><b>{g.qty}</b></td>
@@ -74,7 +74,9 @@ function SheetSvg({ plan, sheet, index }) {
         <rect x="0" y="0" width={W} height={H} className="sheet-bg" />
         {sheet.placements.map((p, i) => (
           <g key={i}>
-            <rect x={p.x} y={p.y} width={p.w} height={p.h} fill={labelColor(p.label)} stroke={labelStroke(p.label)} strokeWidth="3" />
+            {p.disc
+              ? <ellipse cx={p.x + p.w / 2} cy={p.y + p.h / 2} rx={p.w / 2} ry={p.h / 2} fill={labelColor(p.label)} stroke={labelStroke(p.label)} strokeWidth="3" />
+              : <rect x={p.x} y={p.y} width={p.w} height={p.h} fill={labelColor(p.label)} stroke={labelStroke(p.label)} strokeWidth="3" />}
             {p.w > fs * 1.2 && p.h > fs * 1.15 && (
               <>
                 <text x={p.x + p.w / 2} y={p.y + p.h / 2 - (p.h > fs * 3.2 ? fs * 0.1 : 0)} textAnchor="middle" dominantBaseline="middle" fontSize={fs} fontWeight="700" fill="#2b2118">{p.label}</text>
