@@ -360,6 +360,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
         base: new THREE.Vector3((p.center[0] - bx) / 10, p.center[1] / 10, (p.center[2] - bz) / 10),
       };
       mesh.position.copy(mesh.userData.base);
+      if (p.rot) mesh.rotation.set(p.rot[0], p.rot[1], p.rot[2]); // patas inclinadas
       root.add(mesh);
     });
     // elementos comprados: tiradores, ruedas y patas metálicas
@@ -376,6 +377,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
       );
       mesh.userData = { id: f.id, fixture: true, parent: f.parent || null, pickId: f.parent || null, base, anchor: (f.parent && baseById.get(f.parent)) || base };
       mesh.position.copy(base);
+      if (f.rot) mesh.rotation.set(f.rot[0], f.rot[1], f.rot[2]);
       root.add(mesh);
     });
     // La cámara NO se mueve al cambiar medidas (sin zoom ni desplazamiento del fondo).

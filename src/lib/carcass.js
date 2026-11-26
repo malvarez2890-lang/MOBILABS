@@ -30,6 +30,8 @@ export function carcass(p, o) {
       legIns = fitsAt(legSp, 25) ? 25 : 10;
       legShrunk = true;
     }
+    // patas en diagonal: se instalan un poco más hacia adentro, para que al abrirse no sobresalgan del mueble
+    if (legSp.splay && fitsAt(legSp, 45)) legIns = 45;
   }
   const isCaster = base === 'patas' && legSp.kind === 'caster';
   const baseH = base === 'none' ? 0 : isCaster ? legSp.h : o.baseH; // con ruedas, la altura la define la rueda
@@ -91,18 +93,20 @@ export function carcass(p, o) {
     if (r.door) {
       const nd = c > 1 ? c : Math.max(1, Math.ceil(cw / 600));
       const dw = (c > 1 ? cw : innerW / nd) - 3;
-      for (let d = 0; d < nd; d++) {
+      // r.doorCells = lista de celdas (0, 1, 2…) que llevan puerta; sin lista, todas
+      const cells = Array.from({ length: nd }, (_, d) => d).filter((d) => !r.doorCells || r.doorCells.includes(d));
+      cells.forEach((d, k) => {
         const x = c > 1 ? t + d * (cw + t) + 1.5 : t + d * (innerW / nd) + 1.5;
         const door = p.B('Puerta', mat, x, y + 1.5, D - t, dw, r.h - 3, 'tulr');
         if (door) {
-          const info = { id: door.id, x, y: y + 1.5, w: dw, h: r.h - 3, front: D, hinge: hingeSide(hspec.hingeMode, d, nd) };
+          const info = { id: door.id, x, y: y + 1.5, w: dw, h: r.h - 3, front: D, hinge: hingeSide(hspec.hingeMode, k, cells.length) };
           doorInfo.push(info);
           const fx = placeHandle(p, info, hspec);
           if (fx) handleFx.push(fx);
         }
-      }
-      doorCount += nd;
-      hinges += nd * (r.h > 900 ? 3 : 2);
+      });
+      doorCount += cells.length;
+      hinges += cells.length * (r.h > 900 ? 3 : 2);
     }
     y += r.h + t;
   });
@@ -144,7 +148,9 @@ export function carcass(p, o) {
     if (legShrunk) p.tip('El fondo es poco para patas gruesas: se usaron las delgadas.');
     const s = spec.s;
     for (const x of [ins, W - ins - s]) {
-      for (const z of [z0 + ins, D - ins - s]) placeLeg(p, spec, x, 0, z, baseH);
+      for (const z of [z0 + ins, D - ins - s]) {
+        placeLeg(p, spec, x, 0, z, baseH, { out: [x === ins ? -1 : 1, z === z0 + ins ? -1 : 1], maxOut: ins + s / 2 - 8 });
+      }
     }
     legHardware(p, spec, 4, baseH);
     if (isCaster) p.tip(`La altura de la base la define la rueda: ${baseH / 10} cm (la medida "Alto de la base" no aplica).`);

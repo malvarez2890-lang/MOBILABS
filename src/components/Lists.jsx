@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { materialOf, SHEETS, sectionLabel } from '../lib/materials.js';
 import { fmt, cm } from '../lib/util.js';
+import { fmtCLP, searchUrl, PRICE_NOTE } from '../lib/pricing.js';
 
 const hue = (label) => {
   let h = 0;
@@ -144,7 +145,33 @@ export function SheetPlans({ plans }) {
 }
 
 /* ------------------------------------------------------------------ COMPRAS */
-export function Shopping({ shop, onCopy, copied }) {
+function PriceField({ row, onPrice }) {
+  const raw = row.unit == null ? '' : String(Math.round(row.unit));
+  const [text, setText] = useState(raw);
+  const [focus, setFocus] = useState(false);
+  useEffect(() => { if (!focus) setText(raw); }, [raw, focus]);
+  const commit = () => {
+    setFocus(false);
+    const digits = text.replace(/\D/g, '');
+    onPrice(row.key, digits === '' ? null : parseInt(digits, 10)); // vacío = vuelve al precio de ejemplo
+  };
+  return (
+    <label className={`price-in ${row.missing ? 'miss' : row.edited ? 'edited' : ''}`}>
+      <span>$</span>
+      <input
+        inputMode="numeric" aria-label={`Precio de ${row.label} por ${row.unitLabel}`} placeholder="precio"
+        value={focus ? text : (row.unit == null ? '' : Math.round(row.unit).toLocaleString('es-CL'))}
+        onFocus={(e) => { setFocus(true); setText(raw); e.target.select(); }}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      />
+      <em>/ {row.unitLabel}</em>
+    </label>
+  );
+}
+
+export function Shopping({ shop, priced, onCopy, copied, onPrice, onResetPrices, onExportPrices, onImportPrices }) {
   return (
     <section>
       <div className="sec-head">
@@ -158,51 +185,48 @@ export function Shopping({ shop, onCopy, copied }) {
         </div>
       )}
 
-      <h4>Tableros</h4>
-      <ul className="buy">
-        {shop.sheets.map((s) => (
-          <li key={s.id}>
-            <b className="q">{s.count}</b>
-            <div><b>{s.name}</b><span className="muted"> · plancha {s.size}</span>
-              <div className="small muted">Aprovechamiento {s.usedPct.toFixed(0)} %</div></div>
-          </li>
-        ))}
-      </ul>
+      <div className="cost-box">
+        <div className="cost-main">
+          <span className="muted small">Costo aproximado</span>
+          <b className="cost-total">{fmtCLP(priced.total)}</b>
+          <span className="muted small">CLP, IVA incluido si tus precios lo incluyen</span>
+        </div>
+        <div className="cost-stats small muted">
+          {priced.missing > 0 && <b className="cost-miss">{priced.missing} sin precio · </b>}
+          {priced.estimated} con precio de ejemplo · {priced.edited} editados por ti
+        </div>
+        <div className="cost-actions">
+          <button className="btn small" onClick={onResetPrices} disabled={!priced.edited}>Restablecer precios</button>
+          {onExportPrices && <button className="btn small" onClick={onExportPrices}>Exportar precios (CSV)</button>}
+          <label className="btn small file-btn">Importar precios (CSV)
+            <input type="file" accept=".csv,text/csv" onChange={(e) => { const f = e.target.files?.[0]; if (f) onImportPrices(f); e.target.value = ''; }} />
+          </label>
+        </div>
+        <p className="hint">{PRICE_NOTE}</p>
+      </div>
 
-      {shop.bars.length > 0 && (
-        <>
-          <h4>Madera en listón</h4>
-          <ul className="buy">
-            {shop.bars.map((b) => (
-              <li key={b.id}><b className="q">{b.count}</b>
-                <div><b>{b.name}</b><span className="muted"> · largo {b.stock}</span>
-                  <div className="small muted">Aprovechamiento {b.usedPct.toFixed(0)} %</div></div></li>
+      {priced.groups.map((g) => (
+        <React.Fragment key={g.id}>
+          <h4 className="grp-head"><span>{g.title}</span><span className="grp-sub">{fmtCLP(g.subtotal)}</span></h4>
+          <ul className="buy priced">
+            {g.rows.map((r) => (
+              <li key={r.key} className={r.missing ? 'miss' : ''}>
+                <b className="q">{r.qty}{g.id === 'tapacanto' && <small> m</small>}</b>
+                <div className="buy-txt">
+                  <b>{r.label}</b>{r.detail && <span className="muted"> · {r.detail}</span>}
+                  {r.extra && <div className="small muted">{r.extra}</div>}
+                </div>
+                <div className="buy-price">
+                  <PriceField row={r} onPrice={onPrice} />
+                  <b className="sub">{r.missing ? '—' : fmtCLP(r.subtotal)}</b>
+                  <a className="find" href={searchUrl(r.label)} target="_blank" rel="noopener noreferrer" title="Buscar el precio en la web">buscar ↗</a>
+                </div>
+              </li>
             ))}
           </ul>
-        </>
-      )}
-
-      {shop.edging.length > 0 && (
-        <>
-          <h4>Tapacanto</h4>
-          <ul className="buy">
-            {shop.edging.map((e) => (
-              <li key={e.thickness}><b className="q">{e.buy}<small> m</small></b>
-                <div><b>Tapacanto de {e.width} mm</b><span className="muted"> · para melamina de {e.thickness} mm</span>
-                  <div className="small muted">{e.meters.toFixed(1).replace('.', ',')} m medidos + 10 % de margen</div></div></li>
-            ))}
-          </ul>
-        </>
-      )}
-
-      <h4>Herrajes e insumos</h4>
-      <ul className="buy">
-        {shop.hardware.map((h) => (
-          <li key={h.name}><b className="q">{h.qty}</b>
-            <div><b>{h.name}</b>{h.note && <div className="small muted">{h.note}</div>}</div></li>
-        ))}
-      </ul>
-      <p className="hint">Sin precios por ahora. Las escuadrías y planchas son medidas comerciales típicas de Chile (referenciales): confirma en tu tienda. Las cantidades de herrajes son estimadas.</p>
+        </React.Fragment>
+      ))}
+      <p className="hint">Las escuadrías y planchas son medidas comerciales típicas de Chile (referenciales): confirma en tu tienda. Las cantidades de herrajes son estimadas y los precios, de ejemplo hasta que los edites.</p>
     </section>
   );
 }

@@ -1,4 +1,5 @@
 import { LINEARS } from './materials.js';
+import { tiltedBox } from './util.js';
 
 // Las ruedas no son un estilo de pata: se eligen en "Base" (Ruedas giratorias).
 export const LEG_STYLES_ALL = [
@@ -6,9 +7,16 @@ export const LEG_STYLES_ALL = [
   ['afinada', 'Cuadrada afinada'],
   ['redonda', 'Redonda'],
   ['redondaAfinada', 'Redonda afinada'],
+  ['inclinada', 'Inclinada (diagonal, madera)'],
   ['metalica', 'Metálica (tubo cuadrado)'],
+  ['aceroDiagonal', 'Acero en diagonal'],
 ];
-export const LEG_STYLES_WOOD = LEG_STYLES_ALL.slice(0, 4);
+// mesas: además, marco de acero en U (solo tapa rectangular)
+export const LEG_STYLES_TABLE = [
+  ...LEG_STYLES_ALL.filter(([id]) => id !== 'metalica'),
+  ['aceroU', 'Marco de acero en U'],
+];
+export const LEG_STYLES_WOOD = LEG_STYLES_TABLE;
 export const LEG_STYLES_CHAIR = LEG_STYLES_ALL.slice(0, 2);
 
 /** Compatibilidad: antes el tamaño se guardaba como 'pino41' / 'pino70'. */
@@ -28,6 +36,15 @@ export function legSpec(style = 'cuadrada', size = 'fino') {
     case 'afinada': return wood(thick ? 'pino70' : 'pino41', 'taperBox', 0.55, ' afinada');
     case 'redonda': return wood(thick ? 'redonda70' : 'redonda45', 'round', 1, ' redonda');
     case 'redondaAfinada': return wood(thick ? 'redonda70' : 'redonda45', 'taperRound', 0.55, ' redonda afinada');
+    case 'inclinada': return { ...wood(thick ? 'pino70' : 'pino41', 'box', 1, ' inclinada'), splay: 8 };
+    case 'aceroDiagonal': {
+      const s = thick ? 40 : 30;
+      return { style, size: sz, kind: 'metal', s, splay: 8, suffix: ' de acero en diagonal', label: `Pata de acero en diagonal ${s}×${s} mm` };
+    }
+    case 'aceroU': {
+      const s = thick ? 40 : 30;
+      return { style, size: sz, kind: 'metalFrame', s, suffix: ' (marco de acero)', label: `Tubo de acero cuadrado ${s}×${s} mm` };
+    }
     case 'metalica': {
       const s = thick ? 40 : 30;
       return { style, size: sz, kind: 'metal', s, suffix: ' metálica', label: `Pata metálica tubular ${s}×${s} mm` };
@@ -43,8 +60,18 @@ export function legSpec(style = 'cuadrada', size = 'fino') {
 /** Coloca una pata (pieza de madera o elemento comprado). `o.head` = tramo cuadrado arriba para unir faldones. */
 export function placeLeg(p, spec, x, y, z, len, o = {}) {
   const label = o.label || 'Pata';
+  if (spec.splay) { // pata en diagonal: nace en (x, z) bajo la tapa y se abre hacia afuera (o.out = [±1, ±1]) al bajar
+    const [sx, sz] = o.out || [0, 0];
+    let a = (spec.splay * Math.PI) / 180;
+    if (o.maxOut) a = Math.min(a, Math.atan(o.maxOut / len)); // el pie no debe sobresalir de la tapa
+    const top = [x + spec.s / 2, y + len, z + spec.s / 2];
+    const tilt = [-a * sz, a * sx];
+    if (spec.kind === 'wood') return p.T(label + spec.suffix, spec.mat, top, len, tilt);
+    const b = tiltedBox(top, len, tilt, spec.s);
+    return p.fixture({ kind: 'metalLeg', min: b.min, size: b.size, rot: b.rot });
+  }
   if (spec.kind === 'wood') {
-    return p.L(label + spec.suffix, spec.mat, 'y', len, x, y, z, undefined, { shape: spec.shape, taper: spec.taper, head: o.head || 0 });
+    return p.L(label + spec.suffix, spec.mat, 'y', len, x, y, z, undefined, { shape: spec.shape, taper: spec.taper, head: o.head || 0, blocks: o.blocks });
   }
   if (spec.kind === 'metal') return p.fixture({ kind: 'metalLeg', min: [x, y, z], size: [spec.s, len, spec.s] });
   return p.fixture({ kind: 'caster', min: [x, y, z], size: [spec.s, len, spec.s], wheelD: spec.wheelD });
@@ -53,7 +80,7 @@ export function placeLeg(p, spec, x, y, z, len, o = {}) {
 /** Herrajes asociados a las patas compradas (las de madera no llevan). */
 export function legHardware(p, spec, n, len) {
   if (spec.kind === 'metal') {
-    p.hardware(`${spec.label}, alto ${Math.round(len / 10)} cm`, n, 'Se piden de ese alto');
+    p.hardware(`${spec.label}, alto ${Math.round(len / 10)} cm`, n, spec.splay ? 'Con la inclinación incluida (placa en ángulo)' : 'Se piden de ese alto');
     p.hardware('Placa de montaje para pata metálica', n, 'Con tornillos');
   } else if (spec.kind === 'caster') {
     p.hardware(`${spec.label}`, n - 2, 'Sin freno');

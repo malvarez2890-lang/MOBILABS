@@ -12,6 +12,7 @@ import { CutList, SheetPlans, Shopping, labelColor, labelStroke } from './compon
 import ContextMenu from './components/ContextMenu.jsx';
 import PropsDialog from './components/PropsDialog.jsx';
 import { partKeys, TEXTURES } from './lib/looks.js';
+import { priceShop, pricesToCsv, pricesFromCsv } from './lib/pricing.js';
 
 const STORE = 'mueblelab-v1';
 const EMPTY_LOOK = { all: null, parts: {} }; // aspecto por defecto: sin color ni textura elegidos
@@ -55,6 +56,7 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [selKeys, setSelKeys] = useState(() => new Set()); // piezas seleccionadas (claves estables)
   const [hiddenKeys, setHiddenKeys] = useState(() => new Set());
+  const [prices, setPrices] = useState(saved.prices || {}); // precios unitarios editados por el usuario
   const [looksStore, setLooksStore] = useState(saved.looks || {}); // aspecto por mueble: { todo, piezas }
   const [menu, setMenu] = useState(null); // menú de clic derecho
   const [propsOpen, setPropsOpen] = useState(false);
@@ -65,11 +67,11 @@ export default function App() {
   const [scrollTo, setScrollTo] = useState(null);
 
   const type = getType(typeId);
-  const values = useMemo(() => normalizeValues({ ...defaultsFor(type), ...store[type.id] }), [type, store]);
+  const values = useMemo(() => ({ ...defaultsFor(type), ...normalizeValues(store[type.id] || {}, type.id) }), [type, store]);
 
   useEffect(() => {
-    try { localStorage.setItem(STORE, JSON.stringify({ typeId, values: store, settings, looks: looksStore })); } catch { /* sin almacenamiento */ }
-  }, [typeId, store, settings, looksStore]);
+    try { localStorage.setItem(STORE, JSON.stringify({ typeId, values: store, settings, looks: looksStore, prices })); } catch { /* sin almacenamiento */ }
+  }, [typeId, store, settings, looksStore, prices]);
 
   const setValue = (key, val) => setStore((s) => ({ ...s, [type.id]: { ...defaultsFor(type), ...s[type.id], [key]: val } }));
   const applyPreset = (pr) => setStore((s) => ({ ...s, [type.id]: { ...defaultsFor(type), ...pr.values } }));
@@ -78,6 +80,7 @@ export default function App() {
   const model = useMemo(() => buildFurniture(type.id, values), [type, values]);
   const plans = useMemo(() => packAll(model.parts, settings), [model, settings]);
   const shop = useMemo(() => buildShopping(model, plans), [model, plans]);
+  const priced = useMemo(() => priceShop(shop, prices), [shop, prices]);
   const [bw, bh, bd] = model.bbox.dims;
 
   // ---- piezas: claves estables, selección múltiple, ocultas y aspecto ----
@@ -273,14 +276,14 @@ export default function App() {
   }, []);
 
   const copy = useCallback(async () => {
-    const text = shoppingText(type.name, model.bbox.dims, shop);
+    const text = shoppingText(type.name, model.bbox.dims, shop, priced);
     try { await navigator.clipboard.writeText(text); } catch {
       const ta = Object.assign(document.createElement('textarea'), { value: text });
       document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
-  }, [type, model, shop]);
+  }, [type, model, shop, priced]);
 
   const buildRows = () => {
     const rows = [['Letra', 'Pieza', 'Material', 'Largo mm', 'Ancho mm', 'Espesor mm', 'Cantidad', 'Tapacanto total m']];
@@ -288,11 +291,9 @@ export default function App() {
       g.label, g.name, materialOf(g.mat).name, g.l, g.w ?? '', g.t ?? '', g.qty, g.edgeMm ? (g.edgeMm / 1000).toFixed(2) : '',
     ]));
     rows.push([]);
-    rows.push(['Compras']);
-    shop.sheets.forEach((s) => rows.push([s.count, `${s.name} (plancha ${s.size})`]));
-    shop.bars.forEach((b) => rows.push([b.count, `${b.name} (largo ${b.stock})`]));
-    shop.edging.forEach((e) => rows.push([e.buy, `m de tapacanto de ${e.width} mm`]));
-    shop.hardware.forEach((h) => rows.push([h.qty, h.name]));
+    rows.push(['Compras', 'Detalle', 'Cantidad', 'Precio unitario CLP', 'Subtotal CLP']);
+    priced.groups.forEach((g) => g.rows.forEach((r) => rows.push([g.title, `${r.label}${r.detail ? ` (${r.detail})` : ''}`, r.qty, r.unit ?? '', r.missing ? '' : Math.round(r.subtotal)])));
+    rows.push(['Costo aproximado total', '', '', '', Math.round(priced.total)]);
     return rows;
   };
 
@@ -301,6 +302,15 @@ export default function App() {
     download(`${type.id}-despiece.csv`, csv);
   };
 
+  const setPrice = (key, val) => setPrices((p) => {
+    const n = { ...p };
+    if (val == null) delete n[key]; else n[key] = val;
+    return n;
+  });
+  const importPrices = async (file) => {
+    const parsed = pricesFromCsv(await file.text());
+    setPrices((p) => ({ ...p, ...parsed }));
+  };
   const [copiedCuts, setCopiedCuts] = useState(false);
   const copyCuts = async () => {
     const text = buildRows().map((r) => r.join('\t')).join('\n'); // pega directo en Excel / Sheets
@@ -486,7 +496,7 @@ export default function App() {
 
         <div className={`tab-body ${tab === 'piezas' ? 'show' : ''}`}><CutList plans={plans} onHover={setHover} selectedKeys={fullKeys} partialKeys={partialKeys} onSelect={(g, add) => onPick(g.ids[0], { add })} scrollTo={scrollTo} /></div>
         <div className={`tab-body ${tab === 'cortes' ? 'show' : ''}`}><SheetPlans plans={plans} /></div>
-        <div className={`tab-body ${tab === 'compras' ? 'show' : ''}`}><Shopping shop={shop} onCopy={copy} copied={copied} /></div>
+        <div className={`tab-body ${tab === 'compras' ? 'show' : ''}`}><Shopping shop={shop} priced={priced} onCopy={copy} copied={copied} onPrice={setPrice} onResetPrices={() => setPrices({})} onImportPrices={importPrices} onExportPrices={PUBLISHED ? null : () => download('precios-mobilabs.csv', pricesToCsv(priced))} /></div>
       </aside>
 
       <nav className="mnav" aria-label="Secciones">

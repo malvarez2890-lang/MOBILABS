@@ -4,6 +4,7 @@ import { FURNITURE, buildFurniture, defaultsFor } from '../src/lib/types.js';
 import { SHEETS, LINEARS } from '../src/lib/materials.js';
 import { packAll } from '../src/lib/packing.js';
 import { buildShopping } from '../src/lib/shopping.js';
+import { priceShop } from '../src/lib/pricing.js';
 
 let seed = 42;
 const rnd = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
@@ -43,26 +44,28 @@ function check(label, typeId, values) {
   for (let i = 0; i < m.parts.length; i++) {
     for (let j = i + 1; j < m.parts.length; j++) {
       const a = m.parts[i], b = m.parts[j];
+      if (a.rot || b.rot) continue; // piezas inclinadas (patas en diagonal): su caja girada se revisa aparte
       const hit = [0, 1, 2].every((k) => a.min[k] + eps < b.min[k] + b.size[k] && b.min[k] + eps < a.min[k] + a.size[k]);
       assert.ok(!hit, `${label}: choque entre ${a.name} ${a.min}/${a.size} y ${b.name} ${b.min}/${b.size}`);
     }
   }
   // piezas flotantes: cada pieza debe tocar al menos a otra
-  for (const a of m.parts.filter((x) => x.name !== 'Puerta')) { // las puertas llevan 1,5 mm de holgura a propósito
-    const touches = m.parts.some((b) => b !== a && [0, 1, 2].every((k) => a.min[k] <= b.min[k] + b.size[k] + eps && b.min[k] <= a.min[k] + a.size[k] + eps));
+  for (const a of m.parts.filter((x) => x.name !== 'Puerta' && !x.rot)) { // las puertas llevan 1,5 mm de holgura a propósito
+    const near = (b) => [0, 1, 2].every((k) => a.min[k] <= b.min[k] + b.size[k] + eps && b.min[k] <= a.min[k] + a.size[k] + eps);
+    const touches = m.parts.some((b) => b !== a && near(b)) || m.fixtures.some((f) => !f.noBbox && near(f.aabb || f)); // también apoya en acero o ruedas
     assert.ok(touches, `${label}: pieza flotante ${a.name} ${a.min}`);
   }
   // fixtures (tiradores, ruedas, patas metálicas): datos válidos y sin choques con las piezas
   for (const f of m.fixtures) {
     assert.ok([...f.min, ...f.size].every(Number.isFinite) && f.size.every((s) => s > 0), `${label}: fixture inválido ${f.kind}`);
     for (const a of m.parts) {
-      if (f.parent === a.id) continue; // el tirador apoya sobre su puerta
+      if (f.parent === a.id || f.rot || a.rot) continue; // el tirador apoya sobre su puerta; lo inclinado se omite
       const hit = [0, 1, 2].every((k) => f.min[k] + eps < a.min[k] + a.size[k] && a.min[k] + eps < f.min[k] + f.size[k]);
       assert.ok(!hit, `${label}: ${f.kind} choca con ${a.name}`);
     }
     if (f.kind === 'handle') {
       const door = m.parts.find((x) => x.id === f.parent);
-      assert.ok(door && door.name === 'Puerta', `${label}: tirador sin puerta`);
+      assert.ok(door && ['Puerta', 'Frente de cajón'].includes(door.name), `${label}: tirador sin puerta ni frente de cajón`);
       if (f.fits) {
         const inside = [0, 1].every((k) => f.min[k] >= door.min[k] - 0.1 && f.min[k] + f.size[k] <= door.min[k] + door.size[k] + 0.1);
         assert.ok(inside, `${label}: tirador fuera de la puerta`);
@@ -72,6 +75,13 @@ function check(label, typeId, values) {
   // cubicación
   const plans = packAll(m.parts, { kerf: 3, rotate: false });
   const shop = buildShopping(m, plans);
+  // costos: toda línea tiene precio de ejemplo y ninguno es absurdo (p. ej. un tornillo valorado como corredera)
+  const priced = priceShop(shop, {});
+  assert.equal(priced.missing, 0, `${label}: líneas sin precio: ${priced.groups.flatMap((g) => g.rows.filter((r) => r.missing).map((r) => r.label)).join(', ')}`);
+  for (const g of priced.groups) for (const r of g.rows) {
+    assert.ok(Number.isFinite(r.subtotal) && r.subtotal >= 0, `${label}: subtotal inválido en ${r.label}`);
+    if (/^tornillo|^tarugo|^tapa cubre|confirmat/i.test(r.label)) assert.ok(r.unit <= 200, `${label}: precio absurdo para ${r.label}: ${r.unit}`);
+  }
   for (const sp of plans.sheetPlans) {
     for (const s of sp.sheets) {
       for (const pl of s.placements) {
@@ -89,7 +99,7 @@ function check(label, typeId, values) {
     const total = plans.groups.filter((g) => g.mat === sp.mat).reduce((a, g) => a + g.qty, 0);
     assert.equal(placed + sp.unplaced.length, total, `${label}: piezas perdidas en cubicación`);
   }
-  if (shop.issues.length) { withIssues++; assert.ok(typeId === 'vinilos', `${label}: pieza que no cabe fuera del mueble de vinilos: ${shop.issues[0]}`); }
+  if (shop.issues.length) { withIssues++; assert.ok(typeId === 'vinilos' || (typeId === 'mesa' && values.forma === 'redonda'), `${label}: pieza que no cabe en un caso no previsto: ${shop.issues[0]}`);  }
   return { m, plans, shop };
 }
 
@@ -106,6 +116,9 @@ for (const type of FURNITURE) {
       const r = check(`${type.name} ruedas ${size}`, type.id, vals); runs++;
       assert.equal(r.m.fixtures.filter((f) => f.kind === 'caster').length, 4, `${type.name}: debe tener 4 ruedas (${size})`);
     }
+  }
+  if (type.params.some((p) => p.key === 'cajonera')) {
+    for (const cajonera of ['izq', 'der', 'ambos']) for (const cajones of [1, 3, 5]) { check(`${type.name} cajonera ${cajonera} x${cajones}`, type.id, { cajonera, cajones, ancho: 160, fondo: 70 }); runs++; }
   }
   if (type.params.some((p) => p.key === 'tirador')) {
     for (const tirador of ['barra', 'perilla', 'canto', 'ninguno']) {

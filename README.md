@@ -4,7 +4,7 @@ App web para **diseñar muebles de forma paramétrica**, ver el modelo en 3D y o
 el **despiece, el plan de corte por plancha y la lista de qué comprar** (sin precios, por ahora).
 
 ## Muebles incluidos
-Estante · Librero · Mesa · Mesa de arrimo · Escritorio · Silla · Rack para TV · Deck para tocadiscos · Mueble para vinilos
+Estante · Librero · Mesa (rectangular o redonda) · Mesa de arrimo · Escritorio (con cajonera) · Silla · Rack para TV · Deck para tocadiscos · Credenza para tocadiscos y vinilos · Mueble para vinilos
 
 ## Usar
 ```bash
@@ -42,3 +42,9 @@ https://malvarez2890-lang.github.io/ElBunkerLAb/ (se despliega sola con GitHub A
 | Menú (propiedades, color, textura, ocultar…) | Clic derecho | Mantener presionado |
 | Quitar la selección | Esc | ✕ en la tarjeta |
 | Deshacer / rehacer | Ctrl+Z / Ctrl+Y (o Ctrl+Mayús+Z) | Botones ↶ ↷ del visor |
+
+## Costos
+La pestaña **Compras** calcula un costo aproximado en pesos chilenos. Los precios que trae son **valores de ejemplo**
+(no vienen de ninguna tienda): cada línea tiene un campo para poner el precio de tu proveedor, se guardan en el navegador y se
+pueden exportar e importar en CSV. Las tiendas chilenas grandes no ofrecen una API pública de precios; los precios están en
+`src/lib/pricing.js`.

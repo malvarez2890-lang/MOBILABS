@@ -670,6 +670,30 @@ table.cut tbody tr.part { background: rgb(42 111 158 / .38); box-shadow: inset 3
 .dlg-table td { padding: 8px 12px 8px 0; border-bottom: 1px solid #263140; color: #eef2f6; font-variant-numeric: tabular-nums; }
 .dlg .hint { margin: 0; padding: 8px 12px 12px; }
 
+/* ---------- Costos ---------- */
+.cost-box { margin: 0 0 6px; padding: 9px 10px; border: 1px solid #202a36; background: #2a3544; }
+.cost-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.cost-total { color: #8fd0ff; font-size: 22px; font-variant-numeric: tabular-nums; }
+.cost-stats { margin-top: 3px; }
+.cost-miss { color: #ffd28a; }
+.cost-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.file-btn { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+.file-btn input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.btn:disabled { opacity: .5; cursor: default; }
+.grp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.grp-sub { color: #8fd0ff; font-variant-numeric: tabular-nums; }
+.buy.priced li { grid-template-columns: 48px minmax(0, 1fr); }
+.buy.priced li.miss { border-color: #8c713b; }
+.buy-price { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; padding-top: 4px; border-top: 1px dashed #3d4b5f; }
+.price-in { display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border: 1px solid #667389; background: #26313f; color: #eef2f6; }
+.price-in.edited { border-color: #50ade5; }
+.price-in.miss { border-color: #ffd28a; background: #4b3d21; }
+.price-in input { width: 74px; min-width: 0; padding: 2px 0; border: 0; outline: 0; background: transparent; color: inherit; text-align: right; font-variant-numeric: tabular-nums; }
+.price-in span, .price-in em { color: var(--muted); font-size: 10.5px; font-style: normal; }
+.buy-price .sub { color: #e7ebf0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.find { color: #8fd0ff; font-size: 10.5px; }
+@media print { .cost-actions, .find { display: none !important; } .cost-box { border-color: #bbb; background: #fff; } .cost-total { color: #075b8d; } .price-in { border-color: #ccc; background: #fff; color: #111; } .buy-price .sub { color: #111; } }
+
 /* Impresión técnica en fondo blanco */
 @media print {
   @page { margin: 12mm; }

@@ -34,11 +34,24 @@ export function buildShopping(model, plans) {
     thickness: Number(t),
   }));
 
-  return { sheets, bars, edging, hardware: model.hardware, issues };
+  // terminaciones: la madera de pino y los tableros crudos (MDF, terciado) no vienen terminados
+  const extra = [];
+  const mats = new Set(model.parts.map((p) => p.mat));
+  const rawBoards = ['mdf18', 'ter18', 'ter15'].filter((m) => mats.has(m));
+  const pine = model.parts.some((p) => p.kind === 'linear');
+  if (rawBoards.length) {
+    extra.push({ name: 'Sellador y pintura o barniz para MDF / terciado (1 galón)', qty: 1, note: 'Estos tableros vienen sin terminación; los cantos se pintan o se enchapan' });
+  }
+  if (pine) {
+    extra.push({ name: 'Barniz, aceite o pintura para la madera de pino (1 galón)', qty: 1, note: 'Para patas, faldones y listones' });
+  }
+  if (pine || rawBoards.length) extra.push({ name: 'Lija grano 120 y 180 (pliegos)', qty: 4, note: 'Antes de aplicar la terminación' });
+  const hardware = [...model.hardware, ...extra.filter((e) => !model.hardware.some((h) => h.name === e.name))];
+  return { sheets, bars, edging, hardware, issues };
 }
 
 /** Texto plano para copiar / enviar por WhatsApp. */
-export function shoppingText(title, dims, shop) {
+export function shoppingText(title, dims, shop, priced) {
   const L = [];
   L.push(`${title} — ${cm(dims[0])} × ${cm(dims[1])} × ${cm(dims[2])} cm (ancho × alto × fondo)`);
   L.push('', 'TABLEROS');
@@ -53,5 +66,9 @@ export function shoppingText(title, dims, shop) {
   }
   L.push('', 'HERRAJES E INSUMOS');
   shop.hardware.forEach((h) => L.push(`• ${h.qty} × ${h.name}`));
+  if (priced) {
+    L.push('', `COSTO APROXIMADO: $ ${Math.round(priced.total).toLocaleString('es-CL')} CLP`);
+    L.push(priced.missing ? `(${priced.missing} ítems sin precio; precios de ejemplo salvo los que editaste)` : '(precios de ejemplo salvo los que editaste)');
+  }
   return L.join('\n');
 }

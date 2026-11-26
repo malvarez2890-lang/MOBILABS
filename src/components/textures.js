@@ -79,6 +79,21 @@ const GENERATORS = {
     }
     return c;
   },
+  // listones acanalados (como las puertas de algunos muebles): franjas paralelas a la veta, con sombra y luz suaves
+  acanalado: () => {
+    const [c, g] = makeCanvas('#dcbd8e');
+    const w = 16;
+    for (let y = 0; y < S; y += w) {
+      const gr = g.createLinearGradient(0, y, 0, y + w);
+      gr.addColorStop(0, 'rgba(255,240,205,0.55)');
+      gr.addColorStop(0.45, 'rgba(255,240,205,0.0)');
+      gr.addColorStop(0.55, 'rgba(90,55,20,0.0)');
+      gr.addColorStop(1, 'rgba(90,55,20,0.5)');
+      g.fillStyle = gr;
+      g.fillRect(0, y, S, w);
+    }
+    return c;
+  },
   blanco: () => speckle({ base: '#f3f3f0', seed: 3, amount: 0.05 })[0],
   negro: () => speckle({ base: '#2a2c30', seed: 4, amount: 0.07, tone: '255,255,255' })[0],
   cemento: () => {

@@ -13,6 +13,7 @@ export const TEXTURES = [
   { id: 'nogal', name: 'Nogal' },
   { id: 'pino', name: 'Pino' },
   { id: 'terciado', name: 'Terciado' },
+  { id: 'acanalado', name: 'Acanalado' },
   { id: 'blanco', name: 'Blanco mate' },
   { id: 'negro', name: 'Negro mate' },
   { id: 'cemento', name: 'Cemento' },

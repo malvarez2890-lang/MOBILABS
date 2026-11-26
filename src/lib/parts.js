@@ -1,5 +1,5 @@
 import { SHEETS, LINEARS } from './materials.js';
-import { r1 } from './util.js';
+import { r1, rotatedBox, tiltedBox } from './util.js';
 
 const edgeLengths = (str, map) =>
   [...str].map((c) => map[c]).filter((v) => v > 0).map(r1);
@@ -24,6 +24,7 @@ export class PartList {
     part.min = part.min.map(r1);
     part.size = part.size.map(r1);
     part.center = part.min.map((m, i) => m + part.size[i] / 2);
+    if (part.rot) part.aabb = rotatedBox(part.min, part.size, part.rot); // pieza inclinada: caja envolvente para medir el mueble
     this.parts.push(part);
     return part;
   }
@@ -58,6 +59,22 @@ export class PartList {
     });
   }
 
+  /** Tapa redonda (disco). (cx, cz) = centro, y = cara inferior, d = diámetro. */
+  C(name, mat, cx, y, cz, d, edge = true) {
+    const m = SHEETS[mat];
+    return this._push({
+      name, mat, kind: 'sheet', shape: 'disc', min: [cx - d / 2, y, cz - d / 2], size: [d, m.t, d],
+      cut: { l: r1(d), w: r1(d), t: m.t }, edges: m.edge && edge ? [r1(Math.PI * d)] : [],
+    });
+  }
+
+  /** Listón de pino inclinado (pata en diagonal). top = centro de su cara superior; drop = altura vertical que salva. */
+  T(name, mat, top, drop, tilt, extra = {}) {
+    const [tn, wd] = LINEARS[mat].section;
+    const b = tiltedBox(top, drop, tilt, wd, tn);
+    return this._push({ name, mat, kind: 'linear', min: b.min, size: b.size, cut: { l: r1(b.L) }, edges: [], rot: b.rot, ...extra });
+  }
+
   /** Listón de pino. axis = eje del largo; thin = eje donde va el lado delgado. */
   L(name, mat, axis, len, x, y, z, thin, extra = {}) {
     const [tn, wd] = LINEARS[mat].section;
@@ -75,6 +92,7 @@ export class PartList {
     f.id = 'f' + this.fixtures.length;
     f.min = f.min.map(r1);
     f.size = f.size.map(r1);
+    if (f.rot) f.aabb = rotatedBox(f.min, f.size, f.rot);
     this.fixtures.push(f);
     return f;
   }
@@ -105,18 +123,21 @@ export class PartList {
     const min = [Infinity, Infinity, Infinity];
     const max = [-Infinity, -Infinity, -Infinity];
     for (const p of this.parts) {
+      const b = p.aabb || p;
       for (let i = 0; i < 3; i++) {
-        min[i] = Math.min(min[i], p.min[i]);
-        max[i] = Math.max(max[i], p.min[i] + p.size[i]);
+        min[i] = Math.min(min[i], b.min[i]);
+        max[i] = Math.max(max[i], b.min[i] + b.size[i]);
       }
     }
     for (const f of this.fixtures) {
       if (f.noBbox) continue;
+      const b = f.aabb || f;
       for (let i = 0; i < 3; i++) {
-        min[i] = Math.min(min[i], f.min[i]);
-        max[i] = Math.max(max[i], f.min[i] + f.size[i]);
+        min[i] = Math.min(min[i], b.min[i]);
+        max[i] = Math.max(max[i], b.min[i] + b.size[i]);
       }
     }
+    if (min[1] < 0) min[1] = 0; // las patas inclinadas no bajan del piso
     const dims = this.parts.length ? [max[0] - min[0], max[1] - min[1], max[2] - min[2]] : [0, 0, 0];
     return {
       parts: this.parts,

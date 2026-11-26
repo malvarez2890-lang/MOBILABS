@@ -6,6 +6,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 /** Geometría de una pieza. Cajas por defecto; patas con forma (afinadas / redondas / con cabeza cuadrada). */
 export function partGeometry(p) {
   const [sx, sy, sz] = p.size.map((v) => v / 10);
+  if (p.shape === 'disc') return new THREE.CylinderGeometry(sx / 2, sx / 2, sy, 96);
   if (!p.shape || p.shape === 'box') return new THREE.BoxGeometry(sx, sy, sz);
 
   const h = sy;
@@ -29,6 +30,13 @@ export function partGeometry(p) {
   if (head > 0) {
     const box = new THREE.BoxGeometry(s, head, s);
     box.translate(0, h / 2 - head / 2, 0);
+    pieces.push(box);
+  }
+  // topes cuadrados intermedios (donde se unen faldones o marcos): [desde, hasta] medidos desde el pie, en mm
+  for (const [y0, y1] of p.blocks || []) {
+    const bh = (y1 - y0) / 10;
+    const box = new THREE.BoxGeometry(s, bh, s);
+    box.translate(0, -h / 2 + y0 / 10 + bh / 2, 0);
     pieces.push(box);
   }
   return pieces.length === 1 ? pieces[0] : mergeGeometries(pieces, false);
