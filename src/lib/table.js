@@ -1,4 +1,5 @@
-import { SHEETS, LINEARS } from './materials.js';
+import { SHEETS } from './materials.js';
+import { legSpec, placeLeg } from './legs.js';
 
 /** Apila `layers` tableros formando una tapa más gruesa. yTop = cara superior. */
 export function stackTop(p, mat, layers, x, yTop, z, w, d, edge) {
@@ -8,14 +9,15 @@ export function stackTop(p, mat, layers, x, yTop, z, w, d, edge) {
 
 /**
  * Mesa con patas de pino, faldones y tapa de tablero.
- * o = { W, D, H, mat, layers, leg, oh (voladizo), shelf:{y}|null }
+ * o = { W, D, H, mat, layers, leg (legSpec de madera), oh (voladizo), shelf:{y}|null }
  */
 export function tableFrame(p, o) {
-  const { W, D, H, mat, leg } = o;
+  const { W, D, H, mat } = o;
+  const spec = o.leg && o.leg.kind === 'wood' ? o.leg : legSpec('cuadrada', 'fino');
   const layers = o.layers || 1;
   const t = SHEETS[mat].t;
   const topT = t * layers;
-  const s = LINEARS[leg].section[0];
+  const s = spec.s;
   const aT = 19; // grosor del faldón
   const aH = 90; // alto del faldón
   const oh = Math.max(0, Math.min(o.oh, (Math.min(W, D) - 2 * s - 120) / 2));
@@ -27,7 +29,7 @@ export function tableFrame(p, o) {
 
   const legLen = H - topT;
   for (const x of [oh, W - oh - s]) {
-    for (const z of [oh, D - oh - s]) p.L('Pata', leg, 'y', legLen, x, 0, z);
+    for (const z of [oh, D - oh - s]) placeLeg(p, spec, x, 0, z, legLen, { head: aH + 10 });
   }
 
   const yA = H - topT - aH;

@@ -52,6 +52,23 @@ function check(label, typeId, values) {
     const touches = m.parts.some((b) => b !== a && [0, 1, 2].every((k) => a.min[k] <= b.min[k] + b.size[k] + eps && b.min[k] <= a.min[k] + a.size[k] + eps));
     assert.ok(touches, `${label}: pieza flotante ${a.name} ${a.min}`);
   }
+  // fixtures (tiradores, ruedas, patas metálicas): datos válidos y sin choques con las piezas
+  for (const f of m.fixtures) {
+    assert.ok([...f.min, ...f.size].every(Number.isFinite) && f.size.every((s) => s > 0), `${label}: fixture inválido ${f.kind}`);
+    for (const a of m.parts) {
+      if (f.parent === a.id) continue; // el tirador apoya sobre su puerta
+      const hit = [0, 1, 2].every((k) => f.min[k] + eps < a.min[k] + a.size[k] && a.min[k] + eps < f.min[k] + f.size[k]);
+      assert.ok(!hit, `${label}: ${f.kind} choca con ${a.name}`);
+    }
+    if (f.kind === 'handle') {
+      const door = m.parts.find((x) => x.id === f.parent);
+      assert.ok(door && door.name === 'Puerta', `${label}: tirador sin puerta`);
+      if (f.fits) {
+        const inside = [0, 1].every((k) => f.min[k] >= door.min[k] - 0.1 && f.min[k] + f.size[k] <= door.min[k] + door.size[k] + 0.1);
+        assert.ok(inside, `${label}: tirador fuera de la puerta`);
+      }
+    }
+  }
   // cubicación
   const plans = packAll(m.parts, { kerf: 3, rotate: false });
   const shop = buildShopping(m, plans);
@@ -80,6 +97,14 @@ let runs = 0;
 let withIssues = 0;
 for (const type of FURNITURE) {
   const base = check(`${type.name} (defecto)`, type.id, {});
+  for (const style of ['afinada', 'redonda', 'redondaAfinada', 'metalica', 'ruedas']) {
+    for (const size of ['fino', 'grueso']) { check(`${type.name} patas ${style}/${size}`, type.id, { base: 'patas', pataEstilo: style, pata: size }); runs++; }
+  }
+  if (type.params.some((p) => p.key === 'tirador')) {
+    for (const tirador of ['barra', 'perilla', 'canto', 'ninguno']) {
+      for (const bisagra of ['auto', 'izq', 'der']) { check(`${type.name} tirador ${tirador}/${bisagra}`, type.id, { puertas: true, tirador, bisagra, tiradorOrient: 'horizontal' }); runs++; }
+    }
+  }
   runs++;
   for (const pr of type.presets) { check(`${type.name} / ${pr.name}`, type.id, pr.values); runs++; }
   for (let i = 0; i < 60; i++) {

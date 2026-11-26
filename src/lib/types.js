@@ -3,6 +3,8 @@ import { SHEETS, LINEARS, MAIN_SHEETS } from './materials.js';
 import { carcass } from './carcass.js';
 import { tableFrame, stackTop } from './table.js';
 import { cm } from './util.js';
+import { LEG_STYLES_ALL, LEG_STYLES_WOOD, LEG_STYLES_CHAIR, legSpec, placeLeg, normSize } from './legs.js';
+import { HANDLE_TYPES, HANDLE_C2C, HINGE_MODES, handleFromValues } from './handles.js';
 
 // ---------- helpers para declarar parámetros (valores en cm salvo que se indique) ----------
 const num = (key, label, def, min, max, step = 1, unit = 'cm', extra = {}) => ({ type: 'num', key, label, def, min, max, step, unit, ...extra });
@@ -10,9 +12,28 @@ const sel = (key, label, def, options, extra = {}) => ({ type: 'sel', key, label
 const bool = (key, label, def, extra = {}) => ({ type: 'bool', key, label, def, ...extra });
 
 const MAT = sel('mat', 'Tablero principal', 'mel18', MAIN_SHEETS.map((id) => [id, SHEETS[id].name]), { section: 'Materiales' });
-const LEGS = (def = 'pino70', extra = {}) =>
-  sel('pata', 'Patas de pino', def, [['pino41', '2×2" (41×41 mm)'], ['pino70', '3×3" (≈70×70 mm)']], extra);
-const BASE_OPTS = [['none', 'Sin base'], ['zocalo', 'Zócalo'], ['patas', 'Patas de pino']];
+/** Estilo y tamaño de patas (dos parámetros). styles: 'all' | 'wood' | 'chair' */
+const LEGS = (size = 'grueso', extra = {}, styles = 'all') => [
+  sel('pataEstilo', 'Estilo de patas', 'cuadrada', styles === 'all' ? LEG_STYLES_ALL : styles === 'chair' ? LEG_STYLES_CHAIR : LEG_STYLES_WOOD, extra),
+  sel('pata', 'Tamaño de las patas', size, [['fino', 'Delgadas'], ['grueso', 'Gruesas']], extra),
+];
+
+/** Tiradores de las puertas (solo se muestran si el mueble tiene puertas). */
+const HANDLES = (hasDoors) => {
+  const on = (f) => (v) => hasDoors(v) && f(v);
+  return [
+    sel('tirador', 'Tipo de tirador', 'barra', HANDLE_TYPES, { section: 'Tiradores', visibleIf: on(() => true) }),
+    sel('tiradorLargo', 'Largo de la jaladera (entre ejes)', 128, HANDLE_C2C, { visibleIf: on((v) => v.tirador === 'barra') }),
+    sel('tiradorOrient', 'Orientación', 'vertical', [['vertical', 'Vertical'], ['horizontal', 'Horizontal']], { visibleIf: on((v) => v.tirador === 'barra') }),
+    num('tiradorX', 'Distancia al borde libre', 4, 1.5, 15, 0.5, 'cm', { visibleIf: on((v) => v.tirador === 'barra' || v.tirador === 'perilla') }),
+    num('tiradorY', 'Altura en la puerta', 75, 10, 95, 5, '%', { visibleIf: on((v) => v.tirador === 'barra' || v.tirador === 'perilla') }),
+    sel('bisagra', 'Lado de las bisagras', 'auto', HINGE_MODES, { visibleIf: on(() => true) }),
+  ];
+};
+const showBaseH = (v) => v.base !== 'none' && !(v.base === 'patas' && v.pataEstilo === 'ruedas');
+const legOf = (v) => legSpec(v.pataEstilo, v.pata);
+
+const BASE_OPTS = [['none', 'Sin base'], ['zocalo', 'Zócalo'], ['patas', 'Patas / ruedas']];
 const BACK_OPTS = [['hdf', 'Panel HDF 3 mm'], ['rails', 'Travesaños (abierta)'], ['none', 'Sin trasera']];
 const TOP_OPTS = [['simple', 'Un tablero'], ['doble', 'Doble (más gruesa)']];
 const notNone = (v) => v.base !== 'none';
@@ -32,10 +53,10 @@ export const FURNITURE = [
       num('fondo', 'Fondo', 28, 15, 60),
       num('niveles', 'Niveles (espacios)', 5, 1, 12, 1, 'u', { section: 'Estructura' }),
       sel('base', 'Base', 'zocalo', BASE_OPTS),
-      num('altoBase', 'Alto de la base', 6, 3, 20, 1, 'cm', { visibleIf: notNone }),
+      num('altoBase', 'Alto de la base', 6, 3, 20, 1, 'cm', { visibleIf: showBaseH }),
       sel('trasera', 'Parte trasera', 'rails', BACK_OPTS),
       MAT,
-      LEGS('pino41', { visibleIf: isLegs }),
+      ...LEGS('fino', { visibleIf: isLegs }),
     ],
     presets: [
       { name: 'Clásico 5 niveles', values: {} },
@@ -47,7 +68,7 @@ export const FURNITURE = [
       const r = carcass(p, {
         mat: v.mat, W: v.ancho * 10, D: v.fondo * 10, H: v.alto * 10,
         rows: Array.from({ length: v.niveles }, () => ({ cols: 1 })),
-        base: v.base, baseH: v.altoBase * 10, back: v.trasera, legMat: v.pata, loadFactor: 0.9,
+        base: v.base, baseH: v.altoBase * 10, back: v.trasera, leg: legOf(v), loadFactor: 0.9,
       });
       p.tip(`Cada nivel queda con ~${cm(r.rows[0].h)} cm de alto libre.`);
       return p.result();
@@ -64,11 +85,12 @@ export const FURNITURE = [
       num('niveles', 'Niveles (filas)', 5, 1, 10, 1, 'u', { section: 'Estructura' }),
       num('columnas', 'Columnas', 2, 1, 5, 1, 'u'),
       bool('puertas', 'Puertas en el nivel inferior', false),
+      ...HANDLES((v) => v.puertas),
       sel('base', 'Base', 'zocalo', BASE_OPTS),
-      num('altoBase', 'Alto de la base', 8, 3, 20, 1, 'cm', { visibleIf: notNone }),
+      num('altoBase', 'Alto de la base', 8, 3, 20, 1, 'cm', { visibleIf: showBaseH }),
       sel('trasera', 'Parte trasera', 'hdf', BACK_OPTS),
       MAT,
-      LEGS('pino41', { visibleIf: isLegs }),
+      ...LEGS('fino', { visibleIf: isLegs }),
     ],
     presets: [
       { name: '100 × 200, 2 columnas', values: {} },
@@ -81,7 +103,7 @@ export const FURNITURE = [
       const rows = Array.from({ length: v.niveles }, (_, i) => ({ cols: v.columnas, door: v.puertas && i === 0 }));
       const r = carcass(p, {
         mat: v.mat, W: v.ancho * 10, D: v.fondo * 10, H: v.alto * 10, rows,
-        base: v.base, baseH: v.altoBase * 10, back: v.trasera, legMat: v.pata, loadFactor: 0.85,
+        base: v.base, baseH: v.altoBase * 10, back: v.trasera, leg: legOf(v), loadFactor: 0.85, handle: handleFromValues(v),
       });
       p.tip(`Alto libre por nivel: ~${cm(r.rows[r.rows.length - 1].h)} cm; ancho libre por columna: ~${cm(r.rows[0].cw)} cm. Una fila de libros típica pide 25–30 cm de alto.`);
       return p.result();
@@ -97,7 +119,7 @@ export const FURNITURE = [
       num('alto', 'Alto', 75, 60, 80),
       sel('tapa', 'Tapa', 'simple', TOP_OPTS, { section: 'Estructura' }),
       num('voladizo', 'Retranqueo de patas', 6, 0, 15, 1, 'cm'),
-      LEGS('pino70'),
+      ...LEGS('grueso', {}, 'wood'),
       MAT,
     ],
     presets: [
@@ -110,7 +132,7 @@ export const FURNITURE = [
       const W = v.ancho * 10;
       tableFrame(p, {
         W, D: v.fondo * 10, H: v.alto * 10, mat: v.mat, layers: v.tapa === 'doble' ? 2 : 1,
-        leg: v.pata, oh: v.voladizo * 10,
+        leg: legOf(v), oh: v.voladizo * 10,
       });
       const seats = Math.max(2, Math.floor(v.ancho / 60) * 2 + (v.ancho >= 140 && v.fondo >= 70 ? 2 : 0));
       p.tip(`Alcanza para ~${seats} personas (60 cm por comensal).`);
@@ -129,7 +151,7 @@ export const FURNITURE = [
       bool('estante', 'Repisa inferior', true, { section: 'Estructura' }),
       num('altoEstante', 'Altura de la repisa', 20, 10, 50, 1, 'cm', { visibleIf: (v) => v.estante }),
       num('voladizo', 'Retranqueo de patas', 3, 0, 8, 1, 'cm'),
-      LEGS('pino41'),
+      ...LEGS('fino', {}, 'wood'),
       MAT,
     ],
     presets: [
@@ -139,7 +161,7 @@ export const FURNITURE = [
     build(v) {
       const p = new PartList();
       tableFrame(p, {
-        W: v.ancho * 10, D: v.fondo * 10, H: v.alto * 10, mat: v.mat, layers: 1, leg: v.pata, oh: v.voladizo * 10,
+        W: v.ancho * 10, D: v.fondo * 10, H: v.alto * 10, mat: v.mat, layers: 1, leg: legOf(v), oh: v.voladizo * 10,
         shelf: v.estante ? { y: v.altoEstante * 10 } : null,
       });
       return p.result();
@@ -157,7 +179,7 @@ export const FURNITURE = [
       sel('tapa', 'Tapa', 'simple', TOP_OPTS),
       bool('panelFrontal', 'Panel trasero (esconde cables)', true),
       bool('repisaInferior', 'Repisa inferior', false),
-      LEGS('pino41', { visibleIf: (v) => v.estilo === 'patas' }),
+      ...LEGS('fino', { visibleIf: (v) => v.estilo === 'patas' }, 'wood'),
       MAT,
     ],
     presets: [
@@ -175,7 +197,7 @@ export const FURNITURE = [
       const topT = t * layers;
       if (v.estilo === 'patas') {
         const o = tableFrame(p, {
-          W, D, H, mat, layers, leg: v.pata, oh: 30,
+          W, D, H, mat, layers, leg: legOf(v), oh: 30,
           shelf: v.repisaInferior ? { y: 150 } : null,
         });
         if (v.panelFrontal) {
@@ -215,7 +237,7 @@ export const FURNITURE = [
       num('altoAsiento', 'Alto del asiento', 45, 38, 52),
       num('altoTotal', 'Alto total', 88, 70, 110),
       num('tablas', 'Tablas del respaldo', 3, 1, 5, 1, 'u', { section: 'Estructura' }),
-      LEGS('pino41'),
+      ...LEGS('fino', {}, 'chair'),
       MAT,
     ],
     presets: [
@@ -225,7 +247,9 @@ export const FURNITURE = [
     build(v) {
       const p = new PartList();
       const t = SHEETS[v.mat].t;
-      const s = LINEARS[v.pata].section[0];
+      const front = legSpec(v.pataEstilo === 'afinada' ? 'afinada' : 'cuadrada', v.pata); // patas delanteras
+      const back = legSpec('cuadrada', v.pata); // las traseras suben hasta el respaldo: van rectas
+      const s = front.s;
       const W = v.ancho * 10;
       const Hs = v.altoAsiento * 10; // cara superior del asiento
       const Ht = v.altoTotal * 10;
@@ -236,8 +260,8 @@ export const FURNITURE = [
 
       p.H('Asiento', v.mat, 0, Hs - t, s, W, Dt - s, 'frbl');
       for (const x of [0, W - s]) {
-        p.L('Pata trasera', v.pata, 'y', Ht, x, 0, 0);
-        p.L('Pata delantera', v.pata, 'y', Hs - t, x, 0, Dt - s);
+        placeLeg(p, back, x, 0, 0, Ht, { label: 'Pata trasera' });
+        placeLeg(p, front, x, 0, Dt - s, Hs - t, { label: 'Pata delantera', head: aH + 10 });
       }
       p.L('Faldón', 'pino19x90', 'x', W - 2 * s, s, yA, 0);
       p.L('Faldón', 'pino19x90', 'x', W - 2 * s, s, yA, Dt - aT);
@@ -281,11 +305,12 @@ export const FURNITURE = [
       num('fondo', 'Fondo', 40, 28, 50),
       num('compartimentos', 'Compartimentos', 3, 1, 5, 1, 'u', { section: 'Estructura' }),
       bool('puertas', 'Puertas', true),
+      ...HANDLES((v) => v.puertas),
       sel('base', 'Base', 'patas', BASE_OPTS),
-      num('altoBase', 'Alto de la base', 12, 3, 25, 1, 'cm', { visibleIf: notNone }),
+      num('altoBase', 'Alto de la base', 12, 3, 25, 1, 'cm', { visibleIf: showBaseH }),
       sel('trasera', 'Parte trasera', 'rails', BACK_OPTS),
       MAT,
-      LEGS('pino41', { visibleIf: isLegs }),
+      ...LEGS('fino', { visibleIf: isLegs }),
     ],
     presets: [
       { name: 'Para TV de 55"', values: {} },
@@ -298,7 +323,7 @@ export const FURNITURE = [
       carcass(p, {
         mat: v.mat, W, D: v.fondo * 10, H: v.alto * 10,
         rows: [{ cols: v.compartimentos, door: v.puertas }],
-        base: v.base, baseH: v.altoBase * 10, back: v.trasera, legMat: v.pata,
+        base: v.base, baseH: v.altoBase * 10, back: v.trasera, leg: legOf(v), handle: handleFromValues(v),
       });
       const maxIn = Math.floor(((v.ancho - 12) / 2.215));
       p.tip(`Ancho útil para una TV de hasta ~${maxIn}" (con ~6 cm libres a cada lado).`);
@@ -319,10 +344,10 @@ export const FURNITURE = [
       num('columnas', 'Columnas de vinilos', 2, 1, 4, 1, 'u', { visibleIf: (v) => v.filas > 0 || !v.equipo }),
       num('alturaCelda', 'Alto de cada fila de vinilos', 34, 32, 38),
       sel('base', 'Base', 'patas', BASE_OPTS),
-      num('altoBase', 'Alto de la base', 15, 3, 30, 1, 'cm', { visibleIf: notNone }),
+      num('altoBase', 'Alto de la base', 15, 3, 30, 1, 'cm', { visibleIf: showBaseH }),
       sel('trasera', 'Parte trasera', 'rails', BACK_OPTS),
       MAT,
-      LEGS('pino41', { visibleIf: isLegs }),
+      ...LEGS('fino', { visibleIf: isLegs }),
     ],
     presets: [
       { name: 'Deck con equipo y 2 filas', values: {} },
@@ -336,7 +361,7 @@ export const FURNITURE = [
       if (v.equipo) rows.push({ h: v.alturaEquipo * 10, cols: 1, load: 1 });
       const r = carcass(p, {
         mat: v.mat, W: v.ancho * 10, D: v.fondo * 10, rows,
-        base: v.base, baseH: v.altoBase * 10, back: v.trasera, legMat: v.pata, loadFactor: 0.8,
+        base: v.base, baseH: v.altoBase * 10, back: v.trasera, leg: legOf(v), loadFactor: 0.8,
       });
       p.tip(`Superficie superior: ${v.ancho} × ${v.fondo} cm. Un tocadiscos típico mide ~43 × 36 cm.`);
       if (v.fondo < 40 || v.ancho < 45) p.warn('La tapa queda justa para un tocadiscos de tamaño estándar (≈ 43 × 36 cm).');
@@ -363,10 +388,10 @@ export const FURNITURE = [
       num('alturaCelda', 'Alto libre de cada celda', 34, 32, 40),
       num('fondo', 'Fondo', 36, 33, 45),
       sel('base', 'Base', 'patas', BASE_OPTS, { section: 'Estructura' }),
-      num('altoBase', 'Alto de la base', 8, 3, 20, 1, 'cm', { visibleIf: notNone }),
+      num('altoBase', 'Alto de la base', 8, 3, 20, 1, 'cm', { visibleIf: showBaseH }),
       sel('trasera', 'Parte trasera', 'hdf', BACK_OPTS),
       MAT,
-      LEGS('pino70', { visibleIf: isLegs }),
+      ...LEGS('grueso', { visibleIf: isLegs }),
     ],
     presets: [
       { name: '4 × 4 (≈1.000 LPs)', values: {} },
@@ -381,7 +406,7 @@ export const FURNITURE = [
       const rows = Array.from({ length: v.filas }, () => ({ h: v.alturaCelda * 10, cols: v.columnas }));
       const r = carcass(p, {
         mat: v.mat, W, D: v.fondo * 10, rows,
-        base: v.base, baseH: v.altoBase * 10, back: v.trasera, legMat: v.pata, loadFactor: 1,
+        base: v.base, baseH: v.altoBase * 10, back: v.trasera, leg: legOf(v), loadFactor: 1,
       });
       const perCell = Math.round(v.anchoCelda * 2);
       const total = perCell * v.columnas * v.filas;
@@ -409,9 +434,10 @@ export const defaultsFor = (type) =>
 export function buildFurniture(typeId, values) {
   const type = getType(typeId);
   const v = { ...defaultsFor(type), ...values };
+  if (v.pata) v.pata = normSize(v.pata);
   try {
-    return { ...type.build(v), error: null };
+    return { fixtures: [], ...type.build(v), error: null };
   } catch (e) {
-    return { parts: [], hardware: [], notes: [], bbox: { min: [0, 0, 0], max: [0, 0, 0], dims: [0, 0, 0] }, error: String(e) };
+    return { parts: [], fixtures: [], hardware: [], notes: [], bbox: { min: [0, 0, 0], max: [0, 0, 0], dims: [0, 0, 0] }, error: String(e) };
   }
 }

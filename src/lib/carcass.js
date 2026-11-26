@@ -1,4 +1,6 @@
-import { SHEETS, LINEARS } from './materials.js';
+import { SHEETS } from './materials.js';
+import { legSpec, placeLeg, legHardware } from './legs.js';
+import { placeHandle, handleSummary, hingeSide } from './handles.js';
 import { cm } from './util.js';
 
 /**
@@ -6,7 +8,7 @@ import { cm } from './util.js';
  * trasera, base (zócalo/patas) y puertas. Las filas se definen de abajo hacia arriba.
  *
  * o = { mat, W, D, H?, rows:[{h?, cols, door}], base:'none'|'zocalo'|'patas', baseH,
- *       back:'none'|'hdf'|'rails', legMat, loadFactor }
+ *       back:'none'|'hdf'|'rails', leg (legSpec), handle (handleFromValues), loadFactor }
  * Si todas las filas traen `h`, el alto total se calcula; si no, se reparte `H`.
  */
 export function carcass(p, o) {
@@ -14,8 +16,23 @@ export function carcass(p, o) {
   const t = m.t;
   const { W, D } = o;
   const base = o.base || 'none';
-  const baseH = base === 'none' ? 0 : o.baseH;
   const back = o.back || 'none';
+  // patas: si el fondo no alcanza para las gruesas, se usan las delgadas (se decide antes de calcular la altura de la base)
+  let legSp = o.leg || legSpec('cuadrada', 'fino');
+  let legIns = 25;
+  let legShrunk = false;
+  if (base === 'patas') {
+    const dbEarly = D - (back === 'hdf' ? SHEETS.hdf3.t : 0);
+    const fitsAt = (sp, ins) => dbEarly >= 2 * (ins + sp.s) + 20;
+    legIns = fitsAt(legSp, 25) ? 25 : 10;
+    if (!fitsAt(legSp, legIns) && legSp.size === 'grueso') {
+      legSp = legSpec(legSp.style, 'fino');
+      legIns = fitsAt(legSp, 25) ? 25 : 10;
+      legShrunk = true;
+    }
+  }
+  const isCaster = base === 'patas' && legSp.kind === 'caster';
+  const baseH = base === 'none' ? 0 : isCaster ? legSp.h : o.baseH; // con ruedas, la altura la define la rueda
   const rows = o.rows.map((r) => ({ cols: 1, ...r }));
   const n = rows.length;
 
@@ -51,6 +68,9 @@ export function carcass(p, o) {
   let dividerLen = 0;
   let doorCount = 0;
   let hinges = 0;
+  const doorInfo = [];
+  const handleFx = [];
+  const hspec = o.handle || { type: 'barra', c2c: 128, orient: 'vertical', offX: 40, pctY: 75, hingeMode: 'auto' };
   rows.forEach((r, i) => {
     r.y = y;
     const c = r.cols;
@@ -73,7 +93,13 @@ export function carcass(p, o) {
       const dw = (c > 1 ? cw : innerW / nd) - 3;
       for (let d = 0; d < nd; d++) {
         const x = c > 1 ? t + d * (cw + t) + 1.5 : t + d * (innerW / nd) + 1.5;
-        p.B('Puerta', mat, x, y + 1.5, D - t, dw, r.h - 3, 'tulr');
+        const door = p.B('Puerta', mat, x, y + 1.5, D - t, dw, r.h - 3, 'tulr');
+        if (door) {
+          const info = { id: door.id, x, y: y + 1.5, w: dw, h: r.h - 3, front: D, hinge: hingeSide(hspec.hingeMode, d, nd) };
+          doorInfo.push(info);
+          const fx = placeHandle(p, info, hspec);
+          if (fx) handleFx.push(fx);
+        }
       }
       doorCount += nd;
       hinges += nd * (r.h > 900 ? 3 : 2);
@@ -113,24 +139,21 @@ export function carcass(p, o) {
     p.hardware('Tornillo 4×40 mm', 8, 'Fijación del zócalo');
     p.hardware('Nivelador de patas regulable', 4, 'Bajo el mueble, para nivelar');
   } else if (base === 'patas') {
-    const ins = 25;
-    let leg = o.legMat || 'pino41';
-    if (Db < 2 * (ins + LINEARS[leg].section[0]) + 20) {
-      leg = 'pino41';
-      p.tip('El fondo es poco para patas gruesas: se usaron patas de 2×2" (41×41 mm).');
-    }
-    const s = LINEARS[leg].section[0];
+    const spec = legSp;
+    const ins = legIns;
+    if (legShrunk) p.tip('El fondo es poco para patas gruesas: se usaron las delgadas.');
+    const s = spec.s;
     for (const x of [ins, W - ins - s]) {
-      for (const z of [z0 + ins, D - ins - s]) p.L('Pata', leg, 'y', baseH, x, 0, z);
+      for (const z of [z0 + ins, D - ins - s]) placeLeg(p, spec, x, 0, z, baseH);
     }
-    p.hardware('Tornillo 5×50 mm', 8, 'Fijación de patas');
-    p.hardware('Escuadra metálica de refuerzo 40 mm', 8, 'Unión patas–base');
+    legHardware(p, spec, 4, baseH);
+    if (isCaster) p.tip(`La altura de la base la define la rueda: ${baseH / 10} cm (la medida "Alto de la base" no aplica).`);
   }
 
   // --- herrajes de puertas ---
   if (doorCount) {
     p.hardware('Bisagra de cazoleta 35 mm', hinges, 'Con base y tornillos');
-    p.hardware('Tirador o jaladera', doorCount, '');
+    handleSummary(p, hspec, doorInfo, handleFx);
   }
 
   // --- avisos estructurales ---

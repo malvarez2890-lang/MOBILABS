@@ -12,6 +12,7 @@ const edgeLengths = (str, map) =>
 export class PartList {
   constructor() {
     this.parts = [];
+    this.fixtures = []; // piezas que se dibujan pero no se cortan: tiradores, ruedas, patas metálicas
     this.hw = new Map();
     this.notes = []; // {level:'warn'|'info', text}
     this.conf = 0;
@@ -58,15 +59,24 @@ export class PartList {
   }
 
   /** Listón de pino. axis = eje del largo; thin = eje donde va el lado delgado. */
-  L(name, mat, axis, len, x, y, z, thin) {
+  L(name, mat, axis, len, x, y, z, thin, extra = {}) {
     const [tn, wd] = LINEARS[mat].section;
     let size;
     if (axis === 'y') size = thin === 'x' ? [tn, len, wd] : [wd, len, tn];
     else if (axis === 'x') size = thin === 'y' ? [len, tn, wd] : [len, wd, tn];
     else size = thin === 'y' ? [wd, tn, len] : [tn, wd, len];
     return this._push({
-      name, mat, kind: 'linear', min: [x, y, z], size, cut: { l: r1(len) }, edges: [],
+      name, mat, kind: 'linear', min: [x, y, z], size, cut: { l: r1(len) }, edges: [], ...extra,
     });
+  }
+
+  /** Elemento visible que no entra al despiece. f = { kind, min, size, parent?, noBbox?, ... } */
+  fixture(f) {
+    f.id = 'f' + this.fixtures.length;
+    f.min = f.min.map(r1);
+    f.size = f.size.map(r1);
+    this.fixtures.push(f);
+    return f;
   }
 
   hardware(name, qty, note = '') {
@@ -100,9 +110,17 @@ export class PartList {
         max[i] = Math.max(max[i], p.min[i] + p.size[i]);
       }
     }
+    for (const f of this.fixtures) {
+      if (f.noBbox) continue;
+      for (let i = 0; i < 3; i++) {
+        min[i] = Math.min(min[i], f.min[i]);
+        max[i] = Math.max(max[i], f.min[i] + f.size[i]);
+      }
+    }
     const dims = this.parts.length ? [max[0] - min[0], max[1] - min[1], max[2] - min[2]] : [0, 0, 0];
     return {
       parts: this.parts,
+      fixtures: this.fixtures,
       hardware: [...this.hw].map(([name, v]) => ({ name, qty: Math.ceil(v.qty), note: v.note })),
       notes: this.notes,
       bbox: { min, max, dims },

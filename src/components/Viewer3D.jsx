@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { materialOf } from '../lib/materials.js';
+import { partGeometry, fixtureGeometry } from './geometry.js';
 
 const VIEWS = {
   iso: [0.62, 0.42, 0.85],
@@ -19,11 +20,11 @@ function tint(hex, seed) {
   return c;
 }
 
-export default function Viewer3D({ parts, bbox, explode, highlight, viewKey, viewCmd, onPick }) {
+export default function Viewer3D({ parts, fixtures = [], bbox, explode, highlight, viewKey, viewCmd, onPick }) {
   const mount = useRef(null);
   const S = useRef({}); // objetos three.js
   const latest = useRef({});
-  latest.current = { parts, bbox, explode, highlight, onPick };
+  latest.current = { parts, fixtures, bbox, explode, highlight, onPick };
 
   // ---- inicialización ----
   useEffect(() => {
@@ -77,7 +78,9 @@ export default function Viewer3D({ parts, bbox, explode, highlight, viewKey, vie
       ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       ray.setFromCamera(ndc, camera);
       const hit = ray.intersectObjects(root.children, false)[0];
-      return hit ? hit.object.userData.id : null;
+      if (!hit) return null;
+      const u = hit.object.userData;
+      return u.pickId !== undefined ? u.pickId : u.id; // un tirador cuenta como su puerta; patas compradas no se seleccionan
     };
     let down = null;
     const onDown = (e) => { down = { x: e.clientX, y: e.clientY }; };
@@ -157,7 +160,7 @@ export default function Viewer3D({ parts, bbox, explode, highlight, viewKey, vie
     root.children.slice().forEach((m) => { root.remove(m); m.geometry.dispose(); m.material.dispose(); });
     const [bx, , bz] = [0, 1, 2].map((i) => (bbox.min[i] + bbox.max[i]) / 2);
     parts.forEach((p, i) => {
-      const geo = new THREE.BoxGeometry(p.size[0] / 10, p.size[1] / 10, p.size[2] / 10);
+      const geo = partGeometry(p);
       const mat = new THREE.MeshStandardMaterial({ color: tint(materialOf(p.mat).color, i), roughness: 0.78, metalness: 0 });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.castShadow = true;
@@ -174,6 +177,22 @@ export default function Viewer3D({ parts, bbox, explode, highlight, viewKey, vie
       mesh.position.copy(mesh.userData.base);
       root.add(mesh);
     });
+    // elementos comprados: tiradores, ruedas y patas metálicas
+    const baseById = new Map(root.children.map((m) => [m.userData.id, m.userData.base]));
+    latest.current.fixtures.forEach((f) => {
+      const { geo, color, metal } = fixtureGeometry(f);
+      const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.38, metalness: metal });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = true;
+      const base = new THREE.Vector3(
+        (f.min[0] + f.size[0] / 2 - bx) / 10,
+        (f.min[1] + f.size[1] / 2) / 10,
+        (f.min[2] + f.size[2] / 2 - bz) / 10,
+      );
+      mesh.userData = { id: f.id, fixture: true, parent: f.parent || null, pickId: f.parent || null, base, anchor: (f.parent && baseById.get(f.parent)) || base };
+      mesh.position.copy(base);
+      root.add(mesh);
+    });
     // mantiene el zoom relativo del usuario cuando cambia el tamaño del mueble
     const [w, h, d] = bbox.dims.map((v) => v / 10);
     const size = Math.max(w, h, d, 30);
@@ -187,7 +206,7 @@ export default function Viewer3D({ parts, bbox, explode, highlight, viewKey, vie
     }
     S.current.lastSize = size;
     applyState();
-  }, [parts]);
+  }, [parts, fixtures]);
 
   const applyState = () => {
     const { root } = S.current;
@@ -198,18 +217,19 @@ export default function Viewer3D({ parts, bbox, explode, highlight, viewKey, vie
     const cz = 0;
     root.children.forEach((m) => {
       const b = m.userData.base;
+      const a = m.userData.anchor || b; // los tiradores se mueven junto con su puerta
       m.position.set(
-        b.x + (b.x - cx) * ex * 0.42,
-        b.y + (b.y - cy) * ex * 0.42,
-        b.z + (b.z - cz) * ex * 0.42,
+        b.x + (a.x - cx) * ex * 0.42,
+        b.y + (a.y - cy) * ex * 0.42,
+        b.z + (a.z - cz) * ex * 0.42,
       );
-      const on = !hl || hl.has(m.userData.id);
+      const on = !hl || hl.has(m.userData.fixture ? m.userData.parent : m.userData.id);
       const mat = m.material;
       const transparent = !!hl && !on;
       if (mat.transparent !== transparent) { mat.transparent = transparent; mat.needsUpdate = true; }
       mat.opacity = transparent ? 0.16 : 1;
       mat.depthWrite = !transparent;
-      mat.emissive.setHex(hl && on ? 0x8a3d00 : 0x000000);
+      mat.emissive.setHex(hl && on && !m.userData.fixture ? 0x8a3d00 : 0x000000);
       mat.emissiveIntensity = hl && on ? 0.55 : 0;
     });
   };

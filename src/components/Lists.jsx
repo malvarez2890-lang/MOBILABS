@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { materialOf, SHEETS } from '../lib/materials.js';
+import { materialOf, SHEETS, sectionLabel } from '../lib/materials.js';
 import { fmt, cm } from '../lib/util.js';
 
 const hue = (label) => {
@@ -47,7 +47,7 @@ export function CutList({ plans, onHover, selectedKey, onSelect, scrollTo }) {
                 <td><span className="chip" style={{ background: labelColor(g.label), borderColor: labelStroke(g.label) }}>{g.label}</span></td>
                 <td>{g.name}</td>
                 <td className="r num">{fmt(g.l)}</td>
-                <td className="r num">{g.kind === 'sheet' ? fmt(g.w) : <span className="muted">{materialOf(g.mat).section.join('×')}</span>}</td>
+                <td className="r num">{g.kind === 'sheet' ? fmt(g.w) : <span className="muted">{sectionLabel(g.mat)}</span>}</td>
                 <td className="r num"><b>{g.qty}</b></td>
                 <td className="mat" title={materialOf(g.mat).name}>{materialOf(g.mat).short}</td>
                 <td className="r num">{g.edgeMm ? `${(g.edgeMm / 1000).toFixed(2).replace('.', ',')} m` : '—'}</td>

@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { FURNITURE, getType, defaultsFor, buildFurniture } from './lib/types.js';
 import { packAll } from './lib/packing.js';
 import { buildShopping, shoppingText } from './lib/shopping.js';
-import { materialOf } from './lib/materials.js';
+import { materialOf, sectionLabel } from './lib/materials.js';
 import { cm, fmt } from './lib/util.js';
 import { Icon } from './components/Icons.jsx';
 import ParamsForm from './components/ParamsForm.jsx';
@@ -176,7 +176,7 @@ export default function App() {
       {/* ---------------- visor ---------------- */}
       <main className="center">
         <div className="viewer">
-          <Viewer3D parts={model.parts} bbox={model.bbox} explode={explode} highlight={hover || selIds} viewKey={typeId} viewCmd={viewCmd} onPick={pickFromModel} />
+          <Viewer3D parts={model.parts} fixtures={model.fixtures} bbox={model.bbox} explode={explode} highlight={hover || selIds} viewKey={typeId} viewCmd={viewCmd} onPick={pickFromModel} />
           <div className="hud">
             <div className="dims">
               <b>{type.name}</b>
@@ -190,7 +190,7 @@ export default function App() {
                   <span>
                     {selGroup.kind === 'sheet'
                       ? `${fmt(selGroup.l)} × ${fmt(selGroup.w)} × ${selGroup.t} mm`
-                      : `${fmt(selGroup.l)} mm · ${materialOf(selGroup.mat).section.join('×')}`}
+                      : `${fmt(selGroup.l)} mm · ${sectionLabel(selGroup.mat)}`}
                     {' · '}{selGroup.qty} {selGroup.qty === 1 ? 'pieza' : 'piezas'} · {materialOf(selGroup.mat).short}
                   </span>
                 </div>

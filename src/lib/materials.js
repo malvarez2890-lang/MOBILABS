@@ -19,6 +19,14 @@ export const LINEARS = {
   pino70: { id: 'pino70', short: 'Pino 3×3"', name: 'Pino cepillado 3×3" (≈70×70 mm)', section: [70, 70], stock: 3200, color: '#e2c08b' },
   pino19x90: { id: 'pino19x90', short: 'Pino 1×4"', name: 'Pino cepillado 1×4" (19×90 mm)', section: [19, 90], stock: 3200, color: '#ecd0a0' },
   pino19x42: { id: 'pino19x42', short: 'Pino 1×2"', name: 'Pino cepillado 1×2" (19×42 mm)', section: [19, 42], stock: 3200, color: '#ecd0a0' },
+  redonda45: { id: 'redonda45', short: 'Pilar Ø45', name: 'Pilar redondo de pino Ø45 mm', section: [45, 45], stock: 2400, color: '#e2c08b', round: true },
+  redonda70: { id: 'redonda70', short: 'Pilar Ø70', name: 'Pilar redondo de pino Ø70 mm', section: [70, 70], stock: 2400, color: '#e2c08b', round: true },
+};
+
+/** "41×41" para escuadrías, "Ø45" para pilares redondos */
+export const sectionLabel = (id) => {
+  const m = LINEARS[id];
+  return m.round ? `Ø${m.section[0]}` : m.section.join('×');
 };
 
 export const materialOf = (id) => SHEETS[id] || LINEARS[id];
