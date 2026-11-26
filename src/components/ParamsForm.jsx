@@ -11,7 +11,7 @@ function NumField({ p, value, onChange }) {
     setFocus(false);
   };
   return (
-    <div className="field-num">
+    <div className="num-row">
       <input
         type="range" min={p.min} max={p.max} step={p.step} value={value}
         onChange={(e) => onChange(Number(e.target.value))} aria-label={p.label}

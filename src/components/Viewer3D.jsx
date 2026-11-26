@@ -45,7 +45,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     controls.maxPolarAngle = Math.PI / 2 - 0.01;
     controls.minDistance = 20;
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xd6c9b6, 1.0));
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xc9d0d8, 1.0));
     const sun = new THREE.DirectionalLight(0xffffff, 1.5);
     sun.position.set(180, 380, 260);
     sun.castShadow = true;
@@ -57,11 +57,11 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     fill.position.set(-200, 120, -150);
     scene.add(fill);
 
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.ShadowMaterial({ opacity: 0.2 }));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.ShadowMaterial({ opacity: 0.22 }));
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
-    const grid = new THREE.GridHelper(1000, 100, 0xd8cdbd, 0xe7dfd2);
+    const grid = new THREE.GridHelper(1000, 100, 0xb4bdc8, 0xd3d9e0);
     grid.position.y = 0.05;
     grid.material.transparent = true;
     grid.material.opacity = 0.7;
