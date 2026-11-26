@@ -13,3 +13,17 @@ try {
 } catch { /* sin historial */ }
 // Deslizar en horizontal sobre el visor no debe navegar.
 window.addEventListener('wheel', (e) => { if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.target.closest?.('.center')) e.preventDefault(); }, { passive: false });
+
+// La copia de GitHub Pages es un respaldo: si la página de Cloudflare está disponible, se abre esa
+// (así los documentos impresos y los enlaces llevan siempre https://mobilabs.elbunkerservers.com).
+// Si la red la bloquea, la prueba falla y se queda en GitHub.
+try {
+  const MAIN = 'mobilabs.elbunkerservers.com';
+  if (location.hostname.endsWith('github.io') && !sessionStorage.getItem('mobilabs-no-redirect')) {
+    const probe = new Image();
+    const timer = setTimeout(() => { probe.onload = probe.onerror = null; }, 4000);
+    probe.onload = () => { clearTimeout(timer); location.replace(`https://${MAIN}/${location.search}${location.hash}`); };
+    probe.onerror = () => { clearTimeout(timer); try { sessionStorage.setItem('mobilabs-no-redirect', '1'); } catch { /* sin almacenamiento */ } };
+    probe.src = `https://${MAIN}/icon-192.png?probe=${Date.now()}`;
+  }
+} catch { /* sin redirección */ }
