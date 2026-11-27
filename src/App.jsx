@@ -12,6 +12,8 @@ import { CutList, SheetPlans, Shopping, labelColor, labelStroke } from './compon
 import { Planos, Manual } from './components/Docs.jsx';
 import { ViewManager } from './components/ViewWindows.jsx';
 import Tour from './components/Tour.jsx';
+import { AuthDialog, DesignsDialog, AdminDialog, AccountButton } from './components/Account.jsx';
+import { api, getToken, setToken } from './lib/account.js';
 import { buildDrawing, techSpec } from './lib/plans.js';
 import { buildManual } from './lib/manual.js';
 import { solidsOf, toIfc, toRevitPy } from './lib/bim.js';
@@ -88,6 +90,68 @@ export default function App() {
 
   const type = getType(typeId);
   const values = useMemo(() => ({ ...defaultsFor(type), ...normalizeValues(store[type.id] || {}, type.id) }), [type, store]);
+
+  // ---- cuentas y diseños en la nube ----
+  const [user, setUser] = useState(null);
+  const [accDlg, setAccDlg] = useState(null); // 'auth' | 'designs' | 'admin'
+  const [cloud, setCloud] = useState(null); // diseño de la nube abierto: { id, name, typeId }
+  const [saveStatus, setSaveStatus] = useState('');
+  const lastSaved = useRef('');
+  const typeNames = useMemo(() => Object.fromEntries(FURNITURE.map((f) => [f.id, f.name])), []);
+  useEffect(() => {
+    if (!getToken()) return;
+    api('/me').then((r) => setUser(r.user)).catch(() => {});
+  }, []);
+  const designData = () => ({
+    values: store[typeId] || {},
+    look: looksStore[typeId] || null,
+    settings: { sheetChoice: settings.sheetChoice || {}, sheetCustom: settings.sheetCustom || {} },
+  });
+  const saveNewDesign = async (name) => {
+    const data = designData();
+    const r = await api('/designs', { method: 'POST', body: { name, typeId, data } });
+    lastSaved.current = JSON.stringify(data);
+    setCloud({ id: r.id, name, typeId });
+    setSaveStatus('Guardado ✓');
+  };
+  const openDesign = async (id, asAdmin = false) => {
+    try {
+      const { design: d } = await api(asAdmin ? `/admin/designs/${id}` : `/designs/${id}`);
+      setTypeId(d.typeId);
+      setStore((s) => ({ ...s, [d.typeId]: d.data.values || {} }));
+      setLooksStore((l) => { const n = { ...l }; if (d.data.look) n[d.typeId] = d.data.look; else delete n[d.typeId]; return n; });
+      if (d.data.settings) setSettings((s) => ({ ...s, ...d.data.settings }));
+      lastSaved.current = JSON.stringify({ values: d.data.values || {}, look: d.data.look || null, settings: { sheetChoice: d.data.settings?.sheetChoice || {}, sheetCustom: d.data.settings?.sheetCustom || {} } });
+      setCloud(asAdmin ? null : { id: d.id, name: d.name, typeId: d.typeId });
+      setSaveStatus(asAdmin ? '' : 'Abierto');
+      setAccDlg(null);
+    } catch (e) { window.alert(e.message); }
+  };
+  // guardado automático del diseño abierto (unos segundos después de cada cambio)
+  useEffect(() => {
+    if (!user || !cloud || cloud.typeId !== typeId) return undefined;
+    const data = designData();
+    const txt = JSON.stringify(data);
+    if (txt === lastSaved.current) return undefined;
+    setSaveStatus('Sin guardar…');
+    const id = setTimeout(async () => {
+      try {
+        setSaveStatus('Guardando…');
+        await api(`/designs/${cloud.id}`, { method: 'PUT', body: { data, typeId } });
+        lastSaved.current = txt;
+        setSaveStatus('Guardado ✓');
+      } catch (e) { setSaveStatus('No se guardó'); }
+    }, 2500);
+    return () => clearTimeout(id);
+  }, [user, cloud, typeId, store, looksStore, settings.sheetChoice, settings.sheetCustom]); // eslint-disable-line react-hooks/exhaustive-deps
+  const logout = async () => {
+    try { await api('/logout', { method: 'POST' }); } catch { /* igual se cierra */ }
+    setToken(''); setUser(null); setCloud(null); setSaveStatus('');
+  };
+  const deleteAccount = async () => {
+    if (!window.confirm('¿Borrar tu cuenta y TODOS tus diseños guardados? No se puede deshacer.')) return;
+    try { await api('/me', { method: 'DELETE' }); setToken(''); setUser(null); setCloud(null); setSaveStatus(''); } catch (e) { window.alert(e.message); }
+  };
 
   useEffect(() => {
     try { localStorage.setItem(STORE, JSON.stringify({ typeId, values: store, settings, looks: looksStore, prices })); } catch { /* sin almacenamiento */ }
@@ -408,6 +472,7 @@ export default function App() {
       <header className="top">
         <div className="brand"><img className="logo" src={logoUrl} alt="" width="36" height="36" /><span className="brand-text"><b>MOBILABs</b><small>diseña · cubica · compra · arma</small></span></div>
         <div className="top-actions">
+          <AccountButton user={user} status={cloud && cloud.typeId === typeId ? saveStatus : ''} onLogin={() => setAccDlg('auth')} onDesigns={() => setAccDlg('designs')} onAdmin={() => setAccDlg('admin')} onLogout={logout} onDeleteAccount={deleteAccount} />
           <button className="btn" onClick={() => setTourOpen(true)} title="Ver el tutorial de la aplicación">Tutorial</button>
           {PUBLISHED ? (
             <button className="btn primary" onClick={copyCuts} title="Copia el despiece y las compras para pegar en Excel, Sheets o un mensaje">
@@ -591,6 +656,9 @@ export default function App() {
       </aside>
 
       {tourOpen && <Tour onClose={closeTour} />}
+      {accDlg === 'auth' && <AuthDialog onClose={() => setAccDlg(null)} onDone={(u) => { setUser(u); setAccDlg('designs'); }} />}
+      {accDlg === 'designs' && user && <DesignsDialog onClose={() => setAccDlg(null)} onOpen={(id) => openDesign(id)} onSaveNew={saveNewDesign} currentId={cloud?.id} typeNames={typeNames} />}
+      {accDlg === 'admin' && user?.isAdmin && <AdminDialog onClose={() => setAccDlg(null)} onOpenDesign={(id) => openDesign(id, true)} typeNames={typeNames} />}
       <nav className="mnav" aria-label="Secciones">
         {[['diseno', 'Diseño'], ['piezas', 'Piezas'], ['cortes', 'Cortes'], ['compras', 'Compras'], ['planos', 'Planos'], ['manual', 'Manual']].map(([id, label]) => {
           const active = id === 'diseno' ? mview === 'diseno' : mview === 'resultados' && tab === id;

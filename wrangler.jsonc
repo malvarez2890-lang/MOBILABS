@@ -1,9 +1,14 @@
 {
-  // Sitio estático: Cloudflare publica la carpeta dist tal cual, sin script de servidor.
+  // App estática (carpeta dist) + servidor pequeño (worker/index.js) para cuentas y diseños guardados.
   // El nombre debe coincidir con el del proyecto en Cloudflare ("mobilabs").
   "name": "mobilabs",
+  "main": "worker/index.js",
   "compatibility_date": "2026-11-01",
   "assets": {
-    "directory": "./dist"
-  }
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  // Las variables del panel de Cloudflare (por ejemplo ADMIN_EMAILS) no se borran al publicar.
+  "keep_vars": true
 }
