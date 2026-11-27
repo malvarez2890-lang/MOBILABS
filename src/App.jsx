@@ -660,7 +660,7 @@ export default function App() {
         <Home
           leaving={homeLeaving}
           user={user}
-          local={{ typeId, thumb: isoImg, dims: `${cm(bw)} × ${cm(bh)} × ${cm(bd)} cm`, cloudName: cloud && cloud.typeId === typeId ? cloud.name : '' }}
+          local={{ typeId, thumb: isoImg, dims: `${cm(bw)} × ${cm(bh)} × ${cm(bd)} cm`, cloudName: cloud && cloud.typeId === typeId ? cloud.name : '', custom: !!store[typeId] && JSON.stringify(store[typeId]) !== JSON.stringify(defaultsFor(getType(typeId))) }}
           onContinueLocal={leaveHome}
           onOpenCloud={async (id) => { await openDesign(id); leaveHome(); }}
           onNew={(id) => {

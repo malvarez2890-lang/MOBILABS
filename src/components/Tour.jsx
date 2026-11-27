@@ -1,15 +1,18 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
+import { POSES } from '../lib/viruta.js';
+
+// pose: la de Don Viruta en cada paso; 'apunta' = mira hacia el elemento destacado (izquierda o derecha, según donde quede el globo)
 const STEPS = [
-  { t: 'Bienvenido a MOBILABs', d: 'En un minuto te muestro cómo diseñar un mueble, verlo en 3D, sacar los cortes y armarlo. Puedes repetir este tutorial cuando quieras con el botón “Tutorial”.' },
-  { sel: '.types', t: '1 · Elige el mueble', d: 'Estante, mesa, escritorio, credenza… Cada uno trae sus propias medidas y opciones.' },
-  { sel: '.presets-box', t: 'Modelos listos', d: 'Abre este listado para partir de un diseño ya armado y luego ajustarlo a tu gusto.' },
-  { sel: '.params', t: '2 · Ajusta las medidas', d: 'Mueve las barras o escribe el valor. Todo se recalcula solo: si algo no cabe o queda débil, la app lo corrige y te lo avisa.' },
-  { sel: '.viewer', t: '3 · Míralo en 3D', d: 'Rueda: acercar y alejar. Rueda apretada + arrastrar: desplazar (con Mayús o Ctrl, girar). Clic izquierdo: seleccionar piezas (Ctrl suma). Clic derecho: colores y texturas. El botón ? resume los controles.' },
-  { sel: '.vtabs', t: 'Vistas de plano', d: 'Abre Planta y Elevaciones como pestañas o ventanas flotantes, y usa “Mosaico” para ver varias a la vez, junto al 3D.' },
-  { sel: '.right .tabs', t: '4 · Piezas, cortes y compras', d: 'El despiece trae letras para cada pieza; el plan de corte permite elegir la medida de plancha; y la lista de compras suma el costo aproximado con precios editables y enlaces a tiendas.' },
-  { sel: '.right .tabs', t: 'Planos y manual', d: 'Planimetría con vistas y cotas, especificación técnica y un manual de armado paso a paso con imágenes. Cada sección se guarda como PDF desde su botón al final.' },
-  { t: '¡Listo para diseñar!', d: 'Tus cambios se guardan solos en este navegador. Prueba con un modelo listo y ajusta las medidas.' },
+  { pose: 'saluda', t: '¡Hola! Soy Don Viruta', d: 'Maestro carpintero y tu guía en MOBILABs. En un minuto te muestro cómo diseñar un mueble, sacar los cortes y armarlo sin perder ni un dedo. ¿Vamos?' },
+  { sel: '.types', pose: 'apunta', t: '1 · Elige el mueble', d: 'Aquí partes: estante, mesa, escritorio, credenza… Cada uno trae sus medidas y sus mañas.' },
+  { sel: '.presets-box', pose: 'piensa', t: 'Modelos listos', d: '¿Flojera de partir de cero? Abre este listado y elige uno ya armado. Después lo ajustas a tu pinta.' },
+  { sel: '.params', pose: 'mide', t: '2 · Ajusta las medidas', d: 'Mueve las barras o escribe el número. Si algo no cumple, yo lo arreglo solo: pongo divisores, tapa doble o achico la cajonera.' },
+  { sel: '.viewer', pose: 'apunta', t: '3 · Míralo en 3D', d: 'Rueda: acercar. Rueda apretada + arrastrar: mover (con Mayús o Ctrl, girar). Clic: elegir piezas. Clic derecho: colores y texturas. El botón ? tiene el resumen.' },
+  { sel: '.vtabs', pose: 'planos', t: 'Vistas de plano', d: 'Abre la planta y las elevaciones en pestañas o ventanas sueltas, y con "Mosaico" las ves todas juntas, como en Revit.' },
+  { sel: '.right .tabs', pose: 'lista', t: '4 · Piezas, cortes y compras', d: 'El despiece con letras, el plano de corte por plancha y la lista de compras con precios y links a la ferretería. Revísala dos veces, ¡el tornillo que falta siempre es el clave!' },
+  { sel: '.right .tabs', pose: 'taladro', t: 'Planos, manual y Exportar', d: 'Planos con cotas, manual de armado con fotos paso a paso, y el botón Exportar para sacar PDF, planillas o llevar tu mueble a Revit.' },
+  { pose: 'pulgar', t: '¡Listo, maestro!', d: 'Tus cambios se guardan solos. Si te creas una cuenta, tus diseños te siguen a cualquier computador. Ahora, ¡a cortar madera!' },
 ];
 
 const visible = (el) => !!el && el.getClientRects().length > 0;
@@ -20,6 +23,7 @@ export default function Tour({ onClose }) {
   const [box, setBox] = useState(null);
   const tipRef = useRef(null);
   const [tipPos, setTipPos] = useState({ left: 0, top: 0 });
+  const [side, setSide] = useState(null); // 'right' = globo a la derecha del elemento (Don Viruta apunta a la izquierda)
   const step = steps[i];
   const last = i === steps.length - 1;
 
@@ -62,7 +66,7 @@ export default function Tour({ onClose }) {
     const W = window.innerWidth;
     const H = window.innerHeight;
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-    if (!box) { setTipPos({ left: (W - w) / 2, top: (H - h) / 2 }); return; }
+    if (!box) { setTipPos({ left: (W - w) / 2, top: (H - h) / 2 }); setSide(null); return; }
     const [x, y, bw, bh] = box;
     const g = 14;
     const cy = clamp(y + bh / 2 - h / 2, 10, H - h - 10);
@@ -73,7 +77,9 @@ export default function Tour({ onClose }) {
       [cx, y + bh + g, y + bh + g + h <= H - 8],
       [cx, y - g - h, y - g - h >= 8],
     ];
-    const ok = options.find((o) => o[2]);
+    const k = options.findIndex((o) => o[2]);
+    const ok = options[k];
+    setSide(k === 0 ? 'right' : k === 1 ? 'left' : x + bw / 2 < W / 2 ? 'right' : 'left');
     setTipPos(ok ? { left: ok[0], top: ok[1] } : { left: cx, top: clamp(y + bh - h - 16, 10, H - h - 10) });
   }, [box, i]);
 
@@ -86,6 +92,7 @@ export default function Tour({ onClose }) {
         <div className="tour-dim" />
       )}
       <div className="tour-tip" ref={tipRef} style={{ left: tipPos.left, top: tipPos.top }}>
+        <img className="tour-viruta" key={i} alt="Don Viruta" src={POSES[step.pose === 'apunta' ? (side === 'left' ? 'derecha' : 'izquierda') : step.pose] || POSES.saluda} />
         <div className="tour-count">{i + 1} / {steps.length}</div>
         <b>{step.t}</b>
         <p>{step.d}</p>

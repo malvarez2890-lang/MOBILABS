@@ -971,3 +971,24 @@ button.brand:hover .brand-text b { color: #8fd0ff; }
 /* ---------- esquinas rectas en toda la app (misma línea que el diseñador) ---------- */
 *:not(input[type=range]), *::before, *::after { border-radius: 0 !important; }
 .tour-dots i { border-radius: 50% !important; }
+
+/* ---------- Don Viruta en el inicio ---------- */
+.viruta { display: flex; align-items: flex-end; justify-content: center; gap: 0; max-width: 760px; margin: 0 auto 6px; min-height: 190px; }
+.viruta-img { height: 210px; width: auto; flex: none; filter: drop-shadow(0 8px 14px rgb(0 0 0 / .35)); animation: virutaIn .5s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes virutaIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.viruta-say { position: relative; align-self: center; max-width: 470px; margin-left: 18px; padding: 12px 16px 10px; background: #f6f1e7; color: #2a2016; border: 2px solid #1b1f24; text-align: left; box-shadow: 4px 4px 0 #1b1f24; animation: virutaIn .5s .12s cubic-bezier(.2, .8, .2, 1) both; }
+.viruta-say::before { content: ""; position: absolute; left: -14px; bottom: 26px; border: 7px solid transparent; border-right: 12px solid #1b1f24; border-left: 0; }
+.viruta-say::after { content: ""; position: absolute; left: -9px; bottom: 28px; border: 5px solid transparent; border-right: 9px solid #f6f1e7; border-left: 0; }
+.viruta-say b { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #8a5a2b; }
+.viruta-say p { margin: 3px 0 4px; font-size: 15.5px; line-height: 1.45; }
+.viruta-say .linkish { color: #2f6f97; font-size: 12.5px; }
+@media (max-width: 760px) { .viruta { min-height: 0; } .viruta-img { height: 130px; } .viruta-say { margin-left: 10px; padding: 9px 11px; } .viruta-say p { font-size: 13.5px; } }
+
+/* ---------- Don Viruta en el tutorial ---------- */
+.tour-tip { width: min(470px, calc(100vw - 20px)); padding: 14px 16px 12px 128px; min-height: 172px; background: #f6f1e7; color: #2a2016; border: 2px solid #1b1f24; box-shadow: 5px 5px 0 #1b1f24; }
+.tour-viruta { position: absolute; left: 6px; bottom: 6px; height: 158px; width: 116px; object-fit: contain; object-position: bottom center; animation: virutaIn .4s cubic-bezier(.2, .8, .2, 1) both; }
+.tour-tip p { color: #3b2f22; }
+.tour-tip b { color: #1b1f24; }
+.tour-nav button { border-color: #1b1f24; background: #fff; }
+.tour-nav button.primary { background: #1b1f24; border-color: #1b1f24; color: #fff; }
+@media (max-width: 520px) { .tour-tip { padding-left: 96px; min-height: 140px; } .tour-viruta { height: 128px; width: 86px; } }

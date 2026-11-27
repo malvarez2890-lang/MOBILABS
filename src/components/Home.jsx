@@ -3,6 +3,7 @@ import { FURNITURE } from '../lib/types.js';
 import { interpret } from '../lib/intent.js';
 import { api, fmtDate } from '../lib/account.js';
 import { Icon } from './Icons.jsx';
+import { POSES, homeMessage, randomTip } from '../lib/viruta.js';
 
 const EXAMPLES = ['mesa redonda para 6', 'rack de TV de 180 con puertas', 'escritorio con cajonera en MDF', 'estante de 1,2 m con ruedas', 'credenza para tocadiscos con patas cónicas'];
 
@@ -17,10 +18,27 @@ export default function Home({ leaving, user, local, onContinueLocal, onOpenClou
   }, [user]);
   const typeName = (id) => FURNITURE.find((f) => f.id === id)?.name || id;
   const first = (user?.name || '').split(' ')[0];
+  // Don Viruta: un mensaje por visita, según lo que hace el usuario (espera a tener sus diseños, si hay cuenta)
+  const [msg, setMsg] = useState(null);
+  useEffect(() => {
+    if (user && designs === null) return;
+    const typeNames = Object.fromEntries(FURNITURE.map((f) => [f.id, f.name]));
+    setMsg(homeMessage({ name: user?.name, user, local: local && { typeName: typeName(local.typeId), dims: local.dims, custom: local.custom }, designs: designs || [], typeNames }));
+  }, [user, designs]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className={`home ${leaving ? 'leaving' : ''}`} role="region" aria-label="Inicio">
       <div className="home-in">
         <header className="home-hero">
+          <div className="viruta">
+            {msg && <img key={msg.pose} src={POSES[msg.pose]} alt="Don Viruta, maestro carpintero" className="viruta-img" />}
+            {msg && (
+              <div className="viruta-say" aria-live="polite">
+                <b>Don Viruta</b>
+                <p>{msg.text}</p>
+                <button className="linkish" onClick={() => setMsg(randomTip())}>Otro consejo ↻</button>
+              </div>
+            )}
+          </div>
           <h1>{first ? `Hola, ${first}` : 'Hola'}</h1>
           <p>¿Qué tienes en mente hoy?</p>
           <form className="home-search" onSubmit={(e) => { e.preventDefault(); if (sugg[0]) onIntent(sugg[0]); }}>
