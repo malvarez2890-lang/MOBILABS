@@ -10,6 +10,8 @@ const EXAMPLES = ['mesa redonda para 6', 'rack de TV de 180 con puertas', 'escri
 /** Pantalla de inicio: "¿Qué tienes en mente hoy?", continuar, empezar uno nuevo o partir de un modelo listo. */
 export default function Home({ leaving, user, local, onContinueLocal, onOpenCloud, onNew, onPreset, onIntent, onLogin, onAllDesigns }) {
   const [q, setQ] = useState('');
+  const [pick, setPick] = useState(null);
+  const pickType = FURNITURE.find((f) => f.id === pick);
   const [designs, setDesigns] = useState(null);
   const sugg = useMemo(() => interpret(q), [q]);
   useEffect(() => {
@@ -96,15 +98,20 @@ export default function Home({ leaving, user, local, onContinueLocal, onOpenClou
             <h3>Empezar un mueble nuevo</h3>
             <div className="home-types">
               {FURNITURE.map((f) => (
-                <button key={f.id} onClick={() => onNew(f.id)} title={f.desc}><Icon id={f.id} size={30} /><span>{f.name}</span></button>
+                <button key={f.id} className={pick === f.id ? 'on' : ''} aria-expanded={pick === f.id} onClick={() => setPick(pick === f.id ? null : f.id)} title={f.desc}><Icon id={f.id} size={30} /><span>{f.name}</span></button>
               ))}
             </div>
-            <h3>Partir de un modelo listo</h3>
-            <div className="home-presets">
-              {FURNITURE.flatMap((f) => f.presets.slice(0, 3).map((p) => (
-                <button key={`${f.id}-${p.name}`} onClick={() => onPreset(f.id, p)}><Icon id={f.id} size={16} /><span><b>{p.name}</b><small>{f.name}</small></span></button>
-              )))}
-            </div>
+            {pickType && (
+              <div className="home-pick" key={pickType.id} ref={(el) => el && el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })}>
+                <div className="home-pick-h"><Icon id={pickType.id} size={20} /><b>{pickType.name}</b><span>{pickType.desc}</span><button className="home-pick-x" onClick={() => setPick(null)} aria-label="Cerrar">×</button></div>
+                <div className="home-presets">
+                  <button className="def" onClick={() => onNew(pickType.id)}><Icon id={pickType.id} size={16} /><span><b>Por defecto</b><small>Para modificar a tu gusto</small></span></button>
+                  {pickType.presets.map((p) => (
+                    <button key={p.name} onClick={() => onPreset(pickType.id, p)}><Icon id={pickType.id} size={16} /><span><b>{p.name}</b><small>Modelo listo</small></span></button>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
         </div>
       </div>
