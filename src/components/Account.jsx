@@ -1,3 +1,4 @@
+import { virutaEmit } from '../lib/donViruta.js';
 import React, { useEffect, useState } from 'react';
 import { api, setToken, fmtDate } from '../lib/account.js';
 import { ask } from '../lib/ui.js';
@@ -169,7 +170,7 @@ export function DesignsDialog({ onClose, onOpen, onSaveNew, currentId, typeNames
   };
   const remove = async (d) => {
     if (!(await ask({ title: 'Borrar diseño', message: `¿Borrar «${d.name}»? No se puede deshacer.`, ok: 'Borrar', danger: true }))) return;
-    try { await api(`/designs/${d.id}`, { method: 'DELETE' }); load(); } catch (e) { setErr(e.message); }
+    try { await api(`/designs/${d.id}`, { method: 'DELETE' }); virutaEmit('project_deleted', { name: d.name }); load(); } catch (e) { setErr(e.message); }
   };
   return (
     <Dialog title="Mis diseños" onClose={onClose} wide>

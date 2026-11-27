@@ -2,20 +2,13 @@
  * Don Viruta: el maestro carpintero de MOBILABs. Poses (imágenes) y mensajes según lo que hace cada usuario.
  * Tono chileno, buena onda y con tallas, pero que sabe de carpintería.
  */
-import saluda from '../assets/viruta/saluda.webp';
-import izquierda from '../assets/viruta/izquierda.webp';
-import derecha from '../assets/viruta/derecha.webp';
-import mide from '../assets/viruta/mide.webp';
-import planos from '../assets/viruta/planos.webp';
-import piensa from '../assets/viruta/piensa.webp';
-import pulgar from '../assets/viruta/pulgar.webp';
-import tabla from '../assets/viruta/tabla.webp';
-import taladro from '../assets/viruta/taladro.webp';
-import cafe from '../assets/viruta/cafe.webp';
-import apuro from '../assets/viruta/apuro.webp';
-import lista from '../assets/viruta/lista.webp';
-
-export const POSES = { saluda, izquierda, derecha, mide, planos, piensa, pulgar, tabla, taladro, cafe, apuro, lista };
+// DonVirutaAssets: todas las poses de src/assets/viruta (WebP o PNG transparente). Para sumar una pose nueva basta con
+// dejar el archivo en esa carpeta: el nombre del archivo es el nombre de la pose (ej.: brazos-cruzados.webp).
+const FILES = import.meta.glob('../assets/viruta/*.{webp,png}', { eager: true, import: 'default' });
+export const POSES = Object.fromEntries(Object.entries(FILES).map(([f, url]) => [f.split('/').pop().replace(/\.(webp|png)$/, ''), url]));
+export { default as AVATAR } from '../assets/viruta-avatar.webp';
+/** URL de la primera pose que exista de la lista (si ninguna existe todavía, la pose original: saludando). */
+export const poseUrl = (...names) => POSES[names.flat().find((n) => POSES[n])] || POSES.saluda;
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const ago = (ms) => (Date.now() - ms) / 86400000; // días

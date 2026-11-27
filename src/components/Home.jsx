@@ -3,7 +3,8 @@ import { FURNITURE } from '../lib/types.js';
 import { interpret } from '../lib/intent.js';
 import { api, fmtDate } from '../lib/account.js';
 import { Icon } from './Icons.jsx';
-import { POSES, homeMessage, randomTip } from '../lib/viruta.js';
+import { homeMessage, randomTip } from '../lib/viruta.js';
+import { DonVirutaWelcome } from './DonViruta.jsx';
 
 const EXAMPLES = ['mesa redonda para 6', 'rack de TV de 180 con puertas', 'escritorio con cajonera en MDF', 'estante de 1,2 m con ruedas', 'credenza para tocadiscos con patas cónicas'];
 
@@ -30,21 +31,9 @@ export default function Home({ leaving, user, local, onContinueLocal, onOpenClou
   return (
     <div className={`home ${leaving ? 'leaving' : ''}`} role="region" aria-label="Inicio">
       <div className="home-in">
-        <header className="home-hero">
-          <div className="viruta">
-            {msg && <img key={msg.pose} src={POSES[msg.pose]} alt="Don Viruta, maestro carpintero" className="viruta-img" />}
-            {msg && (
-              <div className="viruta-say" aria-live="polite">
-                <b>Don Viruta</b>
-                <p>{msg.text}</p>
-                <button className="linkish" onClick={() => setMsg(randomTip())}>Otro consejo ↻</button>
-              </div>
-            )}
-          </div>
-          <h1>{first ? `Hola, ${first}` : 'Hola'}</h1>
-          <p>¿Qué tienes en mente hoy?</p>
+        <DonVirutaWelcome name={first} msg={msg} onOther={() => setMsg(randomTip())}>
           <form className="home-search" onSubmit={(e) => { e.preventDefault(); if (sugg[0]) onIntent(sugg[0]); }}>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ej.: mesa redonda para 6, rack de TV de 180 con puertas…" aria-label="Describe el mueble que quieres hacer" autoFocus />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Describe el mueble que quieres diseñar… (ej.: mesa redonda para 6)" aria-label="Describe el mueble que quieres diseñar" autoFocus />
             <button className="btn primary" disabled={!sugg.length}>Diseñar →</button>
           </form>
           {q && (
@@ -55,7 +44,7 @@ export default function Home({ leaving, user, local, onContinueLocal, onOpenClou
             </div>
           )}
           {!q && <div className="home-ex">{EXAMPLES.map((e) => <button key={e} onClick={() => setQ(e)}>{e}</button>)}</div>}
-        </header>
+        </DonVirutaWelcome>
 
         {!user && (
           <div className="home-guest">

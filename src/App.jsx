@@ -15,6 +15,8 @@ import Tour from './components/Tour.jsx';
 import UiHost from './components/UiHost.jsx';
 import { ask, notify } from './lib/ui.js';
 import Home from './components/Home.jsx';
+import { DonVirutaAssistant } from './components/DonViruta.jsx';
+import { virutaEmit } from './lib/donViruta.js';
 import ExportMenu from './components/ExportMenu.jsx';
 import { AuthDialog, ResetDialog, DesignsDialog, AdminDialog, AccountButton, ProfileDialog, SaveDialog } from './components/Account.jsx';
 import { api, getToken, setToken } from './lib/account.js';
@@ -131,6 +133,7 @@ export default function App() {
     lastSaved.current = JSON.stringify(data);
     setCloud({ id: r.id, name, typeId });
     setSaveStatus('Guardado ✓');
+    virutaEmit('project_saved', { name });
   };
   const openDesign = async (id, asAdmin = false) => {
     try {
@@ -143,6 +146,7 @@ export default function App() {
       setCloud(asAdmin ? null : { id: d.id, name: d.name, typeId: d.typeId });
       setSaveStatus(asAdmin ? '' : 'Abierto');
       setAccDlg(null);
+      virutaEmit('project_loaded', { name: d.name });
     } catch (e) { notify('No se pudo abrir el diseño', e.message); }
   };
   // guardado automático del diseño abierto (unos segundos después de cada cambio)
@@ -173,6 +177,7 @@ export default function App() {
       await api(`/designs/${cloud.id}`, { method: 'PUT', body: { data: { ...data, thumb: thumbNow() }, typeId } });
       lastSaved.current = JSON.stringify(data);
       setSaveStatus('Guardado ✓');
+      virutaEmit('project_saved', { name: cloud.name });
     } catch (e) { setSaveStatus('No se guardó'); notify('No se pudo guardar', e.message); }
   };
   const saveRef = useRef(saveNow);
@@ -473,12 +478,13 @@ export default function App() {
       solids: solidsOf(model, letterOf, looks),
     };
   };
-  const exportIfc = () => { const i = bimInfo(); download(`${i.fileBase}.ifc`, toIfc(model, i), 'application/x-step', false); };
-  const exportRevit = () => { const i = bimInfo(); download(`${i.fileBase}_familia_revit.py`, toRevitPy(model, i), 'text/x-python;charset=utf-8', false); };
+  const exportIfc = () => { const i = bimInfo(); download(`${i.fileBase}.ifc`, toIfc(model, i), 'application/x-step', false); virutaEmit('project_exported', { what: 'archivo IFC' }); };
+  const exportRevit = () => { const i = bimInfo(); download(`${i.fileBase}_familia_revit.py`, toRevitPy(model, i), 'text/x-python;charset=utf-8', false); virutaEmit('project_exported', { what: 'familia para Revit' }); };
 
   const exportCsv = () => {
     const csv = buildRows().map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
     download(`${type.id}-despiece.csv`, csv);
+    virutaEmit('project_exported', { what: 'despiece en CSV' });
   };
 
   const setPrice = (key, val) => setPrices((p) => {
@@ -507,6 +513,39 @@ export default function App() {
   ];
   const warns = notes.filter((n) => n.level === 'warn');
   const tips = notes.filter((n) => n.level === 'info');
+
+  // Don Viruta: reacciona a las alertas reales del modelo (con pausa, para no saltar mientras se arrastra un control)
+  const warnKey = warns.map((n) => n.text).join('|');
+  const prevWarns = useRef(null);
+  useEffect(() => {
+    if (home) return undefined;
+    const id = setTimeout(() => {
+      const prev = prevWarns.current;
+      const now = warnKey ? warnKey.split('|') : [];
+      prevWarns.current = now;
+      if (prev === null) return; // al entrar no se avisa: ya se ve en la lista
+      const nuevas = now.filter((t) => !prev.includes(t));
+      if (nuevas.length) virutaEmit('dimension_error', { text: nuevas[0] });
+      else if (prev.length && !now.length) virutaEmit('dimension_ok');
+    }, 900);
+    return () => clearTimeout(id);
+  }, [warnKey, home]);
+  useEffect(() => { if (home) prevWarns.current = null; }, [home]);
+  // secciones del navegador
+  useEffect(() => {
+    if (home) return;
+    if (tab === 'cortes') virutaEmit('cutlist_generated', { sheets: plans.sheetPlans?.reduce((a, sp) => a + sp.sheets.length, 0) });
+    else if (tab === 'compras') virutaEmit('shopping_opened');
+    else if (tab === 'planos') virutaEmit('plans_opened');
+  }, [tab, home]); // eslint-disable-line react-hooks/exhaustive-deps
+  // cambio de material (no al cambiar de tipo de mueble)
+  const matKey = `${typeId}|${values.mat}`;
+  const prevMat = useRef(matKey);
+  useEffect(() => {
+    const [pt] = prevMat.current.split('|');
+    if (pt === typeId && prevMat.current !== matKey && !home) virutaEmit('material_changed', { name: materialOf(values.mat)?.name });
+    prevMat.current = matKey;
+  }, [matKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="app" data-mview={mview}>
@@ -705,13 +744,22 @@ export default function App() {
             const custom = store[id] && JSON.stringify(store[id]) !== JSON.stringify(defaultsFor(getType(id)));
             if (custom && !(cloud && cloud.typeId === id) && !(await ask({ title: 'Empezar uno nuevo', message: `Tienes un ${getType(id).name.toLowerCase()} sin guardar en este navegador. ¿Empezar uno nuevo y reemplazarlo?`, ok: 'Empezar nuevo', danger: true }))) return;
             setTypeId(id); setStore((s) => ({ ...s, [id]: defaultsFor(getType(id)) })); setLooksStore((l) => { const n = { ...l }; delete n[id]; return n; }); setCloud(null); leaveHome();
+            virutaEmit('project_created', {});
           }}
-          onPreset={(id, p) => { setTypeId(id); setStore((s) => ({ ...s, [id]: { ...defaultsFor(getType(id)), ...p.values } })); setCloud(null); leaveHome(); }}
-          onIntent={(sg) => { setTypeId(sg.typeId); setStore((s) => ({ ...s, [sg.typeId]: { ...defaultsFor(getType(sg.typeId)), ...sg.values } })); setCloud(null); leaveHome(); }}
+          onPreset={(id, p) => { setTypeId(id); setStore((s) => ({ ...s, [id]: { ...defaultsFor(getType(id)), ...p.values } })); setCloud(null); leaveHome(); virutaEmit('project_created', { preset: p.name }); }}
+          onIntent={(sg) => { virutaEmit('generation_started'); setTimeout(() => virutaEmit('generation_completed', { label: sg.label }), 700); setTypeId(sg.typeId); setStore((s) => ({ ...s, [sg.typeId]: { ...defaultsFor(getType(sg.typeId)), ...sg.values } })); setCloud(null); leaveHome(); }}
           onLogin={() => setAccDlg('auth')}
           onAllDesigns={() => setAccDlg('designs')}
         />
       )}
+      <DonVirutaAssistant
+        hidden={home || tourOpen}
+        warns={warns.map((n) => n.text)}
+        notes={tips.map((n) => n.text)}
+        onGoTab={(t) => { setTab(t); setMview('resultados'); }}
+        onShowAlerts={() => { setMview('diseno'); setTimeout(() => { const el = document.querySelector('.notices .notice.warn'); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); } }, 60); }}
+        onTour={() => setTourOpen(true)}
+      />
       {tourOpen && <Tour onClose={closeTour} />}
       <UiHost />
       {resetToken && <ResetDialog token={resetToken} onClose={clearResetParam} onDone={(u) => { setUser(u); clearResetParam(); setAccDlg('designs'); }} />}
