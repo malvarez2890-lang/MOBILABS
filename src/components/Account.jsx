@@ -85,6 +85,28 @@ export function AuthDialog({ onClose, onDone, initial = 'login' }) {
   );
 }
 
+/* ---------------------------------------------------------------- mi cuenta (editar nombre) */
+export function ProfileDialog({ user, onClose, onSaved }) {
+  const [name, setName] = useState(user.name || '');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true); setErr('');
+    try { const r = await api('/me', { method: 'PUT', body: { name } }); onSaved(r.user); } catch (ex) { setErr(ex.message); } finally { setBusy(false); }
+  };
+  return (
+    <Dialog title="Mi cuenta" onClose={onClose}>
+      <form onSubmit={submit} className="acc-form">
+        <label><span>Nombre</span><input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} autoFocus placeholder="Cómo quieres que te salude MOBILABs" /></label>
+        <label><span>Correo</span><input value={user.email} disabled /></label>
+        {err && <p className="acc-err">{err}</p>}
+        <button className="btn primary acc-go" disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</button>
+      </form>
+    </Dialog>
+  );
+}
+
 /* ---------------------------------------------------------------- nueva contraseña (desde el enlace del correo) */
 export function ResetDialog({ token, onClose, onDone }) {
   const [p1, setP1] = useState('');
@@ -214,7 +236,7 @@ export function AdminDialog({ onClose, onOpenDesign, typeNames }) {
 }
 
 /* ---------------------------------------------------------------- botón y menú de la cuenta */
-export function AccountButton({ user, status, onLogin, onRegister, onDesigns, onAdmin, onLogout, onDeleteAccount, onTutorial, onHome }) {
+export function AccountButton({ user, status, onLogin, onRegister, onDesigns, onAdmin, onLogout, onDeleteAccount, onTutorial, onHome, onProfile }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   const initial = user ? (user.name || user.email).trim()[0]?.toUpperCase() || '?' : '?';
@@ -231,6 +253,7 @@ export function AccountButton({ user, status, onLogin, onRegister, onDesigns, on
           <>
             <div className="acc-who"><b>{user.name || 'Mi cuenta'}</b><span>{user.email}</span></div>
             <button onClick={() => { close(); onDesigns(); }}><b>Mis diseños</b><span>Guardar, abrir y ordenar tus diseños en la nube</span></button>
+            <button onClick={() => { close(); onProfile(); }}><b>Mi cuenta</b><span>Cambiar tu nombre</span></button>
             {user.isAdmin && <button onClick={() => { close(); onAdmin(); }}><b>Panel del desarrollador</b><span>Usuarios registrados y diseños guardados</span></button>}
           </>
         ) : (

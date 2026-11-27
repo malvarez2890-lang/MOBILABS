@@ -958,3 +958,16 @@ button.brand:hover .brand-text b { color: #8fd0ff; }
 .exp-pop { z-index: 120; }
 @media (max-width: 760px) { .exp-pop { left: 8px !important; right: 8px !important; width: auto; } }
 .home-card .go { position: static; grid-column: 2; justify-self: end; margin-top: -6px; }
+
+/* ---------- transición inicio → diseñador ---------- */
+.home { animation: homeIn .45s ease both; }
+.home.leaving { animation: homeOut .52s cubic-bezier(.4, 0, .2, 1) both; pointer-events: none; }
+.home.leaving .home-in { animation: homeInnerOut .52s cubic-bezier(.4, 0, .2, 1) both; }
+@keyframes homeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes homeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes homeInnerOut { from { transform: none; } to { transform: scale(.97) translateY(10px); } }
+@media (prefers-reduced-motion: reduce) { .home, .home.leaving, .home.leaving .home-in { animation: none; } }
+
+/* ---------- esquinas rectas en toda la app (misma línea que el diseñador) ---------- */
+*:not(input[type=range]), *::before, *::after { border-radius: 0 !important; }
+.tour-dots i { border-radius: 50% !important; }

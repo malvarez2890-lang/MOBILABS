@@ -7,7 +7,7 @@ import { Icon } from './Icons.jsx';
 const EXAMPLES = ['mesa redonda para 6', 'rack de TV de 180 con puertas', 'escritorio con cajonera en MDF', 'estante de 1,2 m con ruedas', 'credenza para tocadiscos con patas cónicas'];
 
 /** Pantalla de inicio: "¿Qué tienes en mente hoy?", continuar, empezar uno nuevo o partir de un modelo listo. */
-export default function Home({ user, local, onContinueLocal, onOpenCloud, onNew, onPreset, onIntent, onLogin, onAllDesigns }) {
+export default function Home({ leaving, user, local, onContinueLocal, onOpenCloud, onNew, onPreset, onIntent, onLogin, onAllDesigns }) {
   const [q, setQ] = useState('');
   const [designs, setDesigns] = useState(null);
   const sugg = useMemo(() => interpret(q), [q]);
@@ -18,10 +18,10 @@ export default function Home({ user, local, onContinueLocal, onOpenCloud, onNew,
   const typeName = (id) => FURNITURE.find((f) => f.id === id)?.name || id;
   const first = (user?.name || '').split(' ')[0];
   return (
-    <div className="home" role="region" aria-label="Inicio">
+    <div className={`home ${leaving ? 'leaving' : ''}`} role="region" aria-label="Inicio">
       <div className="home-in">
         <header className="home-hero">
-          <h1>{first ? `Hola, ${first}` : 'Hola'} <span aria-hidden="true">👋</span></h1>
+          <h1>{first ? `Hola, ${first}` : 'Hola'}</h1>
           <p>¿Qué tienes en mente hoy?</p>
           <form className="home-search" onSubmit={(e) => { e.preventDefault(); if (sugg[0]) onIntent(sugg[0]); }}>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ej.: mesa redonda para 6, rack de TV de 180 con puertas…" aria-label="Describe el mueble que quieres hacer" autoFocus />

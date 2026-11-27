@@ -258,6 +258,12 @@ async function api(req, env, url) {
     return json(req, { ok: true });
   }
   if (path === '/api/me' && M === 'GET') return json(req, { user: publicUser(env, me) });
+  if (path === '/api/me' && M === 'PUT') {
+    const b = await body(req);
+    const name = clean(b.name, 80);
+    await db.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, me.id).run();
+    return json(req, { user: publicUser(env, { ...me, name }) });
+  }
   if (path === '/api/me' && M === 'DELETE') {
     await db.batch([
       db.prepare('DELETE FROM designs WHERE user_id = ?').bind(me.id),

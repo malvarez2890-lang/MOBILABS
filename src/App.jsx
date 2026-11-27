@@ -14,7 +14,7 @@ import { ViewManager } from './components/ViewWindows.jsx';
 import Tour from './components/Tour.jsx';
 import Home from './components/Home.jsx';
 import ExportMenu from './components/ExportMenu.jsx';
-import { AuthDialog, ResetDialog, DesignsDialog, AdminDialog, AccountButton } from './components/Account.jsx';
+import { AuthDialog, ResetDialog, DesignsDialog, AdminDialog, AccountButton, ProfileDialog } from './components/Account.jsx';
 import { api, getToken, setToken } from './lib/account.js';
 import { buildDrawing, techSpec } from './lib/plans.js';
 import { buildManual } from './lib/manual.js';
@@ -76,8 +76,10 @@ export default function App() {
   // pantalla de inicio (se ve al entrar y al apretar el logo); el tutorial se ofrece la primera vez, después de elegir qué hacer
   const [home, setHome] = useState(true);
   const tourSeen = () => { try { return !!localStorage.getItem('mobilabs-tour'); } catch { return true; } };
+  const [homeLeaving, setHomeLeaving] = useState(false);
   const leaveHome = () => {
-    setHome(false);
+    setHomeLeaving(true);
+    setTimeout(() => { setHome(false); setHomeLeaving(false); }, 520);
     if (!tourSeen() && !/[?&]reset=/.test(location.search)) setTimeout(() => setTourOpen(true), 700);
   };
   useEffect(() => {
@@ -491,7 +493,7 @@ export default function App() {
             </button>
           )}
           {!PUBLISHED && <ExportMenu className="phone-only" onIfc={exportIfc} onRevit={exportRevit} onCsv={exportCsv} onPricesCsv={() => download('precios-mobilabs.csv', pricesToCsv(priced))} onGoTab={(t) => { setHome(false); setTab(t); setMview('resultados'); }} />}
-          <AccountButton user={user} status={cloud && cloud.typeId === typeId ? saveStatus : ''} onLogin={() => setAccDlg('auth')} onRegister={() => setAccDlg('register')} onDesigns={() => setAccDlg('designs')} onAdmin={() => setAccDlg('admin')} onLogout={logout} onDeleteAccount={deleteAccount} onTutorial={() => { setHome(false); setTourOpen(true); }} onHome={() => setHome(true)} />
+          <AccountButton user={user} status={cloud && cloud.typeId === typeId ? saveStatus : ''} onLogin={() => setAccDlg('auth')} onRegister={() => setAccDlg('register')} onDesigns={() => setAccDlg('designs')} onAdmin={() => setAccDlg('admin')} onLogout={logout} onDeleteAccount={deleteAccount} onTutorial={() => { setHome(false); setTourOpen(true); }} onHome={() => setHome(true)} onProfile={() => setAccDlg('profile')} />
         </div>
       </header>
 
@@ -656,6 +658,7 @@ export default function App() {
 
       {home && (
         <Home
+          leaving={homeLeaving}
           user={user}
           local={{ typeId, thumb: isoImg, dims: `${cm(bw)} × ${cm(bh)} × ${cm(bd)} cm`, cloudName: cloud && cloud.typeId === typeId ? cloud.name : '' }}
           onContinueLocal={leaveHome}
@@ -674,6 +677,7 @@ export default function App() {
       {tourOpen && <Tour onClose={closeTour} />}
       {resetToken && <ResetDialog token={resetToken} onClose={clearResetParam} onDone={(u) => { setUser(u); clearResetParam(); setAccDlg('designs'); }} />}
       {(accDlg === 'auth' || accDlg === 'register') && <AuthDialog initial={accDlg === 'register' ? 'register' : 'login'} onClose={() => setAccDlg(null)} onDone={(u) => { setUser(u); setAccDlg(home ? null : 'designs'); }} />}
+      {accDlg === 'profile' && user && <ProfileDialog user={user} onClose={() => setAccDlg(null)} onSaved={(u) => { setUser(u); setAccDlg(null); }} />}
       {accDlg === 'designs' && user && <DesignsDialog onClose={() => setAccDlg(null)} onOpen={(id) => openDesign(id)} onSaveNew={saveNewDesign} currentId={cloud?.id} typeNames={typeNames} />}
       {accDlg === 'admin' && user?.isAdmin && <AdminDialog onClose={() => setAccDlg(null)} onOpenDesign={(id) => openDesign(id, true)} typeNames={typeNames} />}
       <nav className="mnav" aria-label="Secciones">
