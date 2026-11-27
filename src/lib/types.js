@@ -648,24 +648,24 @@ export const FURNITURE = [
 
   // ---------------------------------------------------------------- MUEBLE DISQUERÍA
   {
-    id: 'disqueria', name: 'Mueble disquería', desc: 'Bins para hojear vinilos + repisas y tapa para el tocadiscos',
+    id: 'disqueria', name: 'Mueble disquería', desc: 'Bin para hojear vinilos, cajón abatible abajo y repisas para el tocadiscos',
     params: [
       num('ancho', 'Largo total', 100, 80, 160, 1, 'cm', { section: 'Medidas' }),
       num('alto', 'Alto', 90, 75, 110),
       num('fondo', 'Fondo', 40, 36, 50),
-      sel('lado', 'Bins de vinilos a la', 'izq', [['izq', 'Izquierda'], ['der', 'Derecha']], { section: 'Estructura' }),
-      num('anchoBins', 'Ancho de la columna de bins', 38, 36, 50),
-      num('frenteBin', 'Alto del frente de cada bin', 45, 30, 70, 5, '%'),
-      sel('binInferior', 'Bin inferior', 'fijo', [['fijo', 'Fijo'], ['abatible', 'Abatible (se inclina hacia afuera)']]),
-      num('repisas', 'Repisas en la columna del tocadiscos', 2, 0, 3, 1, 'u'),
+      sel('lado', 'Vinilos a la', 'izq', [['izq', 'Izquierda'], ['der', 'Derecha']], { section: 'Estructura' }),
+      num('anchoBins', 'Ancho de la columna de vinilos', 40, 36, 50),
+      num('frenteBin', 'Alto del frente del bin de arriba', 55, 30, 80, 5, '%'),
+      sel('binInferior', 'Abajo, en la columna de vinilos', 'abatible', [['abatible', 'Cajón abatible (se inclina hacia afuera)'], ['fijo', 'Bin fijo abierto']]),
+      num('repisas', 'Repisas en la columna del tocadiscos', 1, 0, 3, 1, 'u'),
       sel('base', 'Base', 'zocalo', [['none', 'Sin base'], ['zocalo', 'Zócalo']]),
       MAT,
     ],
     presets: [
-      { name: 'Bins a la izquierda', values: {} },
-      { name: 'Bins a la derecha', values: { lado: 'der' } },
-      { name: 'Con bin inferior abatible', values: { binInferior: 'abatible' } },
-      { name: 'Grande 140 cm', values: { ancho: 140, alto: 95, repisas: 2 } },
+      { name: 'Vinilos a la izquierda', values: {} },
+      { name: 'Vinilos a la derecha', values: { lado: 'der' } },
+      { name: 'Con bin fijo abajo', values: { binInferior: 'fijo' } },
+      { name: 'Grande 140 cm, 2 repisas', values: { ancho: 140, alto: 95, repisas: 2 } },
     ],
     build(v) {
       const p = new PartList();
@@ -675,46 +675,75 @@ export const FURNITURE = [
       const z0 = back;
       const D = Math.max(v.fondo * 10, 360 + back);
       const Db = D - z0;
-      const baseH = v.base === 'zocalo' ? 60 : 0;
-      // la columna de bins debe dejar 33,5 cm libres (un LP mide 31,5); el resto, al menos 25 cm para el tocadiscos
+      const baseH = v.base === 'zocalo' ? 50 : 0;
+      // la columna de vinilos deja 33,5 cm libres (un LP mide 31,5); la del tocadiscos, al menos 25 cm
       const Wb = Math.max(v.anchoBins * 10, 335 + 2 * t);
       const W = Math.max(v.ancho * 10, Wb + 250);
-      const midY = baseH + t + 340; // piso del bin superior (el inferior deja 34 cm libres para los LP)
-      const H = Math.max(v.alto * 10, midY + t + 220);
-      if (W > v.ancho * 10 || H > v.alto * 10 || Wb > v.anchoBins * 10) p.tip(`Se ajustaron las medidas para que los LP entren de pie: largo ${cm(W)} cm, alto ${cm(H)} cm, columna de bins ${cm(Wb)} cm.`);
+      const midY = baseH + t + 360; // piso del bin de arriba: abajo quedan 36 cm libres para el cajón con los LP de pie
+      const H = Math.max(v.alto * 10, midY + t + 240);
+      if (W > v.ancho * 10 || H > v.alto * 10 || Wb > v.anchoBins * 10) p.tip(`Se ajustaron las medidas para que los LP entren de pie: largo ${cm(W)} cm, alto ${cm(H)} cm, columna de vinilos ${cm(Wb)} cm.`);
       const izq = v.lado !== 'der';
-      const bx0 = izq ? 0 : W - Wb; // columna de bins: [bx0, bx0 + Wb]
+      const bx0 = izq ? 0 : W - Wb; // columna de vinilos: [bx0, bx0 + Wb]
       const divX = izq ? Wb - t : W - Wb;
       const rx0 = izq ? Wb : t; // interior de la columna del tocadiscos
       const rw = W - Wb - t;
-      // estructura
-      p.V('Lateral', mat, izq ? 0 : W - t, 0, z0, H, Db, 'ft'); // lateral de los bins: llega arriba (bins abiertos)
+      // ---- estructura
+      p.V('Lateral', mat, izq ? 0 : W - t, 0, z0, H, Db, 'ft'); // lateral de los vinilos: llega arriba (bin abierto)
       p.V('Lateral', mat, izq ? W - t : 0, 0, z0, H - t, Db, 'f');
       p.H('Base inferior', mat, t, baseH, z0, W - 2 * t, Db, 'f');
       p.V('Divisor central', mat, divX, baseH + t, z0, H - baseH - t, Db, 'ft');
       p.H('Tapa superior', mat, izq ? Wb : 0, H - t, z0, W - Wb, Db, 'flr');
       p.joint(Db, 6);
-      // bins
+      // ---- bin de arriba (abierto, los LP se ven de frente y asoman sobre el frente)
       const binX = bx0 + t;
       const binW = Wb - 2 * t;
-      const pct = (v.frenteBin || 45) / 100;
-      const hf1 = Math.round(340 * pct);
-      const hf2 = Math.round((H - midY - t) * pct);
-      const f1 = p.B('Frente de bin', mat, binX, baseH + t, D - t, binW, hf1, 'tlr');
       p.H('Piso de bin', mat, binX, midY, z0, binW, Db, 'f');
+      const topH = H - midY - t;
+      const hf2 = Math.max(120, Math.round(topH * ((v.frenteBin || 55) / 100)));
       p.B('Frente de bin', mat, binX, midY + t, D - t, binW, hf2, 'tlr');
       p.joint(Db, 2);
-      p.joint(hf1, 2);
       p.joint(hf2, 2);
-      // columna del tocadiscos: repisas
-      const n = Math.max(0, Math.min(3, v.repisas));
-      const ih = H - t - (baseH + t);
-      for (let k = 1; k <= n; k++) {
-        const y = baseH + t + (k * (ih - n * t)) / (n + 1) + (k - 1) * t;
-        p.H('Repisa', mat, rx0, y, z0, rw, Db, 'f');
-        p.joint(Db, 2);
+      // ---- abajo: cajón abatible (caja con frente completo que se inclina hacia afuera) o bin fijo
+      const lowH = midY - (baseH + t); // alto libre de la sección de abajo
+      if (v.binInferior !== 'fijo') {
+        const fh = lowH - 4;
+        const fr = p.B('Frente de cajón abatible', mat, binX + 2, baseH + t + 2, D - t, binW - 4, fh, 'tulr');
+        const boxMat = 'mel15';
+        const tb = SHEETS[boxMat].t;
+        const bd = Db - t - 40; // fondo de la caja (deja juego para que se incline)
+        const bz = D - t - bd;
+        const hs = Math.round(fh * 0.62); // costados más bajos que el frente
+        const bxx = binX + 6;
+        const bw = binW - 12;
+        p.H('Piso de cajón abatible', boxMat, bxx, baseH + t + 2, bz, bw, bd, 'f');
+        p.V('Costado de cajón abatible', boxMat, bxx, baseH + t + 2 + tb, bz, hs, bd, 't');
+        p.V('Costado de cajón abatible', boxMat, bxx + bw - tb, baseH + t + 2 + tb, bz, hs, bd, 't');
+        p.B('Trasero de cajón abatible', boxMat, bxx + tb, baseH + t + 2 + tb, bz, bw - 2 * tb, hs, 't');
+        p.joint(bd, 4);
+        if (fr) {
+          p.hardware('Bisagra de piano 30 cm', 1, 'Une el piso del cajón a la base, junto al frente: el cajón se inclina hacia afuera');
+          p.hardware('Tope de cadena para bin abatible', 2, 'Limita la apertura (unos 25–30°) para que los discos no se caigan');
+          p.tip('Cajón abatible: arma la caja (piso, dos costados, trasero) y atorníllale el frente; fíjala a la base con la bisagra de piano por delante y pon los dos topes de cadena. Se abre tirando del canto superior del frente.');
+        }
+      } else {
+        const hf1 = Math.round(lowH * ((v.frenteBin || 55) / 100));
+        p.B('Frente de bin', mat, binX, baseH + t, D - t, binW, hf1, 'tlr');
+        p.joint(hf1, 2);
       }
-      // trasera y base
+      // ---- columna del tocadiscos: la primera repisa se alinea con el piso del bin; las demás parten los huecos más grandes
+      const n = Math.max(0, Math.min(3, v.repisas));
+      const ys = [];
+      if (n >= 1) ys.push(midY);
+      let lo = [baseH + t, midY];
+      let hi = [midY + t, H - t];
+      for (let k = 2; k <= n; k++) {
+        const [a1, b1] = (hi[1] - hi[0]) >= (lo[1] - lo[0]) ? hi : lo;
+        const y = Math.round((a1 + b1 - t) / 2);
+        ys.push(y);
+        if (a1 === hi[0]) hi = [y + t, b1]; else lo = [a1, y];
+      }
+      ys.forEach((y) => { p.H('Repisa', mat, rx0, y, z0, rw, Db, 'f'); p.joint(Db, 2); });
+      // ---- trasera y base
       p.B('Trasera', 'hdf3', 0, baseH, 0, W, H - baseH, '');
       p.hardware('Tornillo o clavo 3×16 mm (trasera)', Math.ceil((2 * (W + H)) / 150), 'Fijación del panel trasero');
       if (baseH) {
@@ -723,13 +752,8 @@ export const FURNITURE = [
         p.hardware('Tornillo 4×40 mm', 8, 'Fijación del zócalo');
         p.hardware('Nivelador de patas regulable', 4, 'Bajo el mueble, para nivelar');
       }
-      if (v.binInferior === 'abatible' && f1) {
-        p.hardware('Bisagra de piano 30 cm', 1, 'Une el frente del bin inferior a la base: el bin se inclina hacia afuera');
-        p.hardware('Tope de cadena para bin abatible', 2, 'Limita la apertura del bin (unos 25°)');
-        p.tip('Bin inferior abatible: arma el bin como una caja (frente, piso y dos costados bajos) y fíjalo a la base con la bisagra de piano; los topes de cadena evitan que se abra de más.');
-      }
-      const lps = Math.round((Db - 30) / 4.5) * 2;
-      p.tip(`Capacidad aproximada: ${lps} LP de frente en los dos bins (≈ 4,5 mm por disco con funda).`);
+      const per = Math.round((Db - 60) / 4.5);
+      p.tip(`Capacidad aproximada: ${per * 2} LP de frente (≈ ${per} arriba y ${per} en el cajón; 4,5 mm por disco con funda).`);
       p.tip(`Tapa para el tocadiscos: ${cm(W - Wb)} × ${cm(D)} cm. Un tocadiscos típico mide ~43 × 36 cm.`);
       if (W - Wb < 450) p.tip('La tapa queda angosta para un tocadiscos estándar (~43 cm): alarga el mueble si lo vas a poner encima.');
       return p.result();
