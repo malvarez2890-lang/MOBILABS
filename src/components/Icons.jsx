@@ -9,6 +9,8 @@ const P = {
   silla: <><path d="M7 3h10M7 3v10M17 3v10M7 7h10M5 13h14M7 13v8M17 13v8" /></>,
   rackTv: <><rect x="2" y="8" width="20" height="8" /><path d="M9 8v8M15 8v8M4 16v4M20 16v4" /></>,
   tocadiscos: <><rect x="3" y="13" width="18" height="7" /><rect x="5" y="5" width="12" height="8" /><circle cx="9.5" cy="9" r="2.2" /><path d="M14 6.5l2 3" /></>,
+  disqueria: <><rect x="3" y="4" width="18" height="17" /><path d="M11 4v17M3 12h8M3 9h8M3 17h8M11 10h10M11 15h10" /></>,
+  exhibidor: <><path d="M5 21V5l14 7v9z" /><path d="M5 14h14M9 14v-6M14 14V9" /></>,
   vinilos: <><rect x="3" y="3" width="18" height="18" /><path d="M9 3v18M15 3v18M3 9h18M3 15h18" /></>,
 };
 

@@ -6,6 +6,8 @@ import { FURNITURE } from './types.js';
  */
 const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const TYPES = [
+  ['exhibidor', /exhibidor|hojear|escalonad/],
+  ['disqueria', /disqueria|bins?\b|cajon(es)? de (discos|vinilos)/],
   ['vinilos', /vinilo|(^|\s)discos?\b|\blps?\b|vinyl/],
   ['credenza', /credenza|aparador|buffet|bufe|tocadiscos.*(receiver|equipo|amplificador)|consola de musica/],
   ['tocadiscos', /deck|tocadisco|tornamesa|turntable/],

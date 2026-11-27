@@ -21,7 +21,7 @@ const HW_RULES = [
   [/^rueda giratoria.*freno/i, 6500], [/^rueda giratoria/i, 4500],
   [/^pata met[aá]lica tubular/i, 8500], [/^pata de acero en diagonal/i, 10500], [/^tubo de acero/i, 4500],
   [/^placa de montaje|^placa o escuadra/i, 1800], [/^escuadra met[aá]lica/i, 700], [/^kit anti-vuelco/i, 1500],
-  [/^barniz|^sellador/i, 9000], [/^lija/i, 1500],
+  [/^barniz|^sellador/i, 9000], [/^lija/i, 1500], [/^cera/i, 2500], [/^tope/i, 1500],
 ];
 
 export const keyOfSheet = (id, choice) => (choice === 'alt' ? `sheet:${id}:alt` : `sheet:${id}`);
@@ -98,7 +98,7 @@ const HW_TERMS = [
   [/^pata de madera.*?(\d+(?:[.,]\d+)?) cm/i, (m) => `pata madera conica ${Number(m[1].replace(',', '.')) * 10} mm`],
   [/^pata met[aá]lica/i, 'pata metalica mueble'], [/^pata de acero en diagonal/i, 'pata metalica mueble inclinada'], [/^tubo de acero/i, 'tubo cuadrado acero 30x30'],
   [/^placa de montaje/i, 'placa montaje pata mueble'], [/^escuadra met[aá]lica/i, 'escuadra metalica refuerzo 40 mm'],
-  [/^kit anti-vuelco|^anti-vuelco/i, 'kit antivuelco muebles'], [/^barniz/i, 'barniz poliuretano interior'], [/^sellador/i, 'sellador madera'], [/^lija/i, 'lija madera grano 120'],
+  [/^kit anti-vuelco|^anti-vuelco/i, 'kit antivuelco muebles'], [/^cera/i, 'cera para madera'], [/^barniz/i, 'barniz poliuretano interior'], [/^sellador/i, 'sellador madera'], [/^lija/i, 'lija madera grano 120'],
 ];
 /** Nombre comercial chileno para buscar un ítem de la lista de compras (a partir de la clave de precio y el rótulo). */
 export function searchTerm(key = '', label = '', detail = '') {

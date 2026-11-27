@@ -1,5 +1,6 @@
 import { SHEETS } from './materials.js';
 import { legSpec, placeLeg, legHardware } from './legs.js';
+import { placeHandle, handleSummary } from './handles.js';
 
 /** Apila `layers` tableros formando una tapa más gruesa. yTop = cara superior. */
 export function stackTop(p, mat, layers, x, yTop, z, w, d, edge) {
@@ -37,7 +38,10 @@ export function tableFrame(p, o) {
   // patas en diagonal: el retranqueo crece lo necesario para que se abran ~8° sin sobresalir de la tapa (cada eje con su límite)
   const want = splay ? Math.ceil((H - topT) * Math.tan((spec.splay * Math.PI) / 180) - s / 2 + 12) : 0;
   const ohx = splay && !round ? Math.max(0, Math.min(Math.max(oh, want), (W - 2 * s - 120) / 2)) : oh;
-  const ohz = splay && !round ? Math.max(0, Math.min(Math.max(oh, want), (D - 2 * s - 40) / 2)) : oh;
+  // muebles angostos (menos de 45 cm de fondo): las patas se abren solo hacia los lados; abrirlas también hacia
+  // adelante y atrás las juntaría arriba y dejaría faldones de pocos centímetros
+  const splayZ = splay && (round || D >= 450);
+  const ohz = splay && !round && splayZ ? Math.max(0, Math.min(Math.max(oh, want), (D - 2 * s - 40) / 2)) : oh;
 
   if (plank) {
     // listones de 1×4" (19×90) canto con canto; cada uno se corta al largo que necesita su posición (cuerda del círculo + margen para la caladora)
@@ -126,10 +130,14 @@ export function tableFrame(p, o) {
   // ---------------------------------------------------------------- patas de madera / acero + faldones
   // tope cuadrado a la altura del marco de la repisa, para que haya una cara plana donde unir listones
   const blocks = shelf ? [[shelfY - 42 - 8 - cH, shelfY - cH + 8]] : undefined;
+  const legMaxOut = (splayZ ? Math.min(ohx, ohz) : ohx) + s / 2 - 10;
+  // ángulo real de las patas (el mismo que usa placeLeg) y cuánto se corren hacia afuera a media altura del faldón
+  const aSplay = splay ? Math.min((spec.splay * Math.PI) / 180, Math.atan(legMaxOut / Math.max(1, legLen))) : 0;
+  const dMid = splay ? Math.round((aH / 2) * Math.tan(aSplay)) : 0;
   for (const x of [ohx, W - ohx - s]) {
     for (const z of [ohz, D - ohz - s]) {
       placeLeg(p, spec, x, cH, z, legLen, {
-        head: aH + 10, blocks, out: [x === ohx ? -1 : 1, z === ohz ? -1 : 1], maxOut: Math.min(ohx, ohz) + s / 2 - 10,
+        head: aH + 10, blocks, out: [x === ohx ? -1 : 1, splayZ ? (z === ohz ? -1 : 1) : 0], maxOut: legMaxOut,
       });
       if (caster) p.fixture({ kind: 'caster', min: [x + (s - Math.min(caster.s, s)) / 2, 0, z + (s - Math.min(caster.s, s)) / 2], size: [Math.min(caster.s, s), cH, Math.min(caster.s, s)], wheelD: caster.wheelD });
     }
@@ -140,16 +148,86 @@ export function tableFrame(p, o) {
   const yA = legTop - aH;
   const innerX = W - 2 * ohx - 2 * s;
   const innerZ = D - 2 * ohz - 2 * s;
-  p.L('Faldón largo', 'pino19x90', 'x', innerX, ohx + s, yA, ohz);
-  p.L('Faldón largo', 'pino19x90', 'x', innerX, ohx + s, yA, D - ohz - aT);
-  p.L('Faldón corto', 'pino19x90', 'z', innerZ, ohx, yA, ohz + s);
-  p.L('Faldón corto', 'pino19x90', 'z', innerZ, W - ohx - aT, yA, ohz + s);
+  // ---- cajones bajo la tapa (consolas): laterales y trasera de tablero, divisores, travesaño frontal y cajas
+  const nDrawers = !splay && !round && o.drawers > 0 ? Math.min(3, o.drawers) : 0;
+  let nCross = 0;
+  if (nDrawers) {
+    const dh = 130; // alto de la franja de cajones
+    const yZ0 = legTop - dh;
+    const tt2 = t;
+    const zIn0 = ohz; // atrás
+    const zIn1 = D - ohz; // adelante (cara de las patas)
+    // los laterales van al ras de la cara interior de las patas, para que las cajas no choquen con ellas
+    p.V('Lateral de cajones', mat, ohx + s - tt2, yZ0, ohz + s, dh, innerZ, 'f');
+    p.V('Lateral de cajones', mat, W - ohx - s, yZ0, ohz + s, dh, innerZ, 'f');
+    p.B('Trasera de cajones', mat, ohx + s, yZ0, zIn0, innerX, dh, '');
+    p.joint(dh, 4);
+    p.L('Travesaño frontal', 'pino19x42', 'x', innerX, ohx + s, yZ0 - 42, zIn1 - 19);
+    p.L('Travesaño trasero de cajones', 'pino19x42', 'x', innerX, ohx + s, yZ0 - 42, zIn0 + tt2);
+    const xa = ohx + s; // interior entre laterales
+    const wi = innerX;
+    const ws = (wi - (nDrawers - 1) * tt2) / nDrawers;
+    for (let k = 1; k < nDrawers; k++) {
+      p.V('Divisor de cajones', mat, xa + k * ws + (k - 1) * tt2, yZ0, zIn0 + tt2, dh, zIn1 - tt2 - zIn0 - tt2, 'f');
+      p.joint(dh, 2);
+    }
+    const boxMat = 'mel15';
+    const tb = SHEETS[boxMat].t;
+    const bd = Math.max(120, zIn1 - tt2 - (zIn0 + tt2) - 12); // fondo de la caja
+    const slides = [250, 300, 350, 400, 450].filter((l) => l <= bd).pop();
+    const gap = slides ? 13 : 3; // con correderas: 12,7 mm por lado
+    const hspec = o.handle || { type: 'barra', c2c: 128, orient: 'horizontal', pctY: 50 };
+    const fronts = [];
+    const fxs = [];
+    for (let k = 0; k < nDrawers; k++) {
+      const sx = xa + k * (ws + tt2);
+      const bx = sx + gap;
+      const bw = ws - 2 * gap;
+      const by = yZ0 + 3;
+      const bh = dh - 3 - 20;
+      const bz = zIn1 - tt2 - bd; // la caja queda pegada al frente (se atornilla por dentro)
+      p.V('Costado de cajón', boxMat, bx, by, bz, bh, bd, 'f');
+      p.V('Costado de cajón', boxMat, bx + bw - tb, by, bz, bh, bd, 'f');
+      p.B('Trasero de cajón', boxMat, bx + tb, by, bz, bw - 2 * tb, bh, 'u');
+      p.H('Fondo de cajón', 'hdf3', bx + tb, by, bz + tb, bw - 2 * tb, bd - tb, '');
+      const fr = p.B('Frente de cajón', mat, sx + 1.5, yZ0 + 1.5, zIn1 - tt2, ws - 3, dh - 3, 'tulr');
+      p.joint(bh, 4);
+      if (fr) {
+        const info = { id: fr.id, x: sx + 1.5, y: yZ0 + 1.5, w: ws - 3, h: dh - 3, front: zIn1, hinge: 'l', center: true };
+        fronts.push(info);
+        const fx = placeHandle(p, info, hspec);
+        if (fx) fxs.push(fx);
+      }
+    }
+    if (slides) {
+      p.hardware(`Corredera telescópica ${slides} mm (par)`, nDrawers, 'Un par por cajón, atornillada a los laterales y divisores');
+      p.hardware('Tornillo 3,5×16 mm (correderas)', nDrawers * 12, 'Fijación de correderas');
+    } else {
+      p.hardware('Cera o parafina para cajones', 1, 'Los cajones corren sobre los travesaños de madera');
+      p.tip('El fondo es poco para correderas metálicas (mínimo 25 cm): los cajones corren sobre los travesaños de madera. Encera los cantos para que deslicen suave.');
+    }
+    p.hardware('Tornillo 4×30 mm (frente al cajón)', nDrawers * 4, 'Frente de cada cajón');
+    handleSummary(p, hspec, fronts, fxs, 'cajón');
+    p.tip(`Consola con ${nDrawers} ${nDrawers === 1 ? 'cajón' : 'cajones'} bajo la tapa: franja de ${dh / 10} cm de alto, cajas en melamina de 15 mm con fondo de MDF de 3 mm.`);
+  } else {
+    // con patas en diagonal, los faldones se alargan lo que las patas se abren a media altura y sus extremos se cortan en ángulo
+    const dX = dMid;
+    const dZ = splayZ ? dMid : 0;
+    p.L('Faldón largo', 'pino19x90', 'x', innerX + 2 * dX, ohx + s - dX, yA, ohz);
+    p.L('Faldón largo', 'pino19x90', 'x', innerX + 2 * dX, ohx + s - dX, yA, D - ohz - aT);
+    p.L('Faldón corto', 'pino19x90', 'z', innerZ + 2 * dZ, ohx - dX, yA, ohz + s - dZ);
+    p.L('Faldón corto', 'pino19x90', 'z', innerZ + 2 * dZ, W - ohx - aT + dX, yA, ohz + s - dZ);
+    if (splay) {
+      const deg = Math.round((aSplay * 180) / Math.PI * 10) / 10;
+      p.tip(`Patas en diagonal (${String(deg).replace('.', ',')}°): corta los extremos de los faldones en ese mismo ángulo para que asienten parejo contra las patas.${splayZ ? '' : ' Como el mueble es angosto, las patas se abren solo hacia los costados.'}`);
+    }
 
-  // travesaños centrales para tapas largas
-  const nCross = Math.max(0, Math.floor(innerX / 800));
-  for (let k = 1; k <= nCross; k++) {
-    const x = ohx + s + (innerX * k) / (nCross + 1) - aT / 2;
-    p.L('Travesaño central', 'pino19x90', 'z', D - 2 * ohz - 2 * aT, x, yA, ohz + aT);
+    // travesaños centrales para tapas largas
+    nCross = Math.max(0, Math.floor(innerX / 800));
+    for (let k = 1; k <= nCross; k++) {
+      const x = ohx + s + (innerX * k) / (nCross + 1) - aT / 2;
+      p.L('Travesaño central', 'pino19x90', 'z', D - 2 * ohz - 2 * aT, x, yA, ohz + aT);
+    }
   }
 
   // repisa inferior: descansa y se atornilla a un marco de 4 listones que se une a las patas
@@ -162,7 +240,14 @@ export function tableFrame(p, o) {
     p.L('Listón del marco de repisa', long, 'x', fw, fx0, fy, D - ohz - aT); // adelante
     p.L('Listón del marco de repisa', long, 'z', D - 2 * ohz - 2 * aT, fx0, fy, ohz + aT); // lado izquierdo
     p.L('Listón del marco de repisa', long, 'z', D - 2 * ohz - 2 * aT, W - ohx - s - aT, fy, ohz + aT); // lado derecho
-    p.H('Repisa inferior', mat, fx0, shelfY, ohz, fw, D - 2 * ohz, 'f');
+    if (o.shelfSlats) { // repisa de listones (1×2" de canto plano), con 15 mm de separación
+      const n = Math.max(3, Math.floor((D - 2 * ohz + 15) / (42 + 15)));
+      const gapS = (D - 2 * ohz - n * 42) / (n - 1);
+      for (let k = 0; k < n; k++) p.L('Listón de repisa', long, 'x', fw, fx0, shelfY, ohz + k * (42 + gapS), 'y');
+      p.hardware('Tornillo 4×30 mm', n * 2, 'Listones de la repisa al marco');
+    } else {
+      p.H('Repisa inferior', mat, fx0, shelfY, ohz, fw, D - 2 * ohz, 'f');
+    }
     p.hardware('Tarugo de madera 8×30 mm', 16, 'Unión listones del marco – patas');
     p.hardware('Tornillo 4×50 mm', 8, 'Unión listones – patas (con cola)');
     p.hardware('Tornillo 4×30 mm', 14, 'Repisa atornillada desde abajo al marco');

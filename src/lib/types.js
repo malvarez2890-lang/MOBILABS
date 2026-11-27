@@ -69,6 +69,44 @@ const isWheels = (v) => v.base === 'ruedas';
 const buildLevels = (p, rows, label = 'Nivel') =>
   rows.forEach((r, i) => p.tip(`${label} ${i + 1}: ${cm(r.h)} cm de alto libre × ${cm(r.cw)} cm de ancho libre.`));
 
+/** Piso alto o banco: sin respaldo, cuatro patas iguales, faldones y travesaños (con apoyapiés en los pisos altos). */
+function stoolOrBench(p, v, t, modelo) {
+  const W = Math.max(modelo === 'banco' ? 600 : 300, Math.min(modelo === 'banco' ? 1600 : 550, v.ancho * 10));
+  if (W !== v.ancho * 10) p.tip(modelo === 'banco' ? 'Un banco va de 60 a 160 cm de ancho: se ajustó.' : 'Un piso va de 30 a 55 cm de ancho: se ajustó.');
+  const leg = legSpec(v.pataEstilo === 'afinada' ? 'afinada' : 'cuadrada', v.pata, { cut: true });
+  const s = leg.s;
+  const D = v.fondoAsiento * 10;
+  const Hs = Math.max(modelo === 'piso' ? 600 : 380, v.altoAsiento * 10);
+  if (modelo === 'piso' && v.altoAsiento * 10 < 600) p.tip('Un piso alto parte en 60 cm: se ajustó. Para algo más bajo, elige "Banco".');
+  const aH = 90;
+  const aT = 19;
+  const yA = Hs - t - aH;
+  p.H('Asiento', v.mat, 0, Hs - t, 0, W, D, 'frbl');
+  for (const x of [0, W - s]) for (const z of [0, D - s]) placeLeg(p, leg, x, 0, z, Hs - t, { label: 'Pata', head: aH + 10 });
+  p.L('Faldón', 'pino19x90', 'x', W - 2 * s, s, yA, 0);
+  p.L('Faldón', 'pino19x90', 'x', W - 2 * s, s, yA, D - aT);
+  p.L('Faldón lateral', 'pino19x90', 'z', D - 2 * s, 0, yA, s);
+  p.L('Faldón lateral', 'pino19x90', 'z', D - 2 * s, W - aT, yA, s);
+  const yLow = modelo === 'piso' ? Math.round(Hs * 0.42) : 150; // en los pisos altos, el travesaño hace de apoyapiés
+  p.L(modelo === 'piso' ? 'Apoyapiés' : 'Travesaño inferior', 'pino19x42', 'x', W - 2 * s, s, yLow, 0);
+  p.L(modelo === 'piso' ? 'Apoyapiés' : 'Travesaño inferior', 'pino19x42', 'x', W - 2 * s, s, yLow, D - aT);
+  p.L('Travesaño lateral', 'pino19x42', 'z', D - 2 * s, 0, yLow - (modelo === 'piso' ? 60 : 0), s);
+  p.L('Travesaño lateral', 'pino19x42', 'z', D - 2 * s, W - aT, yLow - (modelo === 'piso' ? 60 : 0), s);
+  let mids = 0;
+  if (modelo === 'banco' && W > 900) { // bancos largos: travesaño central bajo el asiento
+    mids = Math.floor(W / 700);
+    for (let k = 1; k <= mids; k++) p.L('Travesaño central', 'pino19x90', 'z', D - 2 * aT, (W * k) / (mids + 1) - aT / 2, yA, aT);
+  }
+  const J = 2 * (4 + 4 + mids);
+  p.hardware('Tarugo de madera 8×30 mm', J * 2, 'Uniones de listones');
+  p.hardware('Tornillo 4×50 mm', J, 'Uniones de listones (con cola)');
+  p.hardware('Escuadra metálica 40 mm', 4 + 2 * mids, 'Fijación del asiento');
+  p.hardware('Tornillo 4×16 mm', 2 * (4 + 2 * mids), 'Fijación del asiento');
+  if (modelo === 'piso') p.tip(`Piso alto de ${Hs / 10} cm: para un mesón de cocina (90 cm) va un piso de 60–65 cm; para una barra (105–110 cm), uno de 75 cm. El apoyapiés queda a ${cm(yLow)} cm.`);
+  else p.tip(`Banco de ${cm(W)} cm: caben ~${Math.max(1, Math.floor(W / 450))} personas sentadas.`);
+  return p.result();
+}
+
 // ======================================================================================
 export const FURNITURE = [
   // ---------------------------------------------------------------- ESTANTE
@@ -206,13 +244,17 @@ export const FURNITURE = [
       num('alto', 'Alto', 80, 60, 100, 1, 'cm', { visibleIf: (v) => !isProductStyle(v.pataEstilo) }),
       bool('estante', 'Repisa inferior', true, { section: 'Estructura', visibleIf: (v) => !['inclinada', 'aceroDiagonal'].includes(v.pataEstilo) && !isProductStyle(v.pataEstilo) }),
       num('altoEstante', 'Altura de la repisa', 20, 10, 50, 1, 'cm', { visibleIf: (v) => v.estante && !['inclinada', 'aceroDiagonal'].includes(v.pataEstilo) && !isProductStyle(v.pataEstilo) }),
+      sel('repisaTipo', 'Tipo de repisa', 'tablero', [['tablero', 'Tablero'], ['listones', 'Listones de pino']], { visibleIf: (v) => v.estante && !['inclinada', 'aceroDiagonal'].includes(v.pataEstilo) && !isProductStyle(v.pataEstilo) }),
+      num('cajones', 'Cajones bajo la tapa', 0, 0, 3, 1, 'u', { visibleIf: (v) => STRAIGHT_LEGS(v) }),
       num('voladizo', 'Retranqueo de patas', 3, 0, 8, 1, 'cm'),
       ...LEGS('fino', {}, 'wood'),
       ...TABLE_WHEELS(),
+      ...HANDLES((v) => v.cajones > 0 && STRAIGHT_LEGS(v), true),
       MAT,
     ],
     presets: [
       { name: 'Entrada', values: {} },
+      { name: 'Consola con 2 cajones y repisa de listones', values: { ancho: 120, fondo: 35, alto: 80, cajones: 2, estante: true, repisaTipo: 'listones', altoEstante: 15, voladizo: 0, pataEstilo: 'cuadrada', pata: 'fino', tirador: 'ninguno' } },
       { name: 'Sin repisa', values: { estante: false } },
       { name: 'Pasillo angosto', values: { ancho: 90, fondo: 22, alto: 85 } },
       { name: 'Patas en diagonal', values: { pataEstilo: 'inclinada', estante: false, fondo: 32 } },
@@ -222,7 +264,8 @@ export const FURNITURE = [
       const p = new PartList();
       tableFrame(p, {
         W: v.ancho * 10, D: v.fondo * 10, H: v.alto * 10, mat: v.mat, layers: 1, leg: legOf(v), casters: casterOf(v), oh: v.voladizo * 10,
-        shelf: v.estante ? { y: v.altoEstante * 10 } : null,
+        shelf: v.estante ? { y: v.altoEstante * 10 } : null, shelfSlats: v.repisaTipo === 'listones',
+        drawers: STRAIGHT_LEGS(v) ? v.cajones : 0, handle: handleFromValues(v),
       });
       return p.result();
     },
@@ -335,29 +378,38 @@ export const FURNITURE = [
 
   // ---------------------------------------------------------------- SILLA
   {
-    id: 'silla', name: 'Silla', desc: 'Patas de pino, asiento de tablero y respaldo de tablas',
+    id: 'silla', name: 'Silla y pisos', desc: 'Silla con respaldo, piso alto de cocina o barra, y banco',
     params: [
-      num('ancho', 'Ancho', 42, 35, 55, 1, 'cm', { section: 'Medidas' }),
-      num('fondoAsiento', 'Fondo del asiento', 42, 35, 55),
-      num('altoAsiento', 'Alto del asiento', 45, 38, 52),
-      num('altoTotal', 'Alto total', 88, 70, 110),
-      num('tablas', 'Tablas del respaldo', 3, 1, 5, 1, 'u', { section: 'Estructura' }),
+      sel('modelo', 'Modelo', 'silla', [['silla', 'Silla con respaldo'], ['piso', 'Piso alto (cocina o barra)'], ['banco', 'Banco']], { section: 'Medidas' }),
+      num('ancho', 'Ancho', 42, 30, 160),
+      num('fondoAsiento', 'Fondo del asiento', 42, 28, 55),
+      num('altoAsiento', 'Alto del asiento', 45, 38, 82),
+      num('altoTotal', 'Alto total', 88, 70, 110, 1, 'cm', { visibleIf: (v) => v.modelo === 'silla' || !v.modelo }),
+      num('tablas', 'Tablas del respaldo', 3, 1, 5, 1, 'u', { section: 'Estructura', visibleIf: (v) => v.modelo === 'silla' || !v.modelo }),
       ...LEGS('fino', {}, 'chair'),
       MAT,
     ],
     presets: [
       { name: 'Silla de comedor', values: {} },
+      { name: 'Piso de cocina (65 cm)', values: { modelo: 'piso', ancho: 36, fondoAsiento: 32, altoAsiento: 65 } },
+      { name: 'Piso de barra (75 cm)', values: { modelo: 'piso', ancho: 38, fondoAsiento: 34, altoAsiento: 75 } },
+      { name: 'Banco de comedor 120 cm', values: { modelo: 'banco', ancho: 120, fondoAsiento: 34, altoAsiento: 45 } },
+      { name: 'Banco recibidor 90 cm', values: { modelo: 'banco', ancho: 90, fondoAsiento: 32, altoAsiento: 46, pataEstilo: 'afinada' } },
       { name: 'Banqueta baja', values: { altoTotal: 70, altoAsiento: 40, tablas: 1 } },
     ],
     build(v) {
       const p = new PartList();
       const t = SHEETS[v.mat].t;
+      const modelo = v.modelo || 'silla';
+      if (modelo !== 'silla') return stoolOrBench(p, v, t, modelo);
       const front = legSpec(v.pataEstilo === 'afinada' ? 'afinada' : 'cuadrada', v.pata, { cut: true }); // patas delanteras
       const back = legSpec('cuadrada', v.pata); // las traseras suben hasta el respaldo: van rectas
       const s = front.s;
-      const W = v.ancho * 10;
-      const Hs = v.altoAsiento * 10; // cara superior del asiento
-      const Ht = v.altoTotal * 10;
+      // una silla con respaldo va de 35 a 55 cm de ancho y su asiento de 38 a 52 cm de alto; el respaldo sube al menos 30 cm
+      const W = Math.max(350, Math.min(550, v.ancho * 10));
+      const Hs = Math.max(380, Math.min(520, v.altoAsiento * 10)); // cara superior del asiento
+      const Ht = Math.max(v.altoTotal * 10, Hs + 300);
+      if (W !== v.ancho * 10 || Hs !== v.altoAsiento * 10 || Ht !== v.altoTotal * 10) p.tip(`Se ajustaron las medidas a las de una silla: ${cm(W)} cm de ancho, asiento a ${cm(Hs)} cm y respaldo hasta ${cm(Ht)} cm. Para algo más alto o más ancho, elige "Piso alto" o "Banco".`);
       const Dt = v.fondoAsiento * 10 + s; // fondo total (incluye las patas traseras)
       const aH = 90;
       const aT = 19;
@@ -590,6 +642,153 @@ export const FURNITURE = [
       } else if (kg > 120) {
         p.tip('Con todos los discos es un mueble pesado: apóyalo en piso firme y fíjalo a la muralla.');
       }
+      return p.result();
+    },
+  },
+
+  // ---------------------------------------------------------------- MUEBLE DISQUERÍA
+  {
+    id: 'disqueria', name: 'Mueble disquería', desc: 'Bins para hojear vinilos + repisas y tapa para el tocadiscos',
+    params: [
+      num('ancho', 'Largo total', 100, 80, 160, 1, 'cm', { section: 'Medidas' }),
+      num('alto', 'Alto', 90, 75, 110),
+      num('fondo', 'Fondo', 40, 36, 50),
+      sel('lado', 'Bins de vinilos a la', 'izq', [['izq', 'Izquierda'], ['der', 'Derecha']], { section: 'Estructura' }),
+      num('anchoBins', 'Ancho de la columna de bins', 38, 36, 50),
+      num('frenteBin', 'Alto del frente de cada bin', 45, 30, 70, 5, '%'),
+      sel('binInferior', 'Bin inferior', 'fijo', [['fijo', 'Fijo'], ['abatible', 'Abatible (se inclina hacia afuera)']]),
+      num('repisas', 'Repisas en la columna del tocadiscos', 2, 0, 3, 1, 'u'),
+      sel('base', 'Base', 'zocalo', [['none', 'Sin base'], ['zocalo', 'Zócalo']]),
+      MAT,
+    ],
+    presets: [
+      { name: 'Bins a la izquierda', values: {} },
+      { name: 'Bins a la derecha', values: { lado: 'der' } },
+      { name: 'Con bin inferior abatible', values: { binInferior: 'abatible' } },
+      { name: 'Grande 140 cm', values: { ancho: 140, alto: 95, repisas: 2 } },
+    ],
+    build(v) {
+      const p = new PartList();
+      const { mat } = v;
+      const t = SHEETS[mat].t;
+      const back = SHEETS.hdf3.t;
+      const z0 = back;
+      const D = Math.max(v.fondo * 10, 360 + back);
+      const Db = D - z0;
+      const baseH = v.base === 'zocalo' ? 60 : 0;
+      // la columna de bins debe dejar 33,5 cm libres (un LP mide 31,5); el resto, al menos 25 cm para el tocadiscos
+      const Wb = Math.max(v.anchoBins * 10, 335 + 2 * t);
+      const W = Math.max(v.ancho * 10, Wb + 250);
+      const midY = baseH + t + 340; // piso del bin superior (el inferior deja 34 cm libres para los LP)
+      const H = Math.max(v.alto * 10, midY + t + 220);
+      if (W > v.ancho * 10 || H > v.alto * 10 || Wb > v.anchoBins * 10) p.tip(`Se ajustaron las medidas para que los LP entren de pie: largo ${cm(W)} cm, alto ${cm(H)} cm, columna de bins ${cm(Wb)} cm.`);
+      const izq = v.lado !== 'der';
+      const bx0 = izq ? 0 : W - Wb; // columna de bins: [bx0, bx0 + Wb]
+      const divX = izq ? Wb - t : W - Wb;
+      const rx0 = izq ? Wb : t; // interior de la columna del tocadiscos
+      const rw = W - Wb - t;
+      // estructura
+      p.V('Lateral', mat, izq ? 0 : W - t, 0, z0, H, Db, 'ft'); // lateral de los bins: llega arriba (bins abiertos)
+      p.V('Lateral', mat, izq ? W - t : 0, 0, z0, H - t, Db, 'f');
+      p.H('Base inferior', mat, t, baseH, z0, W - 2 * t, Db, 'f');
+      p.V('Divisor central', mat, divX, baseH + t, z0, H - baseH - t, Db, 'ft');
+      p.H('Tapa superior', mat, izq ? Wb : 0, H - t, z0, W - Wb, Db, 'flr');
+      p.joint(Db, 6);
+      // bins
+      const binX = bx0 + t;
+      const binW = Wb - 2 * t;
+      const pct = (v.frenteBin || 45) / 100;
+      const hf1 = Math.round(340 * pct);
+      const hf2 = Math.round((H - midY - t) * pct);
+      const f1 = p.B('Frente de bin', mat, binX, baseH + t, D - t, binW, hf1, 'tlr');
+      p.H('Piso de bin', mat, binX, midY, z0, binW, Db, 'f');
+      p.B('Frente de bin', mat, binX, midY + t, D - t, binW, hf2, 'tlr');
+      p.joint(Db, 2);
+      p.joint(hf1, 2);
+      p.joint(hf2, 2);
+      // columna del tocadiscos: repisas
+      const n = Math.max(0, Math.min(3, v.repisas));
+      const ih = H - t - (baseH + t);
+      for (let k = 1; k <= n; k++) {
+        const y = baseH + t + (k * (ih - n * t)) / (n + 1) + (k - 1) * t;
+        p.H('Repisa', mat, rx0, y, z0, rw, Db, 'f');
+        p.joint(Db, 2);
+      }
+      // trasera y base
+      p.B('Trasera', 'hdf3', 0, baseH, 0, W, H - baseH, '');
+      p.hardware('Tornillo o clavo 3×16 mm (trasera)', Math.ceil((2 * (W + H)) / 150), 'Fijación del panel trasero');
+      if (baseH) {
+        p.B('Zócalo', mat, t, 0, D - 30 - t, W - 2 * t, baseH, 't');
+        p.B('Zócalo', mat, t, 0, z0, W - 2 * t, baseH, '');
+        p.hardware('Tornillo 4×40 mm', 8, 'Fijación del zócalo');
+        p.hardware('Nivelador de patas regulable', 4, 'Bajo el mueble, para nivelar');
+      }
+      if (v.binInferior === 'abatible' && f1) {
+        p.hardware('Bisagra de piano 30 cm', 1, 'Une el frente del bin inferior a la base: el bin se inclina hacia afuera');
+        p.hardware('Tope de cadena para bin abatible', 2, 'Limita la apertura del bin (unos 25°)');
+        p.tip('Bin inferior abatible: arma el bin como una caja (frente, piso y dos costados bajos) y fíjalo a la base con la bisagra de piano; los topes de cadena evitan que se abra de más.');
+      }
+      const lps = Math.round((Db - 30) / 4.5) * 2;
+      p.tip(`Capacidad aproximada: ${lps} LP de frente en los dos bins (≈ 4,5 mm por disco con funda).`);
+      p.tip(`Tapa para el tocadiscos: ${cm(W - Wb)} × ${cm(D)} cm. Un tocadiscos típico mide ~43 × 36 cm.`);
+      if (W - Wb < 450) p.tip('La tapa queda angosta para un tocadiscos estándar (~43 cm): alarga el mueble si lo vas a poner encima.');
+      return p.result();
+    },
+  },
+
+  // ---------------------------------------------------------------- EXHIBIDOR DE VINILOS
+  {
+    id: 'exhibidor', name: 'Exhibidor de vinilos', desc: 'Bins escalonados para hojear LPs, con repisa baja',
+    params: [
+      num('ancho', 'Ancho', 50, 38, 90, 1, 'cm', { section: 'Medidas' }),
+      num('fondo', 'Fondo', 45, 40, 60),
+      num('altoAtras', 'Alto atrás', 75, 60, 100),
+      num('altoFrente', 'Alto adelante', 48, 35, 70),
+      bool('repisaInferior', 'Repisa baja', true, { section: 'Estructura' }),
+      sel('mat', 'Material estructural', 'ter18', MAIN_SHEETS.map((id) => [id, SHEETS[id].name]), { section: 'Materiales' }),
+    ],
+    presets: [
+      { name: 'Exhibidor de una columna', values: {} },
+      { name: 'Doble (con divisor)', values: { ancho: 80 } },
+      { name: 'Bajo', values: { altoAtras: 62, altoFrente: 40 } },
+    ],
+    build(v) {
+      const p = new PartList();
+      const { mat } = v;
+      const t = SHEETS[mat].t;
+      const W = Math.max(v.ancho * 10, 335 + 2 * t); // 33,5 cm libres para un LP
+      const D = v.fondo * 10;
+      const Hb = v.altoAtras * 10;
+      const Hf = Math.min(v.altoFrente * 10, Hb - 150);
+      if (W > v.ancho * 10) p.tip(`El ancho se amplió a ${cm(W)} cm para que entre un LP (31,5 cm).`);
+      if (Hf < v.altoFrente * 10) p.tip(`El alto adelante quedó en ${cm(Hf)} cm: debe ser al menos 15 cm menor que el de atrás para que los bins queden escalonados.`);
+      const sideTopAt = (z) => Hb + ((Hf - Hb) * z) / D; // alto del lateral a una profundidad z
+      for (const x of [0, W - t]) {
+        const s = p.V('Lateral', mat, x, 0, 0, Hb, D, 'tf');
+        if (s) { s.shape = 'trapV'; s.hf = Hf; }
+      }
+      const iw = W - 2 * t;
+      const zMid = Math.round(D / 2);
+      const y1 = Math.max(Math.round(Hb * 0.4), 80 + t + 120); // piso del bin delantero
+      const lip1 = Math.max(60, Math.min(150, Math.round(sideTopAt(D) - y1 - t - 10)));
+      let y2 = y1 + Math.round(Hb * 0.17); // piso del bin trasero (más alto)
+      const lip2 = 140;
+      y2 = Math.min(y2, Math.round(sideTopAt(zMid) - lip2 - 2 * t - 10));
+      if (v.repisaInferior) p.H('Base inferior', mat, t, 80, 0, iw, D, 'f');
+      p.H('Piso de bin', mat, t, y1, zMid, iw, D - zMid, 'f');
+      p.B('Frente de bin', mat, t, y1 + t, D - t, iw, lip1, 't');
+      p.B('Separador de bins', mat, t, y1, zMid - t, iw, y2 + t + lip2 - y1, 't');
+      p.H('Piso de bin', mat, t, y2, t, iw, zMid - 2 * t, 'f');
+      p.B('Trasera', mat, t, y2, 0, iw, Hb - y2, 't');
+      p.joint(D, 6);
+      if (iw > 500) { // doble: divisor al centro de cada bin para que los discos no se tumben
+        p.V('Divisor de bin', mat, W / 2 - t / 2, y1 + t, zMid, lip1 + 60, D - zMid - t, 't');
+        p.V('Divisor de bin', mat, W / 2 - t / 2, y2 + t, t, lip2 + 60, zMid - 2 * t, 't');
+        p.joint(lip1, 2);
+      }
+      p.tip(`Los laterales se cortan en diagonal: ${cm(Hb)} cm de alto atrás y ${cm(Hf)} cm adelante (en el despiece aparecen como rectángulo de ${cm(Hb)} × ${cm(D)} cm).`);
+      const lps = Math.round((D - zMid - 30) / 4.5) + Math.round((zMid - 30) / 4.5);
+      p.tip(`Capacidad aproximada: ${lps * (iw > 500 ? 2 : 1)} LP para hojear en los dos bins, más lo que guardes en la repisa baja.`);
       return p.result();
     },
   },

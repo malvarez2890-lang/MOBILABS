@@ -7,6 +7,19 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 export function partGeometry(p) {
   const [sx, sy, sz] = p.size.map((v) => v / 10);
   if (p.shape === 'disc') return new THREE.CylinderGeometry(sx / 2, sx / 2, sy, 96);
+  if (p.shape === 'trapV') { // lateral con el canto superior inclinado: alto completo atrás (z −) y p.hf adelante (z +)
+    const hf = Math.min(sy, (p.hf || p.size[1]) / 10);
+    const sh = new THREE.Shape();
+    sh.moveTo(-sz / 2, -sy / 2);
+    sh.lineTo(sz / 2, -sy / 2);
+    sh.lineTo(sz / 2, -sy / 2 + hf);
+    sh.lineTo(-sz / 2, sy / 2);
+    sh.closePath();
+    const g = new THREE.ExtrudeGeometry(sh, { depth: sx, bevelEnabled: false });
+    g.translate(0, 0, -sx / 2);
+    g.rotateY(-Math.PI / 2); // la forma queda en el plano lateral (profundidad × alto) y el espesor en x
+    return g;
+  }
   if (!p.shape || p.shape === 'box') return new THREE.BoxGeometry(sx, sy, sz);
 
   const h = sy;
