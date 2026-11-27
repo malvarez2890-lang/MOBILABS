@@ -14,7 +14,7 @@ import { ViewManager } from './components/ViewWindows.jsx';
 import Tour from './components/Tour.jsx';
 import Home from './components/Home.jsx';
 import ExportMenu from './components/ExportMenu.jsx';
-import { AuthDialog, ResetDialog, DesignsDialog, AdminDialog, AccountButton, ProfileDialog } from './components/Account.jsx';
+import { AuthDialog, ResetDialog, DesignsDialog, AdminDialog, AccountButton, ProfileDialog, SaveDialog } from './components/Account.jsx';
 import { api, getToken, setToken } from './lib/account.js';
 import { buildDrawing, techSpec } from './lib/plans.js';
 import { buildManual } from './lib/manual.js';
@@ -159,6 +159,26 @@ export default function App() {
     }, 2500);
     return () => clearTimeout(id);
   }, [user, cloud, typeId, store, looksStore, settings.sheetChoice, settings.sheetCustom]); // eslint-disable-line react-hooks/exhaustive-deps
+  // botón Guardar: sin cuenta pide crearla; con un diseño abierto guarda al tiro; si no, pide un nombre
+  const cloudHere = !!(user && cloud && cloud.typeId === typeId);
+  const saveNow = async () => {
+    if (!user) { setAccDlg('register'); return; }
+    if (!cloudHere) { setAccDlg('save'); return; }
+    try {
+      setSaveStatus('Guardando…');
+      const data = designData();
+      await api(`/designs/${cloud.id}`, { method: 'PUT', body: { data: { ...data, thumb: thumbNow() }, typeId } });
+      lastSaved.current = JSON.stringify(data);
+      setSaveStatus('Guardado ✓');
+    } catch (e) { setSaveStatus('No se guardó'); window.alert(e.message); }
+  };
+  const saveRef = useRef(saveNow);
+  saveRef.current = saveNow;
+  useEffect(() => { // Ctrl/Cmd + S
+    const k = (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveRef.current(); } };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, []);
   const logout = async () => {
     try { await api('/logout', { method: 'POST' }); } catch { /* igual se cierra */ }
     setToken(''); setUser(null); setCloud(null); setSaveStatus('');
@@ -493,7 +513,13 @@ export default function App() {
             </button>
           )}
           {!PUBLISHED && <ExportMenu className="phone-only" onIfc={exportIfc} onRevit={exportRevit} onCsv={exportCsv} onPricesCsv={() => download('precios-mobilabs.csv', pricesToCsv(priced))} onGoTab={(t) => { setHome(false); setTab(t); setMview('resultados'); }} />}
-          <AccountButton user={user} status={cloud && cloud.typeId === typeId ? saveStatus : ''} onLogin={() => setAccDlg('auth')} onRegister={() => setAccDlg('register')} onDesigns={() => setAccDlg('designs')} onAdmin={() => setAccDlg('admin')} onLogout={logout} onDeleteAccount={deleteAccount} onTutorial={() => { setHome(false); setTourOpen(true); }} onHome={() => setHome(true)} onProfile={() => setAccDlg('profile')} />
+          {!home && (
+            <button className={`btn save-btn ${cloudHere && saveStatus === 'Guardado ✓' ? 'ok' : ''}`} onClick={saveNow} title={user ? (cloudHere ? `Guardar «${cloud.name}» (Ctrl+S)` : 'Guardar este diseño en tu cuenta (Ctrl+S)') : 'Crea una cuenta para guardar tus diseños'}>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 3h11l3 3v15H5z" /><path d="M8 3v6h8V3M8 21v-7h8v7" /></svg>
+              <span>{cloudHere ? (saveStatus === 'Guardando…' ? 'Guardando…' : saveStatus === 'Sin guardar…' ? 'Guardar' : saveStatus === 'Guardado ✓' ? 'Guardado' : 'Guardar') : 'Guardar'}</span>
+            </button>
+          )}
+          <AccountButton user={user} status="" onLogin={() => setAccDlg('auth')} onRegister={() => setAccDlg('register')} onDesigns={() => setAccDlg('designs')} onAdmin={() => setAccDlg('admin')} onLogout={logout} onDeleteAccount={deleteAccount} onTutorial={() => { setHome(false); setTourOpen(true); }} onHome={() => setHome(true)} onProfile={() => setAccDlg('profile')} />
         </div>
       </header>
 
@@ -677,6 +703,7 @@ export default function App() {
       {tourOpen && <Tour onClose={closeTour} />}
       {resetToken && <ResetDialog token={resetToken} onClose={clearResetParam} onDone={(u) => { setUser(u); clearResetParam(); setAccDlg('designs'); }} />}
       {(accDlg === 'auth' || accDlg === 'register') && <AuthDialog initial={accDlg === 'register' ? 'register' : 'login'} onClose={() => setAccDlg(null)} onDone={(u) => { setUser(u); setAccDlg(home ? null : 'designs'); }} />}
+      {accDlg === 'save' && user && <SaveDialog suggested={`${type.name} ${cm(bw)} × ${cm(bh)} × ${cm(bd)}`} onClose={() => setAccDlg(null)} onSave={async (n) => { await saveNewDesign(n); setAccDlg(null); }} />}
       {accDlg === 'profile' && user && <ProfileDialog user={user} onClose={() => setAccDlg(null)} onSaved={(u) => { setUser(u); setAccDlg(null); }} />}
       {accDlg === 'designs' && user && <DesignsDialog onClose={() => setAccDlg(null)} onOpen={(id) => openDesign(id)} onSaveNew={saveNewDesign} currentId={cloud?.id} typeNames={typeNames} />}
       {accDlg === 'admin' && user?.isAdmin && <AdminDialog onClose={() => setAccDlg(null)} onOpenDesign={(id) => openDesign(id, true)} typeNames={typeNames} />}

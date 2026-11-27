@@ -107,6 +107,28 @@ export function ProfileDialog({ user, onClose, onSaved }) {
   );
 }
 
+/* ---------------------------------------------------------------- guardar diseño (nombre) */
+export function SaveDialog({ suggested, onClose, onSave }) {
+  const [name, setName] = useState(suggested || '');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true); setErr('');
+    try { await onSave(name.trim() || suggested || 'Mi diseño'); } catch (ex) { setErr(ex.message); setBusy(false); }
+  };
+  return (
+    <Dialog title="Guardar diseño" onClose={onClose}>
+      <form onSubmit={submit} className="acc-form">
+        <label><span>Nombre del diseño</span><input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} autoFocus onFocus={(e) => e.target.select()} /></label>
+        <p className="muted small">Queda guardado en tu cuenta. Desde ahora, los cambios se guardan solos mientras trabajas.</p>
+        {err && <p className="acc-err">{err}</p>}
+        <button className="btn primary acc-go" disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</button>
+      </form>
+    </Dialog>
+  );
+}
+
 /* ---------------------------------------------------------------- nueva contraseña (desde el enlace del correo) */
 export function ResetDialog({ token, onClose, onDone }) {
   const [p1, setP1] = useState('');

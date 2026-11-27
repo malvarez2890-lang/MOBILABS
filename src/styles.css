@@ -992,3 +992,9 @@ button.brand:hover .brand-text b { color: #8fd0ff; }
 .tour-nav button { border-color: #1b1f24; background: #fff; }
 .tour-nav button.primary { background: #1b1f24; border-color: #1b1f24; color: #fff; }
 @media (max-width: 520px) { .tour-tip { padding-left: 96px; min-height: 140px; } .tour-viruta { height: 128px; width: 86px; } }
+
+/* ---------- botón Guardar ---------- */
+.save-btn { display: inline-flex; align-items: center; gap: 7px; background: linear-gradient(#2f6f97, #285f82); border-color: #3a85b4; color: #fff; font-weight: 600; }
+.save-btn:hover { background: linear-gradient(#3a85b4, #2f6f97); }
+.save-btn.ok { background: #24453a; border-color: #3f7a63; color: #c9f2dc; }
+@media (max-width: 760px) { .save-btn span { display: none; } }
