@@ -33,10 +33,16 @@ export function AuthDialog({ onClose, onDone, initial = 'login' }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [info, setInfo] = useState('');
   const submit = async (e) => {
     e.preventDefault();
     setErr('');
+    setInfo('');
     setBusy(true);
+    if (mode === 'forgot') {
+      try { const r = await api('/forgot', { method: 'POST', body: { email } }); setInfo(r.message); } catch (ex) { setErr(ex.message); } finally { setBusy(false); }
+      return;
+    }
     try {
       const r = await api(mode === 'login' ? '/login' : '/register', { method: 'POST', body: mode === 'login' ? { email, password } : { email, password, name, accept } });
       setToken(r.token);
@@ -44,20 +50,22 @@ export function AuthDialog({ onClose, onDone, initial = 'login' }) {
     } catch (ex) { setErr(ex.message); } finally { setBusy(false); }
   };
   return (
-    <Dialog title={mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'} onClose={onClose}>
+    <Dialog title={mode === 'login' ? 'Iniciar sesión' : mode === 'forgot' ? 'Recuperar contraseña' : 'Crear cuenta'} onClose={onClose}>
       <div className="acc-tabs">
         <button className={mode === 'login' ? 'on' : ''} onClick={() => { setMode('login'); setErr(''); }}>Entrar</button>
         <button className={mode === 'register' ? 'on' : ''} onClick={() => { setMode('register'); setErr(''); }}>Crear cuenta</button>
       </div>
-      <p className="muted small">{mode === 'login' ? 'Entra para ver y guardar tus diseños en la nube.' : 'Con una cuenta, tus diseños quedan guardados y los abres desde cualquier equipo.'}</p>
+      <p className="muted small">{mode === 'login' ? 'Entra para ver y guardar tus diseños en la nube.' : mode === 'forgot' ? 'Escribe el correo de tu cuenta y te enviaremos un enlace para crear una contraseña nueva.' : 'Con una cuenta, tus diseños quedan guardados y los abres desde cualquier equipo.'}</p>
       <form onSubmit={submit} className="acc-form">
         {mode === 'register' && (
           <label><span>Nombre (opcional)</span><input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" maxLength={80} /></label>
         )}
         <label><span>Correo</span><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" autoFocus /></label>
-        <label><span>Contraseña{mode === 'register' ? ' (mínimo 8 caracteres)' : ''}</span>
-          <input type="password" required minLength={mode === 'register' ? 8 : 1} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
-        </label>
+        {mode !== 'forgot' && (
+          <label><span>Contraseña{mode === 'register' ? ' (mínimo 8 caracteres)' : ''}</span>
+            <input type="password" required minLength={mode === 'register' ? 8 : 1} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+          </label>
+        )}
         {mode === 'register' && (
           <>
             <label className="acc-check">
@@ -68,7 +76,35 @@ export function AuthDialog({ onClose, onDone, initial = 'login' }) {
           </>
         )}
         {err && <p className="acc-err">{err}</p>}
-        <button className="btn primary acc-go" disabled={busy || (mode === 'register' && !accept)}>{busy ? 'Un momento…' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}</button>
+        {info && <p className="acc-ok">{info}</p>}
+        <button className="btn primary acc-go" disabled={busy || (mode === 'register' && !accept)}>{busy ? 'Un momento…' : mode === 'login' ? 'Entrar' : mode === 'forgot' ? 'Enviar enlace' : 'Crear cuenta'}</button>
+        {mode === 'login' && <button type="button" className="linkish acc-forgot" onClick={() => { setMode('forgot'); setErr(''); }}>¿Olvidaste tu contraseña?</button>}
+        {mode === 'forgot' && <button type="button" className="linkish acc-forgot" onClick={() => { setMode('login'); setErr(''); setInfo(''); }}>← Volver a iniciar sesión</button>}
+      </form>
+    </Dialog>
+  );
+}
+
+/* ---------------------------------------------------------------- nueva contraseña (desde el enlace del correo) */
+export function ResetDialog({ token, onClose, onDone }) {
+  const [p1, setP1] = useState('');
+  const [p2, setP2] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const submit = async (e) => {
+    e.preventDefault();
+    if (p1 !== p2) { setErr('Las contraseñas no coinciden.'); return; }
+    setBusy(true); setErr('');
+    try { const r = await api('/reset', { method: 'POST', body: { token, password: p1 } }); setToken(r.token); onDone(r.user); }
+    catch (ex) { setErr(ex.message); } finally { setBusy(false); }
+  };
+  return (
+    <Dialog title="Crear contraseña nueva" onClose={onClose}>
+      <form onSubmit={submit} className="acc-form">
+        <label><span>Contraseña nueva (mínimo 8 caracteres)</span><input type="password" required minLength={8} value={p1} onChange={(e) => setP1(e.target.value)} autoComplete="new-password" autoFocus /></label>
+        <label><span>Repite la contraseña</span><input type="password" required minLength={8} value={p2} onChange={(e) => setP2(e.target.value)} autoComplete="new-password" /></label>
+        {err && <p className="acc-err">{err}</p>}
+        <button className="btn primary acc-go" disabled={busy}>{busy ? 'Un momento…' : 'Guardar y entrar'}</button>
       </form>
     </Dialog>
   );

@@ -12,7 +12,7 @@ import { CutList, SheetPlans, Shopping, labelColor, labelStroke } from './compon
 import { Planos, Manual } from './components/Docs.jsx';
 import { ViewManager } from './components/ViewWindows.jsx';
 import Tour from './components/Tour.jsx';
-import { AuthDialog, DesignsDialog, AdminDialog, AccountButton } from './components/Account.jsx';
+import { AuthDialog, ResetDialog, DesignsDialog, AdminDialog, AccountButton } from './components/Account.jsx';
 import { api, getToken, setToken } from './lib/account.js';
 import { buildDrawing, techSpec } from './lib/plans.js';
 import { buildManual } from './lib/manual.js';
@@ -75,7 +75,7 @@ export default function App() {
   useEffect(() => {
     let seen = false;
     try { seen = !!localStorage.getItem('mobilabs-tour'); } catch { /* sin almacenamiento */ }
-    if (seen) return undefined;
+    if (seen || /[?&]reset=/.test(location.search)) return undefined; // con el enlace de recuperación no se interrumpe con el tutorial
     // el tutorial se abre cuando el usuario entra desde la pantalla de carga (o poco después de cargar, si no hay pantalla)
     if (!document.getElementById('boot')) { const id = setTimeout(() => setTourOpen(true), 800); return () => clearTimeout(id); }
     const open = () => setTimeout(() => setTourOpen(true), 700);
@@ -98,6 +98,14 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState('');
   const lastSaved = useRef('');
   const typeNames = useMemo(() => Object.fromEntries(FURNITURE.map((f) => [f.id, f.name])), []);
+  // enlace del correo de recuperación: ?reset=<token>
+  const [resetToken, setResetToken] = useState(() => {
+    try { const t = new URLSearchParams(location.search).get('reset'); return t && /^[a-f0-9]{64}$/i.test(t) ? t : null; } catch { return null; }
+  });
+  const clearResetParam = () => {
+    setResetToken(null);
+    try { const u = new URL(location.href); u.searchParams.delete('reset'); history.replaceState(history.state, '', u.toString()); } catch { /* sin historial */ }
+  };
   useEffect(() => {
     if (!getToken()) return;
     api('/me').then((r) => setUser(r.user)).catch(() => {});
@@ -656,6 +664,7 @@ export default function App() {
       </aside>
 
       {tourOpen && <Tour onClose={closeTour} />}
+      {resetToken && <ResetDialog token={resetToken} onClose={clearResetParam} onDone={(u) => { setUser(u); clearResetParam(); setAccDlg('designs'); }} />}
       {accDlg === 'auth' && <AuthDialog onClose={() => setAccDlg(null)} onDone={(u) => { setUser(u); setAccDlg('designs'); }} />}
       {accDlg === 'designs' && user && <DesignsDialog onClose={() => setAccDlg(null)} onOpen={(id) => openDesign(id)} onSaveNew={saveNewDesign} currentId={cloud?.id} typeNames={typeNames} />}
       {accDlg === 'admin' && user?.isAdmin && <AdminDialog onClose={() => setAccDlg(null)} onOpenDesign={(id) => openDesign(id, true)} typeNames={typeNames} />}
