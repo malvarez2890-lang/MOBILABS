@@ -512,6 +512,12 @@ export default function App() {
     <div className="app" data-mview={mview}>
       <header className="top">
         <button className="brand" onClick={() => setHome(true)} title="Ir al inicio"><img className="logo" src={logoUrl} alt="" width="36" height="36" /><span className="brand-text"><b>MOBILABs</b><small>diseña · cubica · compra · arma</small></span></button>
+        {!home && (
+          <div className="top-title" aria-live="polite">
+            <b>{cloud && cloud.typeId === typeId ? cloud.name : type.name}</b>
+            <span>{cm(bw)} <small>ancho</small> × {cm(bh)} <small>alto</small> × {cm(bd)} <small>fondo</small> cm</span>
+          </div>
+        )}
         <div className="top-actions">
           {PUBLISHED && (
             <button className="btn primary" onClick={copyCuts} title="Copia el despiece y las compras para pegar en Excel, Sheets o un mensaje">

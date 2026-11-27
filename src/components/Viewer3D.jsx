@@ -61,7 +61,9 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.maxPolarAngle = Math.PI / 2 - 0.01;
-    controls.minDistance = 20;
+    controls.minDistance = 6;
+    controls.maxDistance = 6000;
+    controls.enableZoom = false; // el zoom con la rueda lo hace el visor: suave y hacia donde apunta el mouse
     // Rueda (clic del medio) = desplazar; Mayús/Ctrl + rueda = girar. Izquierdo = seleccionar; derecho = menú.
     controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: null };
 
@@ -249,6 +251,36 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
 
     controls.addEventListener('start', () => { S.current.anim = null; }); // si el usuario toma la cámara, se detiene
     let raf = 0;
+    // ---- zoom suave con la rueda, hacia el punto bajo el cursor ----
+    let zoomPending = 0;
+    const zoomPoint = new THREE.Vector3();
+    const onWheelZoom = (e) => {
+      e.preventDefault();
+      const dy = Math.max(-240, Math.min(240, e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1)));
+      zoomPending += dy * 0.0016;
+      zoomPending = Math.max(-1.5, Math.min(1.5, zoomPending));
+      // punto bajo el cursor, en el plano que pasa por el centro de la vista
+      const r = renderer.domElement.getBoundingClientRect();
+      const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(ndc, camera);
+      const n = camera.getWorldDirection(new THREE.Vector3());
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(n, controls.target);
+      if (!ray.ray.intersectPlane(plane, zoomPoint)) zoomPoint.copy(controls.target);
+      S.current.anim = null;
+    };
+    renderer.domElement.addEventListener('wheel', onWheelZoom, { passive: false });
+    const stepZoom = () => {
+      if (Math.abs(zoomPending) < 1e-4) { zoomPending = 0; return false; }
+      const step = zoomPending * 0.22;
+      zoomPending -= step;
+      const s = Math.exp(step);
+      const dist = camera.position.distanceTo(controls.target) * s;
+      if (dist < controls.minDistance || dist > controls.maxDistance) { zoomPending = 0; return false; }
+      camera.position.sub(zoomPoint).multiplyScalar(s).add(zoomPoint);
+      controls.target.sub(zoomPoint).multiplyScalar(s).add(zoomPoint);
+      return true;
+    };
     const loop = () => {
       raf = requestAnimationFrame(loop);
       const a = S.current.anim;
@@ -262,6 +294,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
           S.current.fitIfNeeded?.(a.depth + 1); // por si un solo paso no alcanzó
         }
       }
+      if (stepZoom()) needRender = true;
       const moved = controls.update(); // true mientras la cámara se mueve (incluye la inercia)
       if (moved || needRender) {
         needRender = false;
@@ -425,6 +458,7 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
       canvas.removeEventListener('mousedown', noMiddleScroll);
       canvas.removeEventListener('auxclick', noMiddleScroll);
       canvas.removeEventListener('contextmenu', noMenu);
+      renderer.domElement.removeEventListener('wheel', onWheelZoom);
       window.removeEventListener('keydown', syncMiddleMode);
       window.removeEventListener('keyup', syncMiddleMode);
       clearTimeout(st?.timer);
