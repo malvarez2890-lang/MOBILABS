@@ -121,6 +121,7 @@ const slug = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCa
 export const storeLinks = (term) => [
   ...(/chapa/.test(term) ? [{ name: 'Tienda Revs', url: `https://www.tiendarevs.cl/?s=${encodeURIComponent(term)}&post_type=product` }] : []),
   { name: 'Sodimac', url: `https://www.sodimac.cl/sodimac-cl/search?Ntt=${encodeURIComponent(term)}` },
+  { name: 'Imperial', url: `https://www.imperial.cl/search?Ntt=${encodeURIComponent(term)}` },
   { name: 'Mercado Libre', url: `https://listado.mercadolibre.cl/${slug(term)}` },
   { name: 'Google', url: `https://www.google.com/search?q=${encodeURIComponent(`${term} precio Chile`)}` },
 ];
