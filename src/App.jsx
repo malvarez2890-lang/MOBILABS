@@ -365,7 +365,7 @@ export default function App() {
       mainMat: materialOf(values.mat)?.name || '',
       cost: priced.total,
       cutText: plans.groups.map((g) => `${g.label} ${g.name} ${Math.round(g.l)}${g.w ? `x${Math.round(g.w)}` : ''} mm x${g.qty}`).join('; '),
-      solids: solidsOf(model, letterOf),
+      solids: solidsOf(model, letterOf, looks),
     };
   };
   const exportIfc = () => { const i = bimInfo(); download(`${i.fileBase}.ifc`, toIfc(model, i), 'application/x-step', false); };

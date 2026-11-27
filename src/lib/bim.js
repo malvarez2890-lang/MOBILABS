@@ -13,6 +13,40 @@ const FIX = {
   productLeg: ['Madera (pata lista)', '#b98a55'],
 };
 
+// Apariencia en Revit: palabras para buscar un material de la biblioteca de Autodesk (inglés y español)
+const LOOKS = {
+  roble: ['Roble', '#c49a6c', ['oak', 'roble']],
+  nogal: ['Nogal', '#6b4a32', ['walnut', 'nogal']],
+  pino: ['Pino', '#e2c08b', ['pine', 'pino']],
+  terciado: ['Terciado', '#dcb67c', ['plywood', 'contrachapado', 'birch', 'abedul']],
+  acanalado: ['Roble acanalado', '#b8916a', ['oak', 'roble']],
+  blanco: ['Blanco mate', '#f2f2f0', ['white', 'blanco']],
+  negro: ['Negro mate', '#2a2a2a', ['black', 'negro']],
+  cemento: ['Cemento', '#9b9ea1', ['concrete', 'hormig']],
+  marmol: ['Mármol', '#f1f1ef', ['marble', 'm\u00e1rmol', 'marmol']],
+};
+const keysFor = (mat) => {
+  const m = mat.toLowerCase();
+  if (m.includes('melamina')) return ['maple', 'arce', 'birch', 'abedul', 'oak', 'roble'];
+  if (m.includes('mdf')) return ['mdf', 'medium density', 'particle', 'aglomerado', 'maple', 'arce'];
+  if (m.includes('terciado')) return ['plywood', 'contrachapado', 'birch', 'abedul'];
+  if (m.includes('pino')) return ['pine', 'pino'];
+  if (m.includes('pata lista') || m.includes('madera')) return ['beech', 'haya', 'oak', 'roble'];
+  if (m.includes('acero') || m.includes('metal')) return m.includes('negro') ? ['black', 'negro', 'steel', 'acero'] : ['stainless', 'inoxidable', 'satin', 'steel', 'acero'];
+  if (m.includes('rueda')) return ['rubber', 'caucho', 'plastic', 'pl\u00e1stico'];
+  return [];
+};
+/** Subcategoría de Revit según la pieza. */
+const groupOf = (name, kind, fx) => {
+  if (fx) return fx === 'handle' ? 'Herrajes' : fx === 'metalLeg' && kind === 'tube' ? 'Estructura metálica' : 'Patas';
+  if (/^Pata/.test(name)) return 'Patas';
+  if (/^Puerta|^Frente de cajón/.test(name)) return 'Frentes';
+  if (/de cajón$/.test(name)) return 'Cajones';
+  if (/^Trasera|^Panel trasero|^Travesaño trasero/.test(name)) return 'Trasera';
+  if (kind === 'linear' && !/^Tapa/.test(name)) return 'Marco de madera';
+  return 'Cuerpo';
+};
+
 const rotM = (rot) => {
   const [a, b, c] = rot;
   const Rx = [[1, 0, 0], [0, Math.cos(a), -Math.sin(a)], [0, Math.sin(a), Math.cos(a)]];
@@ -24,14 +58,14 @@ const rotM = (rot) => {
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 /** Lista de sólidos: { name, letter, mat, color, k: 'box'|'cyl', o, x, z, dx, dy, r, h } (o = centro de la base; z = dirección de extrusión). */
-export function solidsOf(model, letterOf = new Map()) {
+export function solidsOf(model, letterOf = new Map(), looks = new Map()) {
   const { min, max } = model.bbox;
   const cx = (min[0] + max[0]) / 2;
   const cz = (min[2] + max[2]) / 2;
   const P = (v) => [r4(v[0] - cx), r4(cz - v[2]), r4(v[1])]; // punto modelo → salida
   const M = (v) => [r4(v[0]), r4(-v[2]), r4(v[1])]; // dirección modelo → salida
   const out = [];
-  const add = (o, name, mat, color, round, letter = '') => {
+  const add = (o, name, mat, color, round, letter = '', group = 'Cuerpo') => {
     const R = o.rot ? rotM(o.rot) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
     const col = (j) => [R[0][j], R[1][j], R[2][j]];
     const ex = col(0);
@@ -39,18 +73,24 @@ export function solidsOf(model, letterOf = new Map()) {
     const [sx, sy, sz] = o.size;
     const c = o.min.map((m, i) => m + o.size[i] / 2);
     const base = c.map((v, i) => v - (ey[i] * sy) / 2);
-    const s = { name, letter, mat, color, o: P(base), x: M(ex), z: M(ey), h: r4(sy) };
+    const s = { name, letter, mat, color, group, keys: keysFor(mat), o: P(base), x: M(ex), z: M(ey), h: r4(sy) };
     if (round) Object.assign(s, { k: 'cyl', r: r4(sx / 2) });
     else Object.assign(s, { k: 'box', dx: r4(sx), dy: r4(sz) });
     out.push(s);
   };
   model.parts.forEach((p) => {
     const m = materialOf(p.mat);
-    add(p, p.name, m.name, m.color, p.shape === 'disc' || p.shape === 'round' || p.shape === 'taperRound', letterOf.get(p.id) || '');
+    const lk = looks.get(p.id);
+    const tex = lk && LOOKS[lk.texture];
+    // con color o textura elegidos en la app, la pieza lleva un material propio ("Melamina 18 mm - Roble")
+    const matName = tex ? `${m.name} - ${tex[0]}` : lk && lk.color ? `${m.name} - ${lk.color}` : m.name;
+    const color = (lk && lk.color) || (tex && tex[1]) || m.color;
+    add(p, p.name, matName, color, p.shape === 'disc' || p.shape === 'round' || p.shape === 'taperRound', letterOf.get(p.id) || '', groupOf(p.name, p.kind));
+    if (tex) out[out.length - 1].keys = tex[2];
   });
   model.fixtures.forEach((f) => {
     const [name, color] = FIX[f.kind] || ['Herraje', '#8f979f'];
-    add(f, f.kind === 'handle' ? 'Tirador' : f.kind === 'caster' ? 'Rueda' : 'Pata', name, color, f.kind === 'productLeg' && f.shape !== 'taperBox');
+    add(f, f.kind === 'handle' ? 'Tirador' : f.kind === 'caster' ? 'Rueda' : 'Pata', name, color, f.kind === 'productLeg' && f.shape !== 'taperBox', '', groupOf('', f.tube ? 'tube' : '', f.kind));
   });
   return out;
 }
@@ -170,11 +210,11 @@ export function toIfc(model, info) {
 // ---------------------------------------------------------------- familia de Revit (script Python para pyRevit / RevitPythonShell / Dynamo)
 export function toRevitPy(model, info) {
   const materials = {};
-  info.solids.forEach((s) => { materials[s.mat] = s.color; });
+  info.solids.forEach((s) => { materials[s.mat] = { c: s.color, k: s.keys || [] }; });
   const data = {
     name: info.fileBase, title: info.title, typeName: info.typeName, dims: info.dims, cost: info.cost,
     mainMat: info.mainMat, cutText: info.cutText, site: SITE_URL, materials,
-    solids: info.solids.map((s) => ({ n: s.letter ? `${s.letter} ${s.name}` : s.name, m: s.mat, k: s.k, o: s.o, x: s.x, z: s.z, h: s.h, dx: s.dx, dy: s.dy, r: s.r })),
+    solids: info.solids.map((s) => ({ n: s.letter ? `${s.letter} ${s.name}` : s.name, m: s.mat, g: s.group, k: s.k, o: s.o, x: s.x, z: s.z, h: s.h, dx: s.dx, dy: s.dy, r: s.r })),
   };
   // JSON solo en ASCII (los acentos van como \\uXXXX) para que funcione igual en IronPython y CPython
   const json = JSON.stringify(data).replace(/[\u007f-\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`).replace(/'''/g, "\\u0027\\u0027\\u0027");
@@ -187,8 +227,9 @@ export function toRevitPy(model, info) {
 #   * pyRevit o RevitPythonShell: ejecuta este archivo con un proyecto abierto.
 #   * Dynamo: crea un nodo "Python Script", pega TODO este texto y ejecuta.
 #  Crea una familia nueva de Mobiliario (plantilla métrica de tu Revit), con cada pieza como
-#  extrusión sólida y su material, la guarda en Documentos\\MOBILABs\\<nombre>.rfa
-#  y la carga en el proyecto abierto.
+#  extrusión sólida, su material (con apariencia de madera/metal de la biblioteca de Autodesk)
+#  y su subcategoría (Cuerpo, Frentes, Cajones, Trasera, Patas, Marco de madera, Herrajes),
+#  la guarda en Documentos\\MOBILABs\\<nombre>.rfa y la carga en el proyecto abierto.
 # =====================================================================================
 import clr, os, glob, json, math
 clr.AddReference('RevitAPI')
@@ -254,13 +295,59 @@ if not tpl:
 fam = app.NewFamilyDocument(tpl)
 t = Transaction(fam, 'MOBILABs')
 t.Start()
+# --- biblioteca de apariencias de Autodesk (madera, metal…), si está instalada ---
+LIB = []
+try:
+    for a in app.GetAssets(AssetType.Appearance):
+        LIB.append((a, (a.Name or '').lower()))
+except Exception:
+    pass
+def find_asset(keys):
+    for k in keys:
+        for a, n in LIB:
+            if k in n:
+                return a
+    return None
+
 mats = {}
-for name, col in DATA['materials'].items():
+with_look = 0
+for name, info in DATA['materials'].items():
     mid = Material.Create(fam, name)
     m = fam.GetElement(mid)
-    h = col.lstrip('#')
+    h = info['c'].lstrip('#')
     m.Color = Color(int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+    try:
+        m.MaterialClass = 'Madera' if any(w in name.lower() for w in ('melamina', 'mdf', 'terciado', 'pino', 'madera')) else 'Metal' if ('acero' in name.lower() or 'metal' in name.lower()) else 'Otros'
+    except Exception:
+        pass
+    asset = find_asset(info.get('k', []))
+    if asset is not None:
+        try:
+            ae = AppearanceAssetElement.Create(fam, 'MOBILABs ' + name, asset)
+            m.AppearanceAssetId = ae.Id
+            m.UseRenderAppearanceForShading = False
+            with_look += 1
+        except Exception as ex:
+            print('Sin apariencia para {0}: {1}'.format(name, ex))
     mats[name] = mid
+
+# --- subcategorías (Cuerpo, Frentes, Cajones, Trasera, Patas, Marco de madera, Herrajes…) ---
+cat = fam.OwnerFamily.FamilyCategory
+subs = {}
+def subcat(name):
+    if name in subs:
+        return subs[name]
+    sc = None
+    for c in cat.SubCategories:
+        if c.Name == name:
+            sc = c
+    if sc is None:
+        try:
+            sc = fam.Settings.Categories.NewSubcategory(cat, name)
+        except Exception:
+            sc = None
+    subs[name] = sc
+    return sc
 made = 0
 for s in DATA['solids']:
     try:
@@ -287,6 +374,14 @@ for s in DATA['solids']:
         p = ext.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM)
         if p and not p.IsReadOnly:
             p.Set(mats[s['m']])
+        sc = subcat(s.get('g') or 'Cuerpo')
+        if sc is not None:
+            ext.Subcategory = sc
+            if sc.Material is None:
+                try:
+                    sc.Material = fam.GetElement(mats[s['m']])
+                except Exception:
+                    pass
         made += 1
     except Exception as ex:
         print('No se pudo crear la pieza {0}: {1}'.format(s['n'], ex))
@@ -317,7 +412,7 @@ if doc is not None and not doc.IsFamilyDocument:
     except Exception as ex:
         print('La familia quedó guardada, pero no se pudo cargar en el proyecto: {0}'.format(ex))
 fam.Close(False)
-msg = u'Familia creada con {0} piezas: {1}{2}'.format(made, path, u' (cargada en el proyecto)' if loaded else u'')
+msg = u'Familia creada con {0} piezas en {1} subcategor\u00edas ({2} materiales con apariencia de la biblioteca): {3}{4}'.format(made, len([k for k in subs if subs[k] is not None]), with_look, path, u' (cargada en el proyecto)' if loaded else u'')
 print(msg)
 if DYNAMO:
     OUT = msg
