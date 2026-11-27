@@ -31,7 +31,7 @@ function check(label, typeId, values) {
     if (p.kind === 'sheet') {
       const t = SHEETS[p.mat].t;
       assert.ok(p.size.some((s) => Math.abs(s - t) < 0.06), `${label}: ${p.name} sin espesor ${t}: ${p.size}`);
-    } else {
+    } else if (!p.skew) {
       const [a, b] = LINEARS[p.mat].section;
       const rest = [...p.size];
       rest.splice(rest.findIndex((s) => Math.abs(s - p.cut.l) < 0.06), 1);
@@ -46,7 +46,7 @@ function check(label, typeId, values) {
   for (let i = 0; i < m.parts.length; i++) {
     for (let j = i + 1; j < m.parts.length; j++) {
       const a = m.parts[i], b = m.parts[j];
-      if (a.rot || b.rot) continue; // piezas inclinadas (patas en diagonal): su caja girada se revisa aparte
+      if (a.rot || b.rot || a.skew || b.skew) continue; // piezas inclinadas (patas en diagonal): su caja girada se revisa aparte
       const hit = [0, 1, 2].every((k) => a.min[k] + eps < b.min[k] + b.size[k] && b.min[k] + eps < a.min[k] + a.size[k]);
       assert.ok(!hit, `${label}: choque entre ${a.name} ${a.min}/${a.size} y ${b.name} ${b.min}/${b.size}`);
     }

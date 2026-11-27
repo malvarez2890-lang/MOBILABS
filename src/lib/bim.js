@@ -80,7 +80,16 @@ export function solidsOf(model, letterOf = new Map(), looks = new Map()) {
     else Object.assign(s, { k: 'box', dx: r4(sx), dy: r4(sz) });
     out.push(s);
   };
-  model.parts.forEach((p) => {
+  model.parts.forEach((p0) => {
+    let p = p0;
+    if (p0.skew) { // pata con cortes horizontales: se exporta como el listón girado equivalente
+      const [, h, span] = p0.size;
+      const dz = span - p0.skew.wz;
+      const a = Math.atan(dz / h) * (p0.skew.dir > 0 ? -1 : 1);
+      const L = Math.hypot(h, dz);
+      const c = p0.min.map((m, i) => m + p0.size[i] / 2);
+      p = { ...p0, min: [c[0] - p0.size[0] / 2, c[1] - L / 2, c[2] - 47.5], size: [p0.size[0], L, 95], rot: [a, 0, 0] };
+    }
     const m = materialOf(p.mat);
     const lk = looks.get(p.id);
     const tex = lk && LOOKS[lk.texture];

@@ -42,26 +42,40 @@ export function buildBanca(v) {
   const leg = 'pino70';
   const s = 70;
   if (estilo === 'cruzada') {
-    // tapa de tablones, travesaños bajo la tapa y patas en X (unión a media madera en el cruce)
+    // tapa de tablones sobre dos travesaños; en cada extremo, dos patas que se cruzan a ambos lados del travesaño
+    // (no se cortan a media madera: van una por fuera y otra por dentro, con un taco al medio) y un travesaño bajo
+    // que une las dos X para que la banca no se ladee. Las patas llevan cortes horizontales arriba y abajo.
     const yTop = Hs - 45;
     const n = Math.max(2, Math.floor((D + 10) / (95 + 10)));
     const gap = n > 1 ? (D - n * 95) / (n - 1) : 0;
     for (let k = 0; k < n; k++) p.L('Tablón de asiento', plank, 'x', W, 0, yTop, k * (95 + gap), 'y');
     const cy = yTop - 95;
-    const cxs = [90, W - 90 - 45];
+    const cxs = [110, W - 110 - 45];
     for (const cx of cxs) p.L('Travesaño de tapa', plank, 'z', D - 40, cx, cy, 20);
-    p.L('Travesaño central', plank, 'x', cxs[1] - cxs[0] - 45, cxs[0] + 45, cy, D / 2 - 22);
-    const h = cy;
-    const zA = D - 70;
-    const zB = 70;
-    const a = Math.atan((zA - zB) / h);
+    const h = yTop; // las patas suben hasta tocar los tablones
+    const zLo = 40;
+    const zHi = D - 40;
+    const dz0 = (zHi - zLo) * 0.62; // abertura de la X (distancia entre el centro de arriba y el de abajo de cada pata)
+    const a = Math.atan(dz0 / h);
+    const wz = 95 / Math.cos(a); // ancho horizontal del corte
+    const span = dz0 + wz;
+    const z0 = D / 2 - span / 2;
+    const L = h / Math.cos(a) + 95 * Math.tan(a); // largo de la pieza antes de los cortes en ángulo
+    const leg = (x, dir) => p._push({ name: 'Pata en X', mat: plank, kind: 'linear', min: [x, 0, z0], size: [45, h, span], cut: { l: Math.round(L * 10) / 10 }, edges: [], skew: { wz, dir } });
     for (const cx of cxs) {
-      p.T('Pata en X', plank, [cx + 22.5, cy, zA], h, [a, 0]);
-      p.T('Pata en X', plank, [cx + 22.5, cy, zB], h, [-a, 0]);
+      const outer = cx === cxs[0] ? cx - 45 : cx + 45; // por fuera del travesaño
+      const inner = cx === cxs[0] ? cx + 45 : cx - 45; // por dentro
+      leg(outer, 1);
+      leg(inner, -1);
+      p.L('Taco separador', plank, 'x', 45, cx, h / 2 - 47.5, D / 2 - 22.5); // entre las dos patas, en el cruce
     }
-    p.hardware('Tornillo para madera 5×80 mm', 24 + n * 4, 'Tablones, travesaños y patas (con cola)');
-    p.hardware('Perno coche 8×100 mm con tuerca', 2, 'En el cruce de cada par de patas');
-    p.tip(`Patas en X a ${Math.round((a * 180) / Math.PI)}°: en el cruce se hace un rebaje a media madera (la mitad del espesor en cada pata) y se aprieta con un perno.`);
+    const sx0 = cxs[0] + 90;
+    const sx1 = cxs[1] - 45;
+    p.L('Travesaño bajo', plank, 'x', sx1 - sx0, sx0, h / 2 - 47.5, D / 2 - 22.5);
+    p.hardware('Tornillo para madera 5×80 mm', n * 4 + 4, 'Tablones a los travesaños (con cola)');
+    p.hardware('Perno coche 8×140 mm con tuerca', 10, '2 por pata arriba (atraviesa pata y travesaño) y 1 en cada cruce (pata, taco y pata)');
+    p.hardware('Tornillo para madera 6×120 mm', 4, 'Travesaño bajo a las patas interiores (2 por lado)');
+    p.tip(`Patas en X a ${Math.round((a * 180) / Math.PI)}°: corta los extremos de cada pata en ángulo para que apoyen planos en el piso y bajo los tablones. Una pata va por fuera y otra por dentro del travesaño, unidas con un taco y un perno en el cruce; el travesaño bajo une las dos X y evita que la banca se ladee.`);
     return outdoorResult(p, true);
   }
   // respaldo (por defecto): patas de 3×3", tablones de 2×4", respaldo de dos tablas

@@ -7,6 +7,18 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 export function partGeometry(p) {
   const [sx, sy, sz] = p.size.map((v) => v / 10);
   if (p.shape === 'disc') return new THREE.CylinderGeometry(sx / 2, sx / 2, sy, 96);
+  if (p.skew) { // pata inclinada con cortes horizontales: paralelogramo en el plano lateral (fondo × alto)
+    const wz = p.skew.wz / 10;
+    const d = p.skew.dir; // +1: arriba hacia el frente (z +); −1: arriba hacia atrás
+    const sh = new THREE.Shape();
+    if (d > 0) { sh.moveTo(-sz / 2, -sy / 2); sh.lineTo(-sz / 2 + wz, -sy / 2); sh.lineTo(sz / 2, sy / 2); sh.lineTo(sz / 2 - wz, sy / 2); }
+    else { sh.moveTo(sz / 2 - wz, -sy / 2); sh.lineTo(sz / 2, -sy / 2); sh.lineTo(-sz / 2 + wz, sy / 2); sh.lineTo(-sz / 2, sy / 2); }
+    sh.closePath();
+    const g = new THREE.ExtrudeGeometry(sh, { depth: sx, bevelEnabled: false });
+    g.translate(0, 0, -sx / 2);
+    g.rotateY(-Math.PI / 2);
+    return g;
+  }
   if (p.shape === 'vnotchV') { // lateral con una muesca en V abajo (patas de banco)
     const nh = Math.min(sy * 0.6, (p.notchH || p.size[1] * 0.28) / 10);
     const nw = Math.min(sz * 0.8, (p.notchW || p.size[2] * 0.45) / 10);
@@ -37,7 +49,7 @@ export function partGeometry(p) {
     g.rotateY(-Math.PI / 2); // la forma queda en el plano lateral (profundidad × alto) y el espesor en x
     return g;
   }
-  if (!p.shape || p.shape === 'box') return new THREE.BoxGeometry(sx, sy, sz);
+  if ((!p.shape || p.shape === 'box') && !p.skew) return new THREE.BoxGeometry(sx, sy, sz);
 
   const h = sy;
   const s = sx;
