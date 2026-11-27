@@ -7,6 +7,23 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 export function partGeometry(p) {
   const [sx, sy, sz] = p.size.map((v) => v / 10);
   if (p.shape === 'disc') return new THREE.CylinderGeometry(sx / 2, sx / 2, sy, 96);
+  if (p.shape === 'vnotchV') { // lateral con una muesca en V abajo (patas de banco)
+    const nh = Math.min(sy * 0.6, (p.notchH || p.size[1] * 0.28) / 10);
+    const nw = Math.min(sz * 0.8, (p.notchW || p.size[2] * 0.45) / 10);
+    const sh = new THREE.Shape();
+    sh.moveTo(-sz / 2, -sy / 2);
+    sh.lineTo(-nw / 2, -sy / 2);
+    sh.lineTo(0, -sy / 2 + nh);
+    sh.lineTo(nw / 2, -sy / 2);
+    sh.lineTo(sz / 2, -sy / 2);
+    sh.lineTo(sz / 2, sy / 2);
+    sh.lineTo(-sz / 2, sy / 2);
+    sh.closePath();
+    const g = new THREE.ExtrudeGeometry(sh, { depth: sx, bevelEnabled: false });
+    g.translate(0, 0, -sx / 2);
+    g.rotateY(-Math.PI / 2);
+    return g;
+  }
   if (p.shape === 'trapV') { // lateral con el canto superior inclinado: alto completo atrás (z −) y p.hf adelante (z +)
     const hf = Math.min(sy, (p.hf || p.size[1]) / 10);
     const sh = new THREE.Shape();
@@ -60,6 +77,7 @@ const cyl = (r, len, segs = 16) => new THREE.CylinderGeometry(r, r, len, segs);
 /** Geometría y color de un elemento comprado (tirador, rueda, pata metálica). */
 export function fixtureGeometry(f) {
   const [sx, sy, sz] = f.size.map((v) => v / 10);
+  if (f.kind === 'cushion') return { geo: new THREE.BoxGeometry(sx, sy, sz), color: f.color || '#3b3f45', metal: 0 };
   if (f.kind === 'productLeg') return { geo: partGeometry({ size: f.size, shape: f.shape, taper: f.taper }), color: '#b98a55', metal: 0 };
   if (f.kind === 'metalLeg') return { geo: new THREE.BoxGeometry(sx, sy, sz), color: '#2f3237', metal: 0.6 };
 

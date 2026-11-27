@@ -43,6 +43,8 @@ export const LINEARS = {
   pino70: { id: 'pino70', short: 'Pino 3×3"', name: 'Pino cepillado 3×3" (≈70×70 mm)', section: [70, 70], stock: 3200, color: '#e2c08b' },
   pino19x90: { id: 'pino19x90', short: 'Pino 1×4"', name: 'Pino cepillado 1×4" (19×90 mm)', section: [19, 90], stock: 3200, color: '#ecd0a0' },
   pino19x42: { id: 'pino19x42', short: 'Pino 1×2"', name: 'Pino cepillado 1×2" (19×42 mm)', section: [19, 42], stock: 3200, color: '#ecd0a0' },
+  pino45x95: { id: 'pino45x95', short: 'Pino 2×4"', name: 'Pino cepillado 2×4" (45×95 mm)', section: [45, 95], stock: 3200, color: '#e2c08b' },
+  pino90x90: { id: 'pino90x90', short: 'Pino 4×4"', name: 'Pino cepillado 4×4" (90×90 mm)', section: [90, 90], stock: 3200, color: '#e2c08b' },
   redonda45: { id: 'redonda45', short: 'Pilar Ø45', name: 'Pilar redondo de pino Ø45 mm', section: [45, 45], stock: 2400, color: '#e2c08b', round: true },
   redonda70: { id: 'redonda70', short: 'Pilar Ø70', name: 'Pilar redondo de pino Ø70 mm', section: [70, 70], stock: 2400, color: '#e2c08b', round: true },
 };

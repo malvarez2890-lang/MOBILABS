@@ -11,6 +11,7 @@ const FIX = {
   metalLeg: ['Acero negro', '#2f3237'],
   caster: ['Rueda', '#3a3d42'],
   productLeg: ['Madera (pata lista)', '#b98a55'],
+  cushion: ['Tela (cojín)', '#3b3f45'],
 };
 
 // Apariencia en Revit: palabras para buscar un material de la biblioteca de Autodesk (inglés y español)
@@ -38,6 +39,7 @@ const keysFor = (mat) => {
 };
 /** Subcategoría de Revit según la pieza. */
 const groupOf = (name, kind, fx) => {
+  if (fx === 'cushion') return 'Cojines';
   if (fx) return fx === 'handle' ? 'Herrajes' : fx === 'metalLeg' && kind === 'tube' ? 'Estructura metálica' : 'Patas';
   if (/^Pata/.test(name)) return 'Patas';
   if (/^Puerta|^Frente de cajón/.test(name)) return 'Frentes';
@@ -90,7 +92,7 @@ export function solidsOf(model, letterOf = new Map(), looks = new Map()) {
   });
   model.fixtures.forEach((f) => {
     const [name, color] = FIX[f.kind] || ['Herraje', '#8f979f'];
-    add(f, f.kind === 'handle' ? 'Tirador' : f.kind === 'caster' ? 'Rueda' : 'Pata', name, color, f.kind === 'productLeg' && f.shape !== 'taperBox', '', groupOf('', f.tube ? 'tube' : '', f.kind));
+    add(f, f.kind === 'handle' ? 'Tirador' : f.kind === 'caster' ? 'Rueda' : f.kind === 'cushion' ? 'Cojín' : 'Pata', name, color, f.kind === 'productLeg' && f.shape !== 'taperBox', '', groupOf('', f.tube ? 'tube' : '', f.kind));
   });
   return out;
 }

@@ -11,6 +11,9 @@ const P = {
   tocadiscos: <><rect x="3" y="13" width="18" height="7" /><rect x="5" y="5" width="12" height="8" /><circle cx="9.5" cy="9" r="2.2" /><path d="M14 6.5l2 3" /></>,
   disqueria: <><rect x="3" y="4" width="18" height="17" /><path d="M11 4v17M3 12h8M3 9h8M3 17h8M11 10h10M11 15h10" /></>,
   exhibidor: <><path d="M5 21V5l14 7v9z" /><path d="M5 14h14M9 14v-6M14 14V9" /></>,
+  mesaCentro: <><rect x="3" y="10" width="18" height="3" /><path d="M5 13v6M19 13v6M5 17h14" /></>,
+  banca: <><path d="M3 12h18M3 12v8M21 12v8M5 12V5M19 12V5M5 7h14" /></>,
+  sofa: <><path d="M4 11V7h16v4M2 11h4v5h12v-5h4v7H2zM4 18v2M20 18v2" /></>,
   vinilos: <><rect x="3" y="3" width="18" height="18" /><path d="M9 3v18M15 3v18M3 9h18M3 15h18" /></>,
 };
 

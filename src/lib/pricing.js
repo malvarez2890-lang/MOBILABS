@@ -8,7 +8,7 @@ export const PRICE_NOTE =
   'Precios de ejemplo en pesos chilenos (CLP), solo para tener un orden de magnitud: no vienen de ninguna tienda. Edita cada precio con el de tu proveedor; se guardan en este navegador.';
 
 const SHEET_DEFAULT = { mel18: 42000, mel15: 33000, mdf18: 36000, mdf15: 30000, ter18: 52000, ter15: 42000, hdf3: 11000 }; // por plancha de la medida más usada
-const BAR_DEFAULT = { pino41: 6500, pino70: 15000, pino19x90: 7000, pino19x42: 3800, redonda45: 9500, redonda70: 17000 }; // por listón
+const BAR_DEFAULT = { pino41: 6500, pino70: 15000, pino19x90: 7000, pino19x42: 3800, pino45x95: 9500, pino90x90: 21000, redonda45: 9500, redonda70: 17000 }; // por listón
 const EDGE_PER_M = 450; // tapacanto, por metro
 
 // reglas por nombre del herraje, de lo más específico a lo más general
@@ -21,7 +21,7 @@ const HW_RULES = [
   [/^rueda giratoria.*freno/i, 6500], [/^rueda giratoria/i, 4500],
   [/^pata met[aá]lica tubular/i, 8500], [/^pata de acero en diagonal/i, 10500], [/^tubo de acero/i, 4500],
   [/^placa de montaje|^placa o escuadra/i, 1800], [/^escuadra met[aá]lica/i, 700], [/^kit anti-vuelco/i, 1500],
-  [/^barniz|^sellador/i, 9000], [/^lija/i, 1500], [/^cera/i, 2500], [/^chapa de madera/i, 12000], [/^tapacanto de chapa/i, 900], [/^tope/i, 1500],
+  [/^barniz|^sellador/i, 9000], [/^lija/i, 1500], [/^cera/i, 2500], [/^perno/i, 900], [/^coj[ií]n de respaldo/i, 25000], [/^coj[ií]n/i, 35000], [/^protector/i, 22000], [/^chapa de madera/i, 12000], [/^tapacanto de chapa/i, 900], [/^tope/i, 1500],
 ];
 
 export const keyOfSheet = (id, choice, finish) => `sheet:${id}${choice === 'alt' ? ':alt' : choice === 'custom' ? ':custom' : ''}${finish ? `:${finish}` : ''}`;
@@ -85,7 +85,7 @@ const SHEET_TERM = {
 };
 const BAR_TERM = {
   pino41: 'pino cepillado 2x2 41x41 mm', pino70: 'pino cepillado 3x3 70x70 mm', pino19x90: 'pino cepillado 1x4 19x90 mm',
-  pino19x42: 'pino cepillado 1x2 19x42 mm', redonda45: 'varilla redonda pino 45 mm', redonda70: 'varilla redonda pino 70 mm',
+  pino19x42: 'pino cepillado 1x2 19x42 mm', pino45x95: 'pino cepillado 2x4 45x95 mm', pino90x90: 'pino cepillado 4x4 90x90 mm', redonda45: 'varilla redonda pino 45 mm', redonda70: 'varilla redonda pino 70 mm',
 };
 const HW_TERMS = [
   [/^tapa cubre/i, 'tapa cubre tornillo confirmat adhesiva'], [/^tornillo confirmat/i, 'tornillo confirmat 7x50'], [/^tornillo o clavo 3/i, 'clavo 3x16 mm para trasera mdf'],
@@ -98,7 +98,7 @@ const HW_TERMS = [
   [/^pata de madera.*?(\d+(?:[.,]\d+)?) cm/i, (m) => `pata madera conica ${Number(m[1].replace(',', '.')) * 10} mm`],
   [/^pata met[aá]lica/i, 'pata metalica mueble'], [/^pata de acero en diagonal/i, 'pata metalica mueble inclinada'], [/^tubo de acero/i, 'tubo cuadrado acero 30x30'],
   [/^placa de montaje/i, 'placa montaje pata mueble'], [/^escuadra met[aá]lica/i, 'escuadra metalica refuerzo 40 mm'],
-  [/^kit anti-vuelco|^anti-vuelco/i, 'kit antivuelco muebles'], [/^chapa de madera natural (\S+)/i, (m) => `chapa de madera ${m[1].toLowerCase()} 64 x 250`], [/^tapacanto de chapa natural (\S+)/i, (m) => `tapacanto chapa natural ${m[1].toLowerCase()}`], [/^barniz.*chapa/i, 'barniz poliuretano mate interior'], [/^cera/i, 'cera para madera'], [/^barniz/i, 'barniz poliuretano interior'], [/^sellador/i, 'sellador madera'], [/^lija/i, 'lija madera grano 120'],
+  [/^kit anti-vuelco|^anti-vuelco/i, 'kit antivuelco muebles'], [/^chapa de madera natural (\S+)/i, (m) => `chapa de madera ${m[1].toLowerCase()} 64 x 250`], [/^tapacanto de chapa natural (\S+)/i, (m) => `tapacanto chapa natural ${m[1].toLowerCase()}`], [/^barniz.*chapa/i, 'barniz poliuretano mate interior'], [/^coj[ií]n de respaldo/i, 'cojin respaldo exterior a medida'], [/^coj[ií]n/i, 'cojin asiento exterior a medida espuma'], [/^protector/i, 'protector madera exterior filtro uv'], [/^perno coche/i, 'perno coche 8 x 100 con tuerca'], [/^cera/i, 'cera para madera'], [/^barniz/i, 'barniz poliuretano interior'], [/^sellador/i, 'sellador madera'], [/^lija/i, 'lija madera grano 120'],
 ];
 /** Nombre comercial chileno para buscar un ítem de la lista de compras (a partir de la clave de precio y el rótulo). */
 export function searchTerm(key = '', label = '', detail = '') {

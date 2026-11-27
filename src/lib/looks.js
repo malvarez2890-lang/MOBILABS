@@ -23,7 +23,7 @@ export const TEXTURES = [
 /** Densidad aproximada (kg/m³) para estimar el peso. */
 const DENSITY = {
   mel18: 680, mel15: 680, mdf18: 750, ter18: 600, ter15: 600, hdf3: 850,
-  pino41: 500, pino70: 500, pino19x90: 500, pino19x42: 500, redonda45: 500, redonda70: 500,
+  pino41: 500, pino70: 500, pino19x90: 500, pino19x42: 500, pino45x95: 500, pino90x90: 500, redonda45: 500, redonda70: 500,
 };
 
 /** kg aproximados de una pieza (caja envolvente; las patas redondas pesan ~80 % de eso). */

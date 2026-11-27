@@ -15,7 +15,10 @@ const TYPES = [
   ['escritorio', /escritorio|desk|estudio|home ?office|oficina/],
   ['silla', /silla|piso\b|banqueta|taburete/],
   ['arrimo', /arrimo|consola|recibidor|pasillo|entrada|hall/],
-  ['mesa', /\bmesa\b|comedor|redonda/],
+  ['mesaCentro', /mesa de centro|mesa ratona|mesita|centro de living|mesa de living|mesa de terraza/],
+  ['banca', /\bbancas?\b|banca de terraza/],
+  ['sofa', /sofa|sillon|lounge|living de terraza|poltrona/],
+  ['mesa', /\bmesa\b(?! de centro| ratona| de living| de terraza)|comedor|redonda/],
   ['librero', /librero|biblioteca|libros/],
   ['estante', /estante|estanteria|repisa|zapatero|zapatos|bodega|despensa/],
 ];

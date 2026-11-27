@@ -53,7 +53,9 @@ export function buildShopping(model, plans) {
     extra.push({ name: 'Cola fría para madera 1 kg (enchapado)', qty: Math.max(1, Math.ceil(area / 6)), note: 'Capa fina con esponja o brocha de pelo fino en el MDF y en la chapa' });
     extra.push({ name: 'Barniz o aceite para la chapa (1 litro)', qty: 1, note: 'Protege la chapa una vez lijada' });
   }
-  if (pine) {
+  if (pine && model.outdoor) {
+    extra.push({ name: 'Protector para madera exterior con filtro UV (1 galón)', qty: 1, note: 'Para terraza: protege del sol y la lluvia; repasa una vez al año' });
+  } else if (pine) {
     extra.push({ name: 'Barniz, aceite o pintura para la madera de pino (1 galón)', qty: 1, note: 'Para patas, faldones y listones' });
   }
   if (pine || rawBoards.length) extra.push({ name: 'Lija grano 120 y 180 (pliegos)', qty: 4, note: veneer ? 'Para la chapa usa grano fino (180–240) y lija suave, a favor de la veta' : 'Antes de aplicar la terminación' });

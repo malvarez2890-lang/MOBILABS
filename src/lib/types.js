@@ -7,6 +7,7 @@ import { LEG_STYLES_ALL, LEG_STYLES_WOOD, LEG_STYLES_CHAIR, legSpec, placeLeg, n
 import { HANDLE_TYPES, HANDLE_C2C, HINGE_MODES, handleFromValues, handleSummary } from './handles.js';
 import { drawerUnit } from './drawers.js';
 import { credenza } from './credenza.js';
+import { buildBanca, buildMesaCentroListones, buildSofa } from './outdoor.js';
 
 // ---------- helpers para declarar parámetros (valores en cm salvo que se indique) ----------
 const num = (key, label, def, min, max, step = 1, unit = 'cm', extra = {}) => ({ type: 'num', key, label, def, min, max, step, unit, ...extra });
@@ -815,6 +816,83 @@ export const FURNITURE = [
       p.tip(`Capacidad aproximada: ${lps * (iw > 500 ? 2 : 1)} LP para hojear en los dos bins, más lo que guardes en la repisa baja.`);
       return p.result();
     },
+  },
+
+  // ---------------------------------------------------------------- MESA DE CENTRO
+  {
+    id: 'mesaCentro', name: 'Mesa de centro', desc: 'Para el living o la terraza: con patas o de listones tipo pallet',
+    params: [
+      sel('estilo', 'Estilo', 'patas', [['patas', 'Tapa de tablero con patas'], ['listones', 'Listones de pino (tipo pallet)']], { section: 'Medidas' }),
+      num('ancho', 'Largo', 100, 60, 150),
+      num('fondo', 'Ancho', 60, 40, 90),
+      num('alto', 'Alto', 42, 30, 50, 1, 'cm', { visibleIf: (v) => v.estilo === 'listones' || !isProductStyle(v.pataEstilo) }),
+      bool('repisa', 'Repisa baja', true, { section: 'Estructura', visibleIf: (v) => v.estilo === 'listones' || (!['inclinada', 'aceroDiagonal'].includes(v.pataEstilo) && !isProductStyle(v.pataEstilo)) }),
+      num('voladizo', 'Retranqueo de patas', 4, 0, 10, 1, 'cm', { visibleIf: (v) => v.estilo !== 'listones' }),
+      ...LEGS('fino', { visibleIf: (v) => v.estilo !== 'listones' }, 'wood', false).filter((q) => q.key !== 'pataAlto'),
+      sel('pataAlto', 'Alto de la pata (producto listo)', '35', [30, 35, 40, 45].map((h) => [String(h), `${h} cm`]), { visibleIf: (v) => v.estilo !== 'listones' && isProductStyle(v.pataEstilo) }),
+      { ...MAT, visibleIf: (v) => v.estilo !== 'listones' },
+    ],
+    presets: [
+      { name: 'Living 100 × 60', values: {} },
+      { name: 'Patas cónicas', values: { pataEstilo: 'afinada', pataAlto: '35', repisa: false } },
+      { name: 'Patas en diagonal', values: { pataEstilo: 'inclinada', repisa: false } },
+      { name: 'Terraza tipo pallet', values: { estilo: 'listones', ancho: 90, fondo: 60, alto: 38 } },
+      { name: 'Grande 130 × 80', values: { ancho: 130, fondo: 80, alto: 40 } },
+    ],
+    build(v) {
+      if (v.estilo === 'listones') return buildMesaCentroListones(v);
+      const p = new PartList();
+      tableFrame(p, {
+        W: v.ancho * 10, D: v.fondo * 10, H: v.alto * 10, mat: v.mat, layers: 1, leg: legOf(v), oh: v.voladizo * 10,
+        shelf: v.repisa ? { y: 130 } : null,
+      });
+      return p.result();
+    },
+  },
+
+  // ---------------------------------------------------------------- BANCA DE TERRAZA
+  {
+    id: 'banca', name: 'Banca de terraza', desc: 'Con respaldo, con patas en X o de tablero con muesca',
+    params: [
+      sel('estilo', 'Estilo', 'respaldo', [['respaldo', 'Con respaldo (pino)'], ['cruzada', 'Patas en X (pino)'], ['tablero', 'De tablero con muesca en V']], { section: 'Medidas' }),
+      num('ancho', 'Largo', 140, 90, 200),
+      num('fondo', 'Fondo del asiento', 40, 30, 55),
+      num('altoAsiento', 'Alto del asiento', 45, 40, 50),
+      num('altoRespaldo', 'Alto del respaldo', 85, 75, 100, 1, 'cm', { visibleIf: (v) => v.estilo === 'respaldo' }),
+      { ...MAT, visibleIf: (v) => v.estilo === 'tablero' },
+    ],
+    presets: [
+      { name: 'Con respaldo 150 cm', values: { ancho: 150 } },
+      { name: 'Patas en X 140 cm', values: { estilo: 'cruzada', ancho: 140, fondo: 36 } },
+      { name: 'Tablero con muesca 160 cm', values: { estilo: 'tablero', ancho: 160, fondo: 36, mat: 'ter18' } },
+      { name: 'Corta para balcón', values: { ancho: 100 } },
+    ],
+    build(v) { return buildBanca(v); },
+  },
+
+  // ---------------------------------------------------------------- SOFÁ
+  {
+    id: 'sofa', name: 'Sofá de terraza', desc: 'Sillón o sofá de vigas de pino con cojines; también en tablero o MDF',
+    params: [
+      num('plazas', 'Cuerpos', 2, 1, 3, 1, 'u', { section: 'Medidas' }),
+      num('anchoPlaza', 'Ancho de cada cuerpo', 65, 55, 80),
+      num('fondo', 'Fondo total', 80, 65, 95),
+      num('altoAsiento', 'Alto del asiento (sin cojín)', 35, 28, 45),
+      num('altoBrazo', 'Alto de los brazos', 62, 50, 75),
+      num('altoRespaldo', 'Alto del respaldo', 75, 60, 95),
+      sel('estructura', 'Estructura', 'vigas', [['vigas', 'Vigas y listones de pino'], ['tablero', 'Tablero (MDF, terciado o melamina)']], { section: 'Estructura' }),
+      sel('brazos', 'Costados', 'listones', [['listones', 'Listones horizontales'], ['macizos', 'Tablas macizas']], { visibleIf: (v) => v.estructura !== 'tablero' }),
+      bool('cojines', 'Con cojines', true),
+      { ...MAT, visibleIf: (v) => v.estructura === 'tablero' },
+    ],
+    presets: [
+      { name: 'Sillón de terraza', values: { plazas: 1, anchoPlaza: 70 } },
+      { name: 'Sofá 2 cuerpos', values: { plazas: 2 } },
+      { name: 'Sofá 3 cuerpos', values: { plazas: 3 } },
+      { name: 'Costados macizos', values: { brazos: 'macizos', plazas: 2 } },
+      { name: 'Sofá de MDF', values: { estructura: 'tablero', mat: 'mdf18', plazas: 2 } },
+    ],
+    build(v) { return buildSofa(v); },
   },
 ];
 
