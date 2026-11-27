@@ -12,6 +12,8 @@ import { CutList, SheetPlans, Shopping, labelColor, labelStroke } from './compon
 import { Planos, Manual } from './components/Docs.jsx';
 import { ViewManager } from './components/ViewWindows.jsx';
 import Tour from './components/Tour.jsx';
+import Home from './components/Home.jsx';
+import ExportMenu from './components/ExportMenu.jsx';
 import { AuthDialog, ResetDialog, DesignsDialog, AdminDialog, AccountButton } from './components/Account.jsx';
 import { api, getToken, setToken } from './lib/account.js';
 import { buildDrawing, techSpec } from './lib/plans.js';
@@ -71,16 +73,18 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const closeTour = () => { setTourOpen(false); try { localStorage.setItem('mobilabs-tour', '1'); } catch { /* sin almacenamiento */ } };
-  // el tutorial se abre solo la primera vez, cuando termina la pantalla de carga
+  // pantalla de inicio (se ve al entrar y al apretar el logo); el tutorial se ofrece la primera vez, después de elegir qué hacer
+  const [home, setHome] = useState(true);
+  const tourSeen = () => { try { return !!localStorage.getItem('mobilabs-tour'); } catch { return true; } };
+  const leaveHome = () => {
+    setHome(false);
+    if (!tourSeen() && !/[?&]reset=/.test(location.search)) setTimeout(() => setTourOpen(true), 700);
+  };
   useEffect(() => {
-    let seen = false;
-    try { seen = !!localStorage.getItem('mobilabs-tour'); } catch { /* sin almacenamiento */ }
-    if (seen || /[?&]reset=/.test(location.search)) return undefined; // con el enlace de recuperación no se interrumpe con el tutorial
-    // el tutorial se abre cuando el usuario entra desde la pantalla de carga (o poco después de cargar, si no hay pantalla)
-    if (!document.getElementById('boot')) { const id = setTimeout(() => setTourOpen(true), 800); return () => clearTimeout(id); }
-    const open = () => setTimeout(() => setTourOpen(true), 700);
-    window.addEventListener('mobilabs-enter', open, { once: true });
-    return () => window.removeEventListener('mobilabs-enter', open);
+    const onEnter = (e) => { if (e.detail?.mode === 'account') setAccDlg('auth'); };
+    window.addEventListener('mobilabs-enter', onEnter);
+    if (window.__mobilabsEnter === 'account') setAccDlg('auth');
+    return () => window.removeEventListener('mobilabs-enter', onEnter);
   }, []);
   const [slot3d, setSlot3d] = useState(null); // casilla de la vista 3D en el mosaico
   const [multi, setMulti] = useState(false); // selección múltiple con toques (pantallas táctiles)
@@ -115,9 +119,10 @@ export default function App() {
     look: looksStore[typeId] || null,
     settings: { sheetChoice: settings.sheetChoice || {}, sheetCustom: settings.sheetCustom || {} },
   });
+  const thumbNow = () => { try { return viewerApi.current?.snapshot(320, 220) || null; } catch { return null; } };
   const saveNewDesign = async (name) => {
     const data = designData();
-    const r = await api('/designs', { method: 'POST', body: { name, typeId, data } });
+    const r = await api('/designs', { method: 'POST', body: { name, typeId, data: { ...data, thumb: thumbNow() } } });
     lastSaved.current = JSON.stringify(data);
     setCloud({ id: r.id, name, typeId });
     setSaveStatus('Guardado ✓');
@@ -145,7 +150,7 @@ export default function App() {
     const id = setTimeout(async () => {
       try {
         setSaveStatus('Guardando…');
-        await api(`/designs/${cloud.id}`, { method: 'PUT', body: { data, typeId } });
+        await api(`/designs/${cloud.id}`, { method: 'PUT', body: { data: { ...data, thumb: thumbNow() }, typeId } });
         lastSaved.current = txt;
         setSaveStatus('Guardado ✓');
       } catch (e) { setSaveStatus('No se guardó'); }
@@ -478,30 +483,15 @@ export default function App() {
   return (
     <div className="app" data-mview={mview}>
       <header className="top">
-        <div className="brand"><img className="logo" src={logoUrl} alt="" width="36" height="36" /><span className="brand-text"><b>MOBILABs</b><small>diseña · cubica · compra · arma</small></span></div>
+        <button className="brand" onClick={() => setHome(true)} title="Ir al inicio"><img className="logo" src={logoUrl} alt="" width="36" height="36" /><span className="brand-text"><b>MOBILABs</b><small>diseña · cubica · compra · arma</small></span></button>
         <div className="top-actions">
-          <AccountButton user={user} status={cloud && cloud.typeId === typeId ? saveStatus : ''} onLogin={() => setAccDlg('auth')} onDesigns={() => setAccDlg('designs')} onAdmin={() => setAccDlg('admin')} onLogout={logout} onDeleteAccount={deleteAccount} />
-          <button className="btn" onClick={() => setTourOpen(true)} title="Ver el tutorial de la aplicación">Tutorial</button>
-          {PUBLISHED ? (
+          {PUBLISHED && (
             <button className="btn primary" onClick={copyCuts} title="Copia el despiece y las compras para pegar en Excel, Sheets o un mensaje">
               {copiedCuts ? '¡Copiado!' : <>Copiar<span className="long"> despiece</span></>}
             </button>
-          ) : (
-            <>
-              <details className="bim-menu">
-                <summary className="btn">Revit / BIM ▾</summary>
-                <div className="bim-pop">
-                  <button onClick={(e) => { exportIfc(); e.currentTarget.closest('details').open = false; }}>
-                    <b>Descargar IFC</b><span>Revit, ArchiCAD, Navisworks… (Abrir o Vincular IFC)</span>
-                  </button>
-                  <button onClick={(e) => { exportRevit(); e.currentTarget.closest('details').open = false; }}>
-                    <b>Familia de Revit (.rfa)</b><span>Script para pyRevit, RevitPythonShell o Dynamo: crea la familia de mobiliario y la carga en tu proyecto</span>
-                  </button>
-                </div>
-              </details>
-              <button className="btn" onClick={exportCsv}><span className="long">Descargar </span>CSV</button>
-            </>
           )}
+          {!PUBLISHED && <ExportMenu className="phone-only" onIfc={exportIfc} onRevit={exportRevit} onCsv={exportCsv} onPricesCsv={() => download('precios-mobilabs.csv', pricesToCsv(priced))} onGoTab={(t) => { setHome(false); setTab(t); setMview('resultados'); }} />}
+          <AccountButton user={user} status={cloud && cloud.typeId === typeId ? saveStatus : ''} onLogin={() => setAccDlg('auth')} onRegister={() => setAccDlg('register')} onDesigns={() => setAccDlg('designs')} onAdmin={() => setAccDlg('admin')} onLogout={logout} onDeleteAccount={deleteAccount} onTutorial={() => { setHome(false); setTourOpen(true); }} onHome={() => setHome(true)} />
         </div>
       </header>
 
@@ -643,6 +633,7 @@ export default function App() {
           {[['piezas', 'Piezas'], ['cortes', 'Cortes'], ['compras', 'Compras'], ['planos', 'Planos'], ['manual', 'Manual']].map(([id, label]) => (
             <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}</button>
           ))}
+          {!PUBLISHED && <ExportMenu className="in-tabs" onIfc={exportIfc} onRevit={exportRevit} onCsv={exportCsv} onPricesCsv={() => download('precios-mobilabs.csv', pricesToCsv(priced))} onGoTab={setTab} />}
         </div>
 
         <div className="print-head">
@@ -663,9 +654,26 @@ export default function App() {
         <div className={`tab-body ${tab === 'compras' ? 'show' : ''}`}><Shopping title={type.name} shop={shop} priced={priced} onCopy={copy} copied={copied} onPrice={setPrice} onResetPrices={() => setPrices({})} onImportPrices={importPrices} onExportPrices={PUBLISHED ? null : () => download('precios-mobilabs.csv', pricesToCsv(priced))} /></div>
       </aside>
 
+      {home && (
+        <Home
+          user={user}
+          local={{ typeId, thumb: isoImg, dims: `${cm(bw)} × ${cm(bh)} × ${cm(bd)} cm`, cloudName: cloud && cloud.typeId === typeId ? cloud.name : '' }}
+          onContinueLocal={leaveHome}
+          onOpenCloud={async (id) => { await openDesign(id); leaveHome(); }}
+          onNew={(id) => {
+            const custom = store[id] && JSON.stringify(store[id]) !== JSON.stringify(defaultsFor(getType(id)));
+            if (custom && !(cloud && cloud.typeId === id) && !window.confirm(`Tienes un ${getType(id).name.toLowerCase()} sin guardar en este navegador. ¿Empezar uno nuevo y reemplazarlo?`)) return;
+            setTypeId(id); setStore((s) => ({ ...s, [id]: defaultsFor(getType(id)) })); setLooksStore((l) => { const n = { ...l }; delete n[id]; return n; }); setCloud(null); leaveHome();
+          }}
+          onPreset={(id, p) => { setTypeId(id); setStore((s) => ({ ...s, [id]: { ...defaultsFor(getType(id)), ...p.values } })); setCloud(null); leaveHome(); }}
+          onIntent={(sg) => { setTypeId(sg.typeId); setStore((s) => ({ ...s, [sg.typeId]: { ...defaultsFor(getType(sg.typeId)), ...sg.values } })); setCloud(null); leaveHome(); }}
+          onLogin={() => setAccDlg('auth')}
+          onAllDesigns={() => setAccDlg('designs')}
+        />
+      )}
       {tourOpen && <Tour onClose={closeTour} />}
       {resetToken && <ResetDialog token={resetToken} onClose={clearResetParam} onDone={(u) => { setUser(u); clearResetParam(); setAccDlg('designs'); }} />}
-      {accDlg === 'auth' && <AuthDialog onClose={() => setAccDlg(null)} onDone={(u) => { setUser(u); setAccDlg('designs'); }} />}
+      {(accDlg === 'auth' || accDlg === 'register') && <AuthDialog initial={accDlg === 'register' ? 'register' : 'login'} onClose={() => setAccDlg(null)} onDone={(u) => { setUser(u); setAccDlg(home ? null : 'designs'); }} />}
       {accDlg === 'designs' && user && <DesignsDialog onClose={() => setAccDlg(null)} onOpen={(id) => openDesign(id)} onSaveNew={saveNewDesign} currentId={cloud?.id} typeNames={typeNames} />}
       {accDlg === 'admin' && user?.isAdmin && <AdminDialog onClose={() => setAccDlg(null)} onOpenDesign={(id) => openDesign(id, true)} typeNames={typeNames} />}
       <nav className="mnav" aria-label="Secciones">

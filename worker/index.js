@@ -270,9 +270,9 @@ async function api(req, env, url) {
 
   // ---- diseños del usuario
   if (path === '/api/designs' && M === 'GET') {
-    const { results } = await db.prepare('SELECT id, name, type_id, created_at, updated_at FROM designs WHERE user_id = ? ORDER BY updated_at DESC')
+    const { results } = await db.prepare("SELECT id, name, type_id, created_at, updated_at, json_extract(data, '$.thumb') AS thumb FROM designs WHERE user_id = ? ORDER BY updated_at DESC")
       .bind(me.id).all();
-    return json(req, { designs: results.map((d) => ({ id: d.id, name: d.name, typeId: d.type_id, createdAt: d.created_at, updatedAt: d.updated_at })) });
+    return json(req, { designs: results.map((d) => ({ id: d.id, name: d.name, typeId: d.type_id, createdAt: d.created_at, updatedAt: d.updated_at, thumb: typeof d.thumb === 'string' && d.thumb.startsWith('data:image/') ? d.thumb : null })) });
   }
   if (path === '/api/designs' && M === 'POST') {
     const b = await body(req);

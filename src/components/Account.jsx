@@ -214,19 +214,40 @@ export function AdminDialog({ onClose, onOpenDesign, typeNames }) {
 }
 
 /* ---------------------------------------------------------------- botón y menú de la cuenta */
-export function AccountButton({ user, status, onLogin, onDesigns, onAdmin, onLogout, onDeleteAccount }) {
+export function AccountButton({ user, status, onLogin, onRegister, onDesigns, onAdmin, onLogout, onDeleteAccount, onTutorial, onHome }) {
   const [open, setOpen] = useState(false);
-  if (!user) return <button className="btn" onClick={onLogin}>Entrar</button>;
-  const initial = (user.name || user.email).trim()[0]?.toUpperCase() || '?';
+  const close = () => setOpen(false);
+  const initial = user ? (user.name || user.email).trim()[0]?.toUpperCase() || '?' : '?';
   return (
     <details className="acc-menu" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary className="btn acc-chip" title={user.email}><span className="acc-av">{initial}</span><span className="long">{user.name || user.email.split('@')[0]}</span>{status && <em className="acc-status">{status}</em>}</summary>
+      <summary className={`btn acc-chip ${user ? '' : 'guest'}`} title={user ? user.email : 'Sin cuenta'}>
+        <span className="acc-av">{user ? initial : '◌'}</span>
+        <span className="long">{user ? user.name || user.email.split('@')[0] : 'Invitado'}</span>
+        {status && <em className="acc-status">{status}</em>}
+        <span className="acc-caret">▾</span>
+      </summary>
       <div className="bim-pop acc-pop">
-        <div className="acc-who"><b>{user.name || 'Mi cuenta'}</b><span>{user.email}</span></div>
-        <button onClick={() => { setOpen(false); onDesigns(); }}><b>Mis diseños</b><span>Guardar, abrir y ordenar tus diseños en la nube</span></button>
-        {user.isAdmin && <button onClick={() => { setOpen(false); onAdmin(); }}><b>Panel del desarrollador</b><span>Usuarios registrados y diseños guardados</span></button>}
-        <button onClick={() => { setOpen(false); onLogout(); }}><b>Cerrar sesión</b></button>
-        <button className="danger" onClick={() => { setOpen(false); onDeleteAccount(); }}><b>Borrar mi cuenta</b><span>Elimina tu cuenta y todos tus diseños guardados</span></button>
+        {user ? (
+          <>
+            <div className="acc-who"><b>{user.name || 'Mi cuenta'}</b><span>{user.email}</span></div>
+            <button onClick={() => { close(); onDesigns(); }}><b>Mis diseños</b><span>Guardar, abrir y ordenar tus diseños en la nube</span></button>
+            {user.isAdmin && <button onClick={() => { close(); onAdmin(); }}><b>Panel del desarrollador</b><span>Usuarios registrados y diseños guardados</span></button>}
+          </>
+        ) : (
+          <>
+            <div className="acc-who"><b>Estás sin cuenta</b><span>Tus diseños quedan solo en este navegador</span></div>
+            <button onClick={() => { close(); onLogin(); }}><b>Entrar</b><span>Accede a tus diseños guardados en la nube</span></button>
+            <button onClick={() => { close(); onRegister(); }}><b>Crear cuenta</b><span>Gratis: guarda tus diseños y ábrelos desde cualquier equipo</span></button>
+          </>
+        )}
+        <button onClick={() => { close(); onHome(); }}><b>Inicio</b><span>Volver a la pantalla de inicio</span></button>
+        <button onClick={() => { close(); onTutorial(); }}><b>Tutorial</b><span>Recorrido guiado por la aplicación</span></button>
+        {user && (
+          <>
+            <button onClick={() => { close(); onLogout(); }}><b>Cerrar sesión</b></button>
+            <button className="danger" onClick={() => { close(); onDeleteAccount(); }}><b>Borrar mi cuenta</b><span>Elimina tu cuenta y todos tus diseños guardados</span></button>
+          </>
+        )}
       </div>
     </details>
   );

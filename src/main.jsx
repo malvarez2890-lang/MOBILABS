@@ -2,32 +2,50 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import './styles.css';
+import { api, getToken } from './lib/account.js';
 
 createRoot(document.getElementById('root')).render(<App />);
 
-// La pantalla de carga espera a que el usuario entre con el botón (después de ver la animación y cuando la app ya cargó).
+// Pantalla de carga: cuando la barra se llena, se entra con la cuenta (o se saluda si ya hay sesión) o sin cuenta.
 const boot = document.getElementById('boot');
 if (boot) {
   const go = document.getElementById('bootgo');
-  const enter = () => {
+  const guest = document.getElementById('bootguest');
+  const note = document.getElementById('bootnote');
+  let mode = 'account';
+  const enter = (m) => {
     boot.classList.add('out');
     setTimeout(() => boot.remove(), 700);
     window.removeEventListener('keydown', onKey);
-    window.dispatchEvent(new Event('mobilabs-enter'));
+    window.__mobilabsEnter = m;
+    window.dispatchEvent(new CustomEvent('mobilabs-enter', { detail: { mode: m } }));
   };
-  const onKey = (e) => { if (e.key === 'Enter' && go.classList.contains('ready')) enter(); };
-  // el botón se habilita cuando la barra llegó al 100 % (la barra la mueve un script del propio index.html)
-  const ready = () => {
+  const onKey = (e) => { if (e.key === 'Enter' && go.classList.contains('ready')) enter(mode); };
+  const ready = async () => {
     const bar = boot.querySelector('.bbar i');
     if (bar) bar.style.transform = 'scaleX(1)';
+    // con sesión abierta: saludo y entrada directa
+    let who = null;
+    if (getToken()) {
+      try { who = (await Promise.race([api('/me'), new Promise((_, rej) => setTimeout(() => rej(new Error('lento')), 3500))])).user; } catch { who = null; }
+    }
     go.disabled = false;
-    go.textContent = 'Listo para cortar →';
     go.classList.add('ready');
+    if (who) {
+      mode = 'user';
+      go.textContent = `Hola, ${(who.name || who.email.split('@')[0]).split(' ')[0]} · Listo para cortar →`;
+    } else {
+      mode = 'account';
+      go.textContent = 'Entrar con mi cuenta';
+      guest.hidden = false;
+      note.hidden = false;
+    }
     go.focus();
   };
   if (window.__bootDone) ready();
   else window.addEventListener('mobilabs-bar', ready, { once: true });
-  go.addEventListener('click', enter);
+  go.addEventListener('click', () => enter(mode));
+  guest.addEventListener('click', () => enter('guest'));
   window.addEventListener('keydown', onKey);
 }
 
