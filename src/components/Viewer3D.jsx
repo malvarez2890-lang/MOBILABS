@@ -350,46 +350,54 @@ export default function Viewer3D({ parts, fixtures = [], bbox, explode, highligh
           if (!e.best || d < e.best.d) e.best = { x: (pv.x * 0.5 + 0.5) * w, y: (-pv.y * 0.5 + 0.5) * h, d };
           byLetter.set(letter, e);
         });
+        // cada etiqueta es una caja ("D" o "D ×3"); se separan como rectángulos para que nada se encime
         const R = Math.max(15, w * 0.03);
-        const items = [...byLetter.values()].map((e) => ({ letter: e.letter, n: e.n, ax: e.best.x, ay: e.best.y, x: e.best.x, y: e.best.y }));
-        for (let it = 0; it < 200; it++) { // separa los círculos que se tocan
+        const fBig = Math.round(R * 1.15);
+        const fSmall = Math.round(R * 0.8);
+        const items = [...byLetter.values()].map((e) => {
+          g.font = `bold ${fBig}px Arial, sans-serif`;
+          const lw = g.measureText(e.letter).width;
+          g.font = `bold ${fSmall}px Arial, sans-serif`;
+          const cw = e.n > 1 ? g.measureText(`×${e.n}`).width + 8 : 0;
+          const bw = Math.max(2 * R, lw + 16) + cw;
+          return { letter: e.letter, n: e.n, ax: e.best.x, ay: e.best.y, x: e.best.x, y: e.best.y, w: bw, h: 2 * R, lw, cw };
+        });
+        const pad = 6;
+        for (let it = 0; it < 300; it++) {
           let moved = false;
           for (let a = 0; a < items.length; a++) for (let b = a + 1; b < items.length; b++) {
-            let dx = items[b].x - items[a].x;
-            let dy = items[b].y - items[a].y;
-            let d = Math.hypot(dx, dy);
-            const min = 2 * R + 6;
-            if (d < min) {
-              if (d < 0.01) { dx = 1; dy = 0.3; d = 1.04; }
-              const push = (min - d) / 2;
-              items[a].x -= (dx / d) * push; items[a].y -= (dy / d) * push;
-              items[b].x += (dx / d) * push; items[b].y += (dy / d) * push;
+            const A = items[a];
+            const Bq = items[b];
+            const ox = (A.w + Bq.w) / 2 + pad - Math.abs(Bq.x - A.x);
+            const oy = (A.h + Bq.h) / 2 + pad - Math.abs(Bq.y - A.y);
+            if (ox > 0 && oy > 0) { // se tocan: se empujan por el eje que menos penetra
+              if (ox < oy) { const d = (Bq.x >= A.x ? 1 : -1) * (ox / 2 + 0.5); A.x -= d; Bq.x += d; } else { const d = (Bq.y >= A.y ? 1 : -1) * (oy / 2 + 0.5); A.y -= d; Bq.y += d; }
               moved = true;
             }
           }
-          items.forEach((q) => { q.x = Math.min(w - R - 2, Math.max(R + 2, q.x)); q.y = Math.min(h - R - 2, Math.max(R + 2, q.y)); });
+          items.forEach((q) => { q.x = Math.min(w - q.w / 2 - 2, Math.max(q.w / 2 + 2, q.x)); q.y = Math.min(h - q.h / 2 - 2, Math.max(q.h / 2 + 2, q.y)); });
           if (!moved) break;
         }
         items.forEach((q) => {
-          if (Math.hypot(q.x - q.ax, q.y - q.ay) > R * 0.8) { // línea desde la pieza hasta su letra
+          if (Math.hypot(q.x - q.ax, q.y - q.ay) > R * 0.8) { // línea desde la pieza hasta su etiqueta
             g.strokeStyle = '#1b1f24'; g.lineWidth = 2;
             g.beginPath(); g.moveTo(q.ax, q.ay); g.lineTo(q.x, q.y); g.stroke();
-            g.fillStyle = '#1b1f24'; g.beginPath(); g.arc(q.ax, q.ay, 3.5, 0, Math.PI * 2); g.fill();
+            g.fillStyle = '#1b1f24'; g.fillRect(q.ax - 3.5, q.ay - 3.5, 7, 7);
           }
         });
         items.forEach((q) => {
+          const x0 = q.x - q.w / 2;
+          const y0 = q.y - q.h / 2;
           g.fillStyle = '#ffffff'; g.strokeStyle = '#1b1f24'; g.lineWidth = 2.5;
-          g.beginPath(); g.arc(q.x, q.y, R, 0, Math.PI * 2); g.fill(); g.stroke();
-          g.fillStyle = '#1b1f24'; g.font = `bold ${Math.round(R * 1.15)}px Arial, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-          g.fillText(q.letter, q.x, q.y + R * 0.06);
+          g.fillRect(x0, y0, q.w, q.h); g.strokeRect(x0, y0, q.w, q.h);
+          g.fillStyle = '#1b1f24'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.font = `bold ${fBig}px Arial, sans-serif`;
+          const lx = q.n > 1 ? x0 + (q.w - q.cw) / 2 : q.x;
+          g.fillText(q.letter, lx, q.y + R * 0.06);
           if (q.n > 1) {
-            const t = `×${q.n}`;
-            g.font = `bold ${Math.round(R * 0.8)}px Arial, sans-serif`;
-            const tw = g.measureText(t).width + 8;
-            g.fillStyle = '#1b1f24';
-            g.beginPath(); g.roundRect(q.x + R * 0.55, q.y + R * 0.35, tw, R * 0.95, 5); g.fill();
-            g.fillStyle = '#fff'; g.textAlign = 'left';
-            g.fillText(t, q.x + R * 0.55 + 4, q.y + R * 0.85);
+            g.fillRect(x0 + q.w - q.cw, y0, q.cw, q.h);
+            g.fillStyle = '#ffffff'; g.font = `bold ${fSmall}px Arial, sans-serif`;
+            g.fillText(`×${q.n}`, x0 + q.w - q.cw / 2, q.y + R * 0.05);
           }
         });
         url = out.toDataURL('image/jpeg', 0.9);

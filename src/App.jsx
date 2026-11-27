@@ -12,6 +12,8 @@ import { CutList, SheetPlans, Shopping, labelColor, labelStroke } from './compon
 import { Planos, Manual } from './components/Docs.jsx';
 import { ViewManager } from './components/ViewWindows.jsx';
 import Tour from './components/Tour.jsx';
+import UiHost from './components/UiHost.jsx';
+import { ask, notify } from './lib/ui.js';
 import Home from './components/Home.jsx';
 import ExportMenu from './components/ExportMenu.jsx';
 import { AuthDialog, ResetDialog, DesignsDialog, AdminDialog, AccountButton, ProfileDialog, SaveDialog } from './components/Account.jsx';
@@ -140,7 +142,7 @@ export default function App() {
       setCloud(asAdmin ? null : { id: d.id, name: d.name, typeId: d.typeId });
       setSaveStatus(asAdmin ? '' : 'Abierto');
       setAccDlg(null);
-    } catch (e) { window.alert(e.message); }
+    } catch (e) { notify('No se pudo abrir el diseño', e.message); }
   };
   // guardado automático del diseño abierto (unos segundos después de cada cambio)
   useEffect(() => {
@@ -170,7 +172,7 @@ export default function App() {
       await api(`/designs/${cloud.id}`, { method: 'PUT', body: { data: { ...data, thumb: thumbNow() }, typeId } });
       lastSaved.current = JSON.stringify(data);
       setSaveStatus('Guardado ✓');
-    } catch (e) { setSaveStatus('No se guardó'); window.alert(e.message); }
+    } catch (e) { setSaveStatus('No se guardó'); notify('No se pudo guardar', e.message); }
   };
   const saveRef = useRef(saveNow);
   saveRef.current = saveNow;
@@ -184,8 +186,8 @@ export default function App() {
     setToken(''); setUser(null); setCloud(null); setSaveStatus('');
   };
   const deleteAccount = async () => {
-    if (!window.confirm('¿Borrar tu cuenta y TODOS tus diseños guardados? No se puede deshacer.')) return;
-    try { await api('/me', { method: 'DELETE' }); setToken(''); setUser(null); setCloud(null); setSaveStatus(''); } catch (e) { window.alert(e.message); }
+    if (!(await ask({ title: 'Borrar mi cuenta', message: '¿Borrar tu cuenta y TODOS tus diseños guardados? No se puede deshacer.', ok: 'Borrar cuenta', danger: true }))) return;
+    try { await api('/me', { method: 'DELETE' }); setToken(''); setUser(null); setCloud(null); setSaveStatus(''); } catch (e) { notify('No se pudo borrar la cuenta', e.message); }
   };
 
   useEffect(() => {
@@ -689,9 +691,9 @@ export default function App() {
           local={{ typeId, thumb: isoImg, dims: `${cm(bw)} × ${cm(bh)} × ${cm(bd)} cm`, cloudName: cloud && cloud.typeId === typeId ? cloud.name : '', custom: !!store[typeId] && JSON.stringify(store[typeId]) !== JSON.stringify(defaultsFor(getType(typeId))) }}
           onContinueLocal={leaveHome}
           onOpenCloud={async (id) => { await openDesign(id); leaveHome(); }}
-          onNew={(id) => {
+          onNew={async (id) => {
             const custom = store[id] && JSON.stringify(store[id]) !== JSON.stringify(defaultsFor(getType(id)));
-            if (custom && !(cloud && cloud.typeId === id) && !window.confirm(`Tienes un ${getType(id).name.toLowerCase()} sin guardar en este navegador. ¿Empezar uno nuevo y reemplazarlo?`)) return;
+            if (custom && !(cloud && cloud.typeId === id) && !(await ask({ title: 'Empezar uno nuevo', message: `Tienes un ${getType(id).name.toLowerCase()} sin guardar en este navegador. ¿Empezar uno nuevo y reemplazarlo?`, ok: 'Empezar nuevo', danger: true }))) return;
             setTypeId(id); setStore((s) => ({ ...s, [id]: defaultsFor(getType(id)) })); setLooksStore((l) => { const n = { ...l }; delete n[id]; return n; }); setCloud(null); leaveHome();
           }}
           onPreset={(id, p) => { setTypeId(id); setStore((s) => ({ ...s, [id]: { ...defaultsFor(getType(id)), ...p.values } })); setCloud(null); leaveHome(); }}
@@ -701,6 +703,7 @@ export default function App() {
         />
       )}
       {tourOpen && <Tour onClose={closeTour} />}
+      <UiHost />
       {resetToken && <ResetDialog token={resetToken} onClose={clearResetParam} onDone={(u) => { setUser(u); clearResetParam(); setAccDlg('designs'); }} />}
       {(accDlg === 'auth' || accDlg === 'register') && <AuthDialog initial={accDlg === 'register' ? 'register' : 'login'} onClose={() => setAccDlg(null)} onDone={(u) => { setUser(u); setAccDlg(home ? null : 'designs'); }} />}
       {accDlg === 'save' && user && <SaveDialog suggested={`${type.name} ${cm(bw)} × ${cm(bh)} × ${cm(bd)}`} onClose={() => setAccDlg(null)} onSave={async (n) => { await saveNewDesign(n); setAccDlg(null); }} />}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api, setToken, fmtDate } from '../lib/account.js';
+import { ask } from '../lib/ui.js';
 
 const PRIVACY = [
   'Al crear una cuenta, MOBILABs guarda tu correo, tu nombre (si lo escribes), tu contraseña cifrada (nadie puede leerla) y los diseños que guardes.',
@@ -162,12 +163,12 @@ export function DesignsDialog({ onClose, onOpen, onSaveNew, currentId, typeNames
   const load = () => api('/designs').then((r) => setList(r.designs)).catch((e) => setErr(e.message));
   useEffect(() => { load(); }, []);
   const rename = async (d) => {
-    const n = window.prompt('Nuevo nombre del diseño', d.name);
+    const n = await ask({ title: 'Renombrar diseño', message: 'Escribe el nuevo nombre:', input: d.name, ok: 'Guardar' });
     if (!n) return;
     try { await api(`/designs/${d.id}`, { method: 'PUT', body: { name: n } }); load(); } catch (e) { setErr(e.message); }
   };
   const remove = async (d) => {
-    if (!window.confirm(`¿Borrar «${d.name}»? No se puede deshacer.`)) return;
+    if (!(await ask({ title: 'Borrar diseño', message: `¿Borrar «${d.name}»? No se puede deshacer.`, ok: 'Borrar', danger: true }))) return;
     try { await api(`/designs/${d.id}`, { method: 'DELETE' }); load(); } catch (e) { setErr(e.message); }
   };
   return (

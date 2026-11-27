@@ -998,3 +998,14 @@ button.brand:hover .brand-text b { color: #8fd0ff; }
 .save-btn:hover { background: linear-gradient(#3a85b4, #2f6f97); }
 .save-btn.ok { background: #24453a; border-color: #3f7a63; color: #c9f2dc; }
 @media (max-width: 760px) { .save-btn span { display: none; } }
+
+/* ---------- ventanas propias (en vez de las del navegador) ---------- */
+.ui-back { z-index: 300; }
+.ui-dlg { width: min(420px, 100%); }
+.ui-body { padding: 14px; display: grid; gap: 12px; }
+.ui-body p { margin: 0; color: #e6ebf0; font-size: 14px; line-height: 1.5; }
+.ui-body input { padding: 9px 10px; border: 1px solid #5d6b80; background: #222c39; color: #fff; font-size: 14px; }
+.ui-acts { display: flex; justify-content: flex-end; gap: 8px; }
+.ui-acts .btn { padding: 8px 16px; font-size: 13px; }
+.danger-btn { background: #9b2c2c; border-color: #c04848; color: #fff; }
+.danger-btn:hover { background: #b33636; }
