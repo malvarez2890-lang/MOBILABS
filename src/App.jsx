@@ -208,6 +208,7 @@ export default function App() {
     for (const p of model.parts) {
       const v = effectiveLook(keyOf.get(p.id));
       if (v.color || v.texture) m.set(p.id, v);
+      else if (model.veneer && /^mdf/.test(p.mat)) m.set(p.id, { texture: model.veneer.id }); // MDF enchapado: se ve con la veta de la chapa
     }
     return m;
   }, [model, keyOf, lookCfg]);

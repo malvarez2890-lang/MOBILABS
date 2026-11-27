@@ -94,6 +94,10 @@ export function buildManual(model, plans, shop) {
   if (woodLegs || frameTable || has('Listón del marco de repisa')) {
     prep.push(`Lija la madera de pino con grano 120 y luego 180, sigue la dirección de la veta, y redondea las aristas. Aplica sellador y barniz antes de armar las partes que quedarán ocultas (después es más difícil).`);
   }
+  if (model.veneer) {
+    prep.push(`Enchapa el MDF con la chapa de ${model.veneer.name.toLowerCase()} antes de armar: corta la chapa unos 2 cm más grande que la pieza, aplica una capa fina de cola fría con esponja o brocha de pelo fino en el MDF y en la chapa, y déjala secar hasta que no manche al tacto (15–20 min).`);
+    prep.push(`Pon la chapa sobre la pieza y pasa la plancha caliente (sin vapor, temperatura media) de centro a bordes: el calor reactiva la cola y la pega. Recorta el sobrante con cuchillo cartonero, pega el tapacanto de chapa en los cantos de la misma forma, lija suave con grano 180–240 a favor de la veta y aplica barniz o aceite.`);
+  }
   prep.push(`Marca y taladra los agujeros de confirmat: 5 mm en el canto de la pieza (a 50 mm del borde y luego cada ~250 mm) y 7 mm pasante en la cara de la pieza que se une. Haz primero una prueba en un retazo.`);
   if (doors) {
     const nh = hw(/^bisagra/i)?.qty;

@@ -36,6 +36,7 @@ export class PartList {
       name, mat, kind: 'sheet', min: [x, y, z], size: [w, m.t, d],
       cut: { l: r1(Math.max(w, d)), w: r1(Math.min(w, d)), t: m.t },
       edges: m.edge ? edgeLengths(edge, { f: w, b: w, l: d, r: d }) : [],
+      edgeWant: edgeLengths(edge, { f: w, b: w, l: d, r: d }),
     });
   }
 
@@ -46,6 +47,7 @@ export class PartList {
       name, mat, kind: 'sheet', min: [x, y, z], size: [m.t, h, d],
       cut: { l: r1(Math.max(h, d)), w: r1(Math.min(h, d)), t: m.t },
       edges: m.edge ? edgeLengths(edge, { f: h, b: h, t: d, u: d }) : [],
+      edgeWant: edgeLengths(edge, { f: h, b: h, t: d, u: d }),
     });
   }
 
@@ -56,6 +58,7 @@ export class PartList {
       name, mat, kind: 'sheet', min: [x, y, z], size: [w, h, m.t],
       cut: { l: r1(Math.max(w, h)), w: r1(Math.min(w, h)), t: m.t },
       edges: m.edge ? edgeLengths(edge, { t: w, u: w, l: h, r: h }) : [],
+      edgeWant: edgeLengths(edge, { t: w, u: w, l: h, r: h }),
     });
   }
 
@@ -64,7 +67,7 @@ export class PartList {
     const m = SHEETS[mat];
     return this._push({
       name, mat, kind: 'sheet', shape: 'disc', min: [cx - d / 2, y, cz - d / 2], size: [d, m.t, d],
-      cut: { l: r1(d), w: r1(d), t: m.t }, edges: m.edge && edge ? [r1(Math.PI * d)] : [],
+      cut: { l: r1(d), w: r1(d), t: m.t }, edges: m.edge && edge ? [r1(Math.PI * d)] : [], edgeWant: edge ? [r1(Math.PI * d)] : [],
     });
   }
 

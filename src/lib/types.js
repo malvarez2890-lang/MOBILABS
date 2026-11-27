@@ -818,6 +818,16 @@ export const FURNITURE = [
   },
 ];
 
+// terminación del MDF: pintura/barniz o chapa de madera natural (se agrega a todos los muebles, después del material)
+export const VENEERS = [['roble', 'Roble'], ['nogal', 'Nogal'], ['pino', 'Pino oregón']];
+for (const f of FURNITURE) {
+  const i = f.params.findIndex((p) => p.key === 'mat');
+  if (i < 0) continue;
+  f.params.splice(i + 1, 0,
+    sel('acabadoMdf', 'Terminación del MDF', 'pintura', [['pintura', 'Pintura o barniz'], ['chapa', 'Chapa de madera natural']], { visibleIf: (v) => /^mdf/.test(v.mat) }),
+    sel('chapa', 'Madera de la chapa', 'roble', VENEERS, { visibleIf: (v) => /^mdf/.test(v.mat) && v.acabadoMdf === 'chapa' }));
+}
+
 export const getType = (id) => FURNITURE.find((f) => f.id === id) || FURNITURE[0];
 
 export const defaultsFor = (type) =>
@@ -845,7 +855,8 @@ export function buildFurniture(typeId, values) {
   const type = getType(typeId);
   const v = { ...defaultsFor(type), ...normalizeValues(values || {}, type.id) };
   try {
-    return { fixtures: [], ...type.build(v), error: null };
+    const veneer = /^mdf/.test(v.mat) && v.acabadoMdf === 'chapa' ? (VENEERS.find((x) => x[0] === v.chapa) || VENEERS[0]) : null;
+    return { fixtures: [], ...type.build(v), veneer: veneer ? { id: veneer[0], name: veneer[1] } : null, error: null };
   } catch (e) {
     return { parts: [], fixtures: [], hardware: [], notes: [], bbox: { min: [0, 0, 0], max: [0, 0, 0], dims: [0, 0, 0] }, error: String(e) };
   }

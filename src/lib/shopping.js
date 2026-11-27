@@ -38,13 +38,25 @@ export function buildShopping(model, plans) {
   const mats = new Set(model.parts.map((p) => p.mat));
   const rawBoards = ['mdf18', 'ter18', 'ter15'].filter((m) => mats.has(m));
   const pine = model.parts.some((p) => p.kind === 'linear');
-  if (rawBoards.length) {
+  const veneer = model.veneer;
+  const paintBoards = veneer ? rawBoards.filter((m) => !/^mdf/.test(m)) : rawBoards;
+  if (paintBoards.length) {
     extra.push({ name: 'Sellador y pintura o barniz para MDF / terciado (1 galón)', qty: 1, note: 'Estos tableros vienen sin terminación; los cantos se pintan o se enchapan' });
+  }
+  if (veneer) { // MDF enchapado: chapas de 0,64 × 2,50 m por ambas caras, tapacanto de chapa en los cantos y cola fría
+    const mdf = model.parts.filter((p) => /^mdf/.test(p.mat) && p.kind === 'sheet');
+    const area = mdf.reduce((a, p) => a + 2 * (p.cut.l * p.cut.w) / 1e6, 0);
+    const sheetsV = Math.max(1, Math.ceil((area * 1.15) / (0.64 * 2.5)));
+    const edgeM = mdf.reduce((a, p) => a + (p.edgeWant || []).reduce((x, y) => x + y, 0), 0) / 1000;
+    extra.push({ name: `Chapa de madera natural ${veneer.name} 0,64 × 2,50 m`, qty: sheetsV, note: `Ambas caras de las piezas de MDF (${area.toFixed(1).replace('.', ',')} m² + 15 % de pérdida)` });
+    if (edgeM > 0) extra.push({ name: `Tapacanto de chapa natural ${veneer.name} 22 mm (metro)`, qty: Math.ceil(edgeM * 1.1), note: 'Para los cantos vistos; se pega con plancha' });
+    extra.push({ name: 'Cola fría para madera 1 kg (enchapado)', qty: Math.max(1, Math.ceil(area / 6)), note: 'Capa fina con esponja o brocha de pelo fino en el MDF y en la chapa' });
+    extra.push({ name: 'Barniz o aceite para la chapa (1 litro)', qty: 1, note: 'Protege la chapa una vez lijada' });
   }
   if (pine) {
     extra.push({ name: 'Barniz, aceite o pintura para la madera de pino (1 galón)', qty: 1, note: 'Para patas, faldones y listones' });
   }
-  if (pine || rawBoards.length) extra.push({ name: 'Lija grano 120 y 180 (pliegos)', qty: 4, note: 'Antes de aplicar la terminación' });
+  if (pine || rawBoards.length) extra.push({ name: 'Lija grano 120 y 180 (pliegos)', qty: 4, note: veneer ? 'Para la chapa usa grano fino (180–240) y lija suave, a favor de la veta' : 'Antes de aplicar la terminación' });
   const hardware = [...model.hardware, ...extra.filter((e) => !model.hardware.some((h) => h.name === e.name))];
   return { sheets, bars, edging, hardware, issues };
 }

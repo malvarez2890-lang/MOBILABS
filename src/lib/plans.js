@@ -213,7 +213,8 @@ export function techSpec(model, plans, shop, type, values) {
   const bars = shop.bars.map((b) => `${b.count} × ${b.name} (${b.stock})`);
   if (bars.length) rows.push(['Madera en listón', bars.join('; ')]);
   const mainMat = [...mats.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-  if (mainMat && FINISH[mainMat]) rows.push(['Acabado', FINISH[mainMat]]);
+  if (model.veneer && /^mdf/.test(mainMat || '')) rows.push(['Acabado', `MDF enchapado con chapa natural de ${model.veneer.name.toLowerCase()} (0,64 × 2,50 m), pegada con cola fría y plancha; tapacanto de chapa y barniz o aceite`]);
+  else if (mainMat && FINISH[mainMat]) rows.push(['Acabado', FINISH[mainMat]]);
   if (bars.length) rows.push(['Acabado de la madera', 'Lijar (grano 120 y 180), sellador y 2 manos de barniz o aceite']);
   rows.push(['Piezas', `${model.parts.length} piezas cortadas (${plans.groups.length} medidas distintas) y ${model.fixtures.filter((f) => f.kind !== 'handle').length} elementos comprados listos`]);
   const edge = shop.edging.map((e) => `${e.meters.toFixed(1).replace('.', ',')} m de ${e.width} mm`);
