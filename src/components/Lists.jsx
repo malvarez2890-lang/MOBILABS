@@ -51,7 +51,7 @@ export function CutList({ plans, onHover, selectedKeys, partialKeys, onSelect, s
                 <td className="r num">{fmt(g.l)}</td>
                 <td className="r num">{g.kind === 'sheet' ? fmt(g.w) : <span className="muted">{sectionLabel(g.mat)}</span>}</td>
                 <td className="r num"><b>{g.qty}</b></td>
-                <td className="mat" title={materialOf(g.mat).name}>{materialOf(g.mat).short}</td>
+                <td className="mat" title={`${materialOf(g.mat).name}${g.finish ? ` · ${g.finish}` : ''}`}>{materialOf(g.mat).short}{g.finish && <small className="fin"> · {g.finish}</small>}</td>
                 <td className="r num">{g.edgeMm ? `${(g.edgeMm / 1000).toFixed(2).replace('.', ',')} m` : '—'}</td>
               </tr>
             ))}
@@ -105,7 +105,7 @@ export function SheetPlans({ plans, choice = {}, onChoice, custom = {}, onCustom
         <span className="muted">Disco de {plans.kerf} mm{plans.rotate ? ' · piezas giradas permitidas' : ' · respetando la veta'}</span>
       </div>
       {sheetPlans.map((sp) => (
-        <div key={sp.mat} className="plan-block">
+        <div key={sp.key || sp.mat} className="plan-block">
           <h4>
             {sp.sheet.name} <span className="muted">· plancha {sp.W} × {sp.H} mm</span>
             <span className="badge">{sp.sheets.length} {sp.sheets.length === 1 ? 'plancha' : 'planchas'}</span>

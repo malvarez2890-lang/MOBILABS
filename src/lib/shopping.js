@@ -9,7 +9,7 @@ export function buildShopping(model, plans) {
     sp.unplaced.forEach((u) =>
       issues.push(`La pieza "${u.name}" (${fmt(u.l)} × ${fmt(u.w)} mm) no cabe en una plancha de ${sp.W} × ${sp.H} mm de ${sp.sheet.name}. Divídela o elige otro tablero.`));
     return {
-      id: sp.mat, choice: sp.choice, area: sp.W * sp.H, name: sp.sheet.name, size: `${sp.W} × ${sp.H} mm`, count: sp.sheets.length,
+      id: sp.mat, finish: sp.finish || null, choice: sp.choice, area: sp.W * sp.H, name: sp.sheet.name, size: `${sp.W} × ${sp.H} mm`, count: sp.sheets.length,
       usedPct: sp.usedPct, minSheets: sp.minSheets,
     };
   });
@@ -25,14 +25,13 @@ export function buildShopping(model, plans) {
   for (const p of model.parts) {
     if (!p.edges.length) continue;
     const t = SHEETS[p.mat].t;
-    edge[t] = (edge[t] || 0) + p.edges.reduce((a, b) => a + b, 0);
+    const k = `${t}|${p.finish || ''}`; // el tapacanto va del mismo tono que la melamina
+    edge[k] = (edge[k] || 0) + p.edges.reduce((a, b) => a + b, 0);
   }
-  const edging = Object.entries(edge).map(([t, mm]) => ({
-    width: Number(t) >= 18 ? 22 : 19,
-    meters: mm / 1000,
-    buy: Math.ceil((mm / 1000) * 1.1),
-    thickness: Number(t),
-  }));
+  const edging = Object.entries(edge).map(([k, mm]) => {
+    const [t, finish] = k.split('|');
+    return { width: Number(t) >= 18 ? 22 : 19, meters: mm / 1000, buy: Math.ceil((mm / 1000) * 1.1), thickness: Number(t), finish: finish || null };
+  });
 
   // terminaciones: la madera de pino y los tableros crudos (MDF, terciado) no vienen terminados
   const extra = [];

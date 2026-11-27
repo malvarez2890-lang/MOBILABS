@@ -5,10 +5,10 @@ import { labelFor } from './util.js';
 export function groupParts(parts) {
   const map = new Map();
   for (const p of parts) {
-    const key = `${p.kind}|${p.mat}|${p.name}|${p.cut.l}|${p.cut.w ?? ''}|${p.shape || ''}`;
+    const key = `${p.kind}|${p.mat}|${p.finish || ''}|${p.name}|${p.cut.l}|${p.cut.w ?? ''}|${p.shape || ''}`;
     let g = map.get(key);
     if (!g) {
-      g = { key, disc: p.shape === 'disc', name: p.name, mat: p.mat, kind: p.kind, l: p.cut.l, w: p.cut.w ?? null, t: p.cut.t ?? null, qty: 0, ids: [], edgeMm: 0 };
+      g = { key, finish: p.finish || null, disc: p.shape === 'disc', name: p.name, mat: p.mat, kind: p.kind, l: p.cut.l, w: p.cut.w ?? null, t: p.cut.t ?? null, qty: 0, ids: [], edgeMm: 0 };
       map.set(key, g);
     }
     g.qty++;
@@ -105,9 +105,10 @@ export function packAll(parts, opts = {}) {
 
   const sheetPlans = [];
   const barPlans = [];
-  const mats = [...new Set(groups.map((g) => g.mat))];
-  for (const mat of mats) {
-    const gs = groups.filter((g) => g.mat === mat);
+  // una plancha por material y terminación (melamina blanca y melamina roble se compran y cortan aparte)
+  const combos = [...new Map(groups.map((g) => [`${g.mat}|${g.finish || ''}`, [g.mat, g.finish || null]])).values()];
+  for (const [mat, finish] of combos) {
+    const gs = groups.filter((g) => g.mat === mat && (g.finish || null) === finish);
     if (mat in SHEETS) {
       const custom = opts.sheetCustom?.[mat];
       let choice = opts.sheetChoice?.[mat] === 'custom' && custom && custom.w > 0 && custom.l > 0 && SHEETS[mat].t > 3 ? 'custom' : opts.sheetChoice?.[mat] === 'alt' && SHEET_SIZES[mat] ? 'alt' : 'std';
@@ -121,12 +122,12 @@ export function packAll(parts, opts = {}) {
         choice = 'std'; fellBack = true; size = sheetSize(mat, 'std');
         packed = packRects(items, size[0], size[1], kerf, rotate);
       }
-      const m = { ...SHEETS[mat], size };
+      const m = { ...SHEETS[mat], size, name: finish ? `${SHEETS[mat].name} · ${finish}` : SHEETS[mat].name };
       const { sheets, unplaced } = packed;
       const pieceArea = items.reduce((a, it) => a + it.l * it.w, 0);
       const sheetArea = m.size[0] * m.size[1];
       sheetPlans.push({
-        mat, choice, fellBack, sheet: m, W: m.size[0], H: m.size[1], sheets, unplaced,
+        mat, finish, key: `${mat}|${finish || ''}`, choice, fellBack, sheet: m, W: m.size[0], H: m.size[1], sheets, unplaced,
         pieceArea, usedPct: sheets.length ? (pieceArea / (sheets.length * sheetArea)) * 100 : 0,
         minSheets: Math.ceil(pieceArea / sheetArea),
       });

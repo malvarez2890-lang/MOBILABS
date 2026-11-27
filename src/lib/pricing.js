@@ -24,9 +24,9 @@ const HW_RULES = [
   [/^barniz|^sellador/i, 9000], [/^lija/i, 1500], [/^cera/i, 2500], [/^tope/i, 1500],
 ];
 
-export const keyOfSheet = (id, choice) => (choice === 'alt' ? `sheet:${id}:alt` : `sheet:${id}`);
+export const keyOfSheet = (id, choice, finish) => `sheet:${id}${choice === 'alt' ? ':alt' : choice === 'custom' ? ':custom' : ''}${finish ? `:${finish}` : ''}`;
 export const keyOfBar = (id) => `bar:${id}`;
-export const keyOfEdge = (width) => `edge:${width}`;
+export const keyOfEdge = (width, finish) => `edge:${width}${finish ? `:${finish}` : ''}`;
 export const keyOfHardware = (name) => `hw:${name.trim().toLowerCase()}`;
 
 const hwDefault = (name) => {
@@ -50,7 +50,7 @@ export function priceShop(shop, prices = {}) {
   const groups = [
     {
       id: 'tableros', title: 'Tableros',
-      rows: shop.sheets.map((s) => row(keyOfSheet(s.id, s.choice), s.name, `plancha ${s.size}`, s.count, 'plancha', SHEET_DEFAULT[s.id] != null ? Math.round((SHEET_DEFAULT[s.id] * s.area) / (SHEETS[s.id].size[0] * SHEETS[s.id].size[1]) / 100) * 100 : null, `Aprovechamiento ${s.usedPct.toFixed(0)} %`)),
+      rows: shop.sheets.map((s) => row(keyOfSheet(s.id, s.choice, s.finish), s.name, `plancha ${s.size}`, s.count, 'plancha', SHEET_DEFAULT[s.id] != null ? Math.round((SHEET_DEFAULT[s.id] * s.area) / (SHEETS[s.id].size[0] * SHEETS[s.id].size[1]) / 100) * 100 : null, `Aprovechamiento ${s.usedPct.toFixed(0)} %`)),
     },
     {
       id: 'madera', title: 'Madera en listón',
@@ -58,7 +58,7 @@ export function priceShop(shop, prices = {}) {
     },
     {
       id: 'tapacanto', title: 'Tapacanto',
-      rows: shop.edging.map((e) => row(keyOfEdge(e.width), `Tapacanto de ${e.width} mm`, `para melamina de ${e.thickness} mm`, e.buy, 'metro', EDGE_PER_M, `${e.meters.toFixed(1).replace('.', ',')} m medidos + 10 % de margen`)),
+      rows: shop.edging.map((e) => row(keyOfEdge(e.width, e.finish), `Tapacanto de ${e.width} mm${e.finish ? ` · ${e.finish}` : ''}`, `para melamina de ${e.thickness} mm`, e.buy, 'metro', EDGE_PER_M, `${e.meters.toFixed(1).replace('.', ',')} m medidos + 10 % de margen`)),
     },
     {
       id: 'herrajes', title: 'Herrajes e insumos',
@@ -105,10 +105,11 @@ export function searchTerm(key = '', label = '', detail = '') {
   if (key.startsWith('sheet:')) {
     const nums = (/(\d+) × (\d+)/.exec(detail) || []).slice(1).map(Number); // "plancha 2500 × 1830 mm"
     const dim = nums.length ? ` ${(nums[1] / 1000).toFixed(2).replace('.', ',')} x ${(nums[0] / 1000).toFixed(2).replace('.', ',')}` : '';
-    return (SHEET_TERM[key.split(':')[1]] || label) + dim;
+    const finish = key.split(':').slice(2).filter((x) => x !== 'alt' && x !== 'custom')[0];
+    return (SHEET_TERM[key.split(':')[1]] || label) + (finish ? ` ${finish.toLowerCase()}` : '') + dim;
   }
   if (key.startsWith('bar:')) return BAR_TERM[key.slice(4)] || label;
-  if (key.startsWith('edge:')) return `tapacanto melamina ${key.slice(5)} mm`;
+  if (key.startsWith('edge:')) { const [, w, f] = key.split(':'); return `tapacanto melamina ${w} mm${f ? ` ${f.toLowerCase()}` : ''}`; }
   for (const [re, t] of HW_TERMS) {
     const m = re.exec(label);
     if (m) return typeof t === 'function' ? t(m) : t;

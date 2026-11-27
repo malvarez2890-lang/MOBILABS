@@ -20,6 +20,7 @@ import { AuthDialog, ResetDialog, DesignsDialog, AdminDialog, AccountButton, Pro
 import { api, getToken, setToken } from './lib/account.js';
 import { buildDrawing, techSpec } from './lib/plans.js';
 import { buildManual } from './lib/manual.js';
+import { withFinish } from './lib/finishes.js';
 import { solidsOf, toIfc, toRevitPy } from './lib/bim.js';
 import ContextMenu from './components/ContextMenu.jsx';
 import PropsDialog from './components/PropsDialog.jsx';
@@ -199,8 +200,21 @@ export default function App() {
   const reset = () => setStore((s) => ({ ...s, [type.id]: defaultsFor(type) }));
 
   const model = useMemo(() => buildFurniture(type.id, values), [type, values]);
-  const plans = useMemo(() => packAll(model.parts, settings), [model, settings]);
-  const shop = useMemo(() => buildShopping(model, plans), [model, plans]);
+  const { keyOf, idOf } = useMemo(() => partKeys(model.parts), [model]);
+  const lookCfg = useMemo(() => looksStore[typeId] || EMPTY_LOOK, [looksStore, typeId]);
+  const effectiveLook = (k) => ({ ...(lookCfg.all || {}), ...(lookCfg.parts[k] || {}) });
+  const looks = useMemo(() => {
+    const m = new Map();
+    for (const p of model.parts) {
+      const v = effectiveLook(keyOf.get(p.id));
+      if (v.color || v.texture) m.set(p.id, v);
+    }
+    return m;
+  }, [model, keyOf, lookCfg]);
+  // piezas con su terminación (color o textura de melamina): se cortan y se compran por tono
+  const finishParts = useMemo(() => withFinish(model.parts, looks), [model, looks]);
+  const plans = useMemo(() => packAll(finishParts, settings), [finishParts, settings]);
+  const shop = useMemo(() => buildShopping({ ...model, parts: finishParts }, plans), [model, finishParts, plans]);
   const priced = useMemo(() => priceShop(shop, prices), [shop, prices]);
   const [stepImgs, setStepImgs] = useState({}); // imágenes del manual: paso → imagen
   const [isoImg, setIsoImg] = useState(null); // render isométrico (imagen) tomado del visor 3D
@@ -211,7 +225,6 @@ export default function App() {
   const [bw, bh, bd] = model.bbox.dims;
 
   // ---- piezas: claves estables, selección múltiple, ocultas y aspecto ----
-  const { keyOf, idOf } = useMemo(() => partKeys(model.parts), [model]);
   const allKeys = useMemo(() => model.parts.map((p) => keyOf.get(p.id)), [model, keyOf]);
   const visibleKeys = useMemo(() => allKeys.filter((k) => !hiddenKeys.has(k)), [allKeys, hiddenKeys]);
   const idsOf = (keys) => { const s = new Set(); keys.forEach((k) => { const id = idOf.get(k); if (id) s.add(id); }); return s; };
@@ -228,16 +241,6 @@ export default function App() {
   const oneGroup = selGroups.length === 1 && fullKeys.size === 1 ? selGroups[0] : null;
   const keysOfIds = (ids) => ids.map((id) => keyOf.get(id)).filter(Boolean);
 
-  const lookCfg = useMemo(() => looksStore[typeId] || EMPTY_LOOK, [looksStore, typeId]);
-  const effectiveLook = (k) => ({ ...(lookCfg.all || {}), ...(lookCfg.parts[k] || {}) });
-  const looks = useMemo(() => {
-    const m = new Map();
-    for (const p of model.parts) {
-      const v = effectiveLook(keyOf.get(p.id));
-      if (v.color || v.texture) m.set(p.id, v);
-    }
-    return m;
-  }, [model, keyOf, lookCfg]);
 
   const targetKeys = selKeys.size ? [...selKeys] : null; // null = todo el mueble
   const currentLook = useMemo(() => {
